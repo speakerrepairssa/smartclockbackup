@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Test</title>
+</head>
+<body>
+    <h1>Login Test</h1>
+    
+    <h2>Admin Login Test</h2>
+    <button onclick="testAdminLogin()">Test Admin Login</button>
+    <div id="adminResult"></div>
+    
+    <h2>Auth Service Test</h2>
+    <button onclick="testAuthService()">Test Auth Service Import</button>
+    <div id="authResult"></div>
+
+    <script type="module">
+        // Test 1: Try to import auth service
+        window.testAuthService = async function() {
+            try {
+                document.getElementById('authResult').innerHTML = '<p>Testing auth service import...</p>';
+                
+                const authServiceModule = await import('../modules/auth/auth.service.js');
+                const authService = authServiceModule.default;
+                
+                document.getElementById('authResult').innerHTML = `
+                    <h3>✅ Auth Service Import Working!</h3>
+                    <p><strong>Module:</strong> ${typeof authService}</p>
+                    <p><strong>Admin Login Method:</strong> ${typeof authService.adminLogin}</p>
+                `;
+                
+                console.log("Auth service imported successfully", authService);
+            } catch (error) {
+                console.error("Auth service import error:", error);
+                document.getElementById('authResult').innerHTML = `
+                    <h3>❌ Auth Service Import Failed!</h3>
+                    <p style="color: red;"><strong>Error:</strong> ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test 2: Try admin login
+        window.testAdminLogin = async function() {
+            try {
+                document.getElementById('adminResult').innerHTML = '<p>Testing admin login...</p>';
+                
+                // Import auth service
+                const authServiceModule = await import('../modules/auth/auth.service.js');
+                const authService = authServiceModule.default;
+                
+                // Create instance if needed
+                let authInstance = authService;
+                if (typeof authService === 'function') {
+                    authInstance = new authService();
+                }
+                
+                // Test admin login
+                const result = await authInstance.adminLogin("info@simplewebhost.co.za", "Azam198419880001#");
+                
+                document.getElementById('adminResult').innerHTML = `
+                    <h3>✅ Admin Login Working!</h3>
+                    <p><strong>Role:</strong> ${result.role}</p>
+                    <p><strong>Email:</strong> ${result.email}</p>
+                    <p><strong>Session Storage:</strong> ${sessionStorage.getItem('userRole')}</p>
+                `;
+                
+                console.log("Admin login successful", result);
+            } catch (error) {
+                console.error("Admin login error:", error);
+                document.getElementById('adminResult').innerHTML = `
+                    <h3>❌ Admin Login Failed!</h3>
+                    <p style="color: red;"><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Stack:</strong> ${error.stack}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

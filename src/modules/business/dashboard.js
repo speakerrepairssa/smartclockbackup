@@ -32,7 +32,7 @@ class BusinessDashboardController {
   async init() {
     // Check authentication
     if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
-      window.location.href = "/pages/login.html";
+      window.location.href = "login.html";
       return;
     }
 
@@ -386,7 +386,7 @@ class BusinessDashboardController {
     this.stopPolling();
     try {
       await authService.logout();
-      window.location.href = "/pages/login.html";
+      window.location.href = "login.html";
     } catch (error) {
       console.error("Logout error:", error);
       showNotification("Error logging out", "error");
