@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Slot Sync Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 25px 0;
+            padding: 20px;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .result.success {
+            background: #f8fff9;
+            border-left-color: #28a745;
+        }
+        .result.error {
+            background: #fff5f5;
+            border-left-color: #dc3545;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.primary {
+            background: #28a745;
+            font-size: 16px;
+        }
+        input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px;
+            width: 200px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #e9ecef;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Slot Sync Tester</h1>
+        <p>Test the slot synchronization functionality for businesses.</p>
+        
+        <div class="test-section">
+            <h3>📊 Check Current Business Status</h3>
+            <label>Business ID:</label>
+            <input type="text" id="checkBusinessId" value="biz_srcomponents" placeholder="biz_businessname">
+            <button onclick="checkBusinessStatus()">Check Status</button>
+            <div id="statusResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔄 Test Slot Sync</h3>
+            <label>Business ID:</label>
+            <input type="text" id="syncBusinessId" value="biz_srcomponents" placeholder="biz_businessname">
+            <label>New Slot Count:</label>
+            <input type="number" id="newSlots" value="10" min="1" max="100">
+            <button class="primary" onclick="testSlotSync()">🚀 Sync Slots</button>
+            <div id="syncResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📋 View Staff Slots</h3>
+            <label>Business ID:</label>
+            <input type="text" id="viewBusinessId" value="biz_srcomponents" placeholder="biz_businessname">
+            <button onclick="viewStaffSlots()">View Slots</button>
+            <div id="slotsResult"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { 
+            collection, 
+            doc,
+            getDocs,
+            getDoc,
+            updateDoc
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { db } from './config/firebase.js';
+        
+        function addResult(elementId, type, title, message, data = null) {
+            const element = document.getElementById(elementId);
+            let html = `<div class="result ${type}">
+                <h4>${title}</h4>
+                <p>${message}</p>
+            `;
+            
+            if (data) {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            html += '</div>';
+            element.innerHTML = html;
+        }
+        
+        window.checkBusinessStatus = async function() {
+            const businessId = document.getElementById('checkBusinessId').value.trim();
+            
+            if (!businessId) {
+                alert('Please enter a business ID');
+                return;
+            }
+            
+            try {
+                addResult('statusResult', 'info', '⏳ Checking...', 'Loading business data...');
+                
+                const businessRef = doc(db, 'businesses', businessId);
+                const businessSnap = await getDoc(businessRef);
+                
+                if (!businessSnap.exists()) {
+                    addResult('statusResult', 'error', '❌ Not Found', `Business "${businessId}" not found`);
+                    return;
+                }
+                
+                const businessData = businessSnap.data();
+                
+                // Count staff slots
+                const staffRef = collection(db, 'businesses', businessId, 'staff');
+                const staffSnap = await getDocs(staffRef);
+                
+                const activeSlots = [];
+                const inactiveSlots = [];
+                
+                staffSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (data.isActive || data.active) {
+                        activeSlots.push({ id: doc.id, ...data });
+                    } else {
+                        inactiveSlots.push({ id: doc.id, ...data });
+                    }
+                });
+                
+                const statusInfo = {
+                    businessName: businessData.businessName,
+                    email: businessData.email,
+                    slotsAllowed: businessData.slotsAllowed,
+                    currentSlots: staffSnap.size,
+                    activeSlots: activeSlots.length,
+                    inactiveSlots: inactiveSlots.length,
+                    lastSlotSync: businessData.lastSlotSync || 'Never'
+                };
+                
+                let status = 'success';
+                let title = '✅ Business Status';
+                let message = `${businessData.businessName} has ${staffSnap.size} slots (${businessData.slotsAllowed} allowed)`;
+                
+                if (staffSnap.size !== businessData.slotsAllowed) {
+                    status = 'error';
+                    title = '⚠️ Slots Out of Sync!';
+                    message = `Mismatch detected! Has ${staffSnap.size} slots but should have ${businessData.slotsAllowed}`;
+                }
+                
+                addResult('statusResult', status, title, message, statusInfo);
+                
+            } catch (error) {
+                addResult('statusResult', 'error', '❌ Error', error.message);
+            }
+        };
+        
+        window.testSlotSync = async function() {
+            const businessId = document.getElementById('syncBusinessId').value.trim();
+            const newSlots = parseInt(document.getElementById('newSlots').value);
+            
+            if (!businessId || !newSlots) {
+                alert('Please enter both business ID and slot count');
+                return;
+            }
+            
+            try {
+                addResult('syncResult', 'info', '⏳ Syncing...', 'Calling Cloud Function...');
+                
+                const response = await fetch('https://syncbusinessslots-4q7htrps4q-uc.a.run.app', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        businessId: businessId,
+                        slotsAllowed: newSlots
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Sync failed');
+                }
+                
+                addResult('syncResult', 'success', '✅ Sync Successful!', 
+                    `Slots updated to ${newSlots}. Created: ${result.slotsCreated}, Removed: ${result.slotsRemoved}`,
+                    result);
+                
+            } catch (error) {
+                addResult('syncResult', 'error', '❌ Sync Failed', error.message);
+            }
+        };
+        
+        window.viewStaffSlots = async function() {
+            const businessId = document.getElementById('viewBusinessId').value.trim();
+            
+            if (!businessId) {
+                alert('Please enter a business ID');
+                return;
+            }
+            
+            try {
+                addResult('slotsResult', 'info', '⏳ Loading...', 'Fetching staff slots...');
+                
+                const staffRef = collection(db, 'businesses', businessId, 'staff');
+                const staffSnap = await getDocs(staffRef);
+                
+                if (staffSnap.empty) {
+                    addResult('slotsResult', 'error', '⚠️ No Slots Found', 
+                        `No staff slots found for business "${businessId}"`);
+                    return;
+                }
+                
+                const slots = [];
+                staffSnap.forEach(doc => {
+                    slots.push({
+                        slotId: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                // Sort by slot number
+                slots.sort((a, b) => {
+                    const aNum = parseInt(a.slotId) || parseInt(a.slotNumber) || 0;
+                    const bNum = parseInt(b.slotId) || parseInt(b.slotNumber) || 0;
+                    return aNum - bNum;
+                });
+                
+                addResult('slotsResult', 'success', `📋 Found ${slots.length} Slots`, 
+                    `Total staff slots for "${businessId}"`, slots);
+                
+            } catch (error) {
+                addResult('slotsResult', 'error', '❌ Error', error.message);
+            }
+        };
+        
+        console.log('Slot Sync Tester ready');
+    </script>
+</body>
+</html>

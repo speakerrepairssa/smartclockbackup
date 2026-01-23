@@ -1,0 +1,110 @@
+[debug] [2026-01-23T21:20:58.882Z] ----------------------------------------------------------------------
+[debug] [2026-01-23T21:20:58.901Z] Command:       /Users/mobalife/.nvm/versions/node/v20.18.3/bin/node /Users/mobalife/.nvm/versions/node/v20.18.3/bin/firebase serve --host 0.0.0.0
+[debug] [2026-01-23T21:20:58.901Z] CLI Version:   15.1.0
+[debug] [2026-01-23T21:20:58.902Z] Platform:      darwin
+[debug] [2026-01-23T21:20:58.902Z] Node Version:  v20.18.3
+[debug] [2026-01-23T21:20:58.902Z] Time:          Fri Jan 23 2026 23:20:58 GMT+0200 (South Africa Standard Time)
+[debug] [2026-01-23T21:20:58.902Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-23T21:21:00.825Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-01-23T21:21:00.826Z] > authorizing via signed-in user (info@simplewebhost.co.za)
+[debug] [2026-01-23T21:21:00.826Z] [iam] checking project aiclock-82608 for permissions ["firebase.projects.get"]
+[debug] [2026-01-23T21:21:00.827Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:00.828Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:00.829Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/aiclock-82608:testIamPermissions [none]
+[debug] [2026-01-23T21:21:00.829Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/aiclock-82608:testIamPermissions x-goog-quota-user=projects/aiclock-82608
+[debug] [2026-01-23T21:21:00.829Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/aiclock-82608:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2026-01-23T21:21:02.814Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/aiclock-82608:testIamPermissions 200
+[debug] [2026-01-23T21:21:02.815Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/aiclock-82608:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2026-01-23T21:21:02.816Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:02.816Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:02.816Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/aiclock-82608 [none]
+[debug] [2026-01-23T21:21:03.211Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/aiclock-82608 200
+[debug] [2026-01-23T21:21:03.211Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/aiclock-82608 {"projectNumber":"847148296718","projectId":"aiclock-82608","lifecycleState":"ACTIVE","name":"aiclock","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-01-03T07:57:15.835363Z"}
+[info] 
+[info] === Serving from '/Users/mobalife/Documents/Dropbox/projects development/aiclock'...
+[info] 
+[debug] [2026-01-23T21:21:03.214Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:03.214Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:03.218Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/aiclock-82608/sites 
+[debug] [2026-01-23T21:21:03.256Z] defaultcredentials: writing to file /Users/mobalife/.config/firebase/info_simplewebhost_co.za_application_default_credentials.json
+[debug] [2026-01-23T21:21:03.258Z] Setting GAC to /Users/mobalife/.config/firebase/info_simplewebhost_co.za_application_default_credentials.json {"metadata":{"emulator":{"name":"functions"},"message":"Setting GAC to /Users/mobalife/.config/firebase/info_simplewebhost_co.za_application_default_credentials.json"}}
+[debug] [2026-01-23T21:21:03.259Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:03.259Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:03.259Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608/adminSdkConfig [none]
+[debug] [2026-01-23T21:21:03.972Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608/adminSdkConfig 200
+[debug] [2026-01-23T21:21:03.972Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608/adminSdkConfig {"projectId":"aiclock-82608","databaseURL":"https://aiclock-82608-default-rtdb.firebaseio.com","storageBucket":"aiclock-82608.firebasestorage.app"}
+[debug] [2026-01-23T21:21:05.328Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/aiclock-82608/sites 200
+[debug] [2026-01-23T21:21:05.328Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/aiclock-82608/sites {"sites":[{"name":"projects/aiclock-82608/sites/aiclock-82608","defaultUrl":"https://aiclock-82608.web.app","type":"DEFAULT_SITE"},{"name":"projects/aiclock-82608/sites/aiclocksa","defaultUrl":"https://aiclocksa.web.app","appId":"1:847148296718:web:a8bf69cb527ee7c7e1ea5f","type":"USER_SITE"}]}
+[debug] [2026-01-23T21:21:05.328Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:05.328Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:05.328Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608/webApps/-/config [none]
+[debug] [2026-01-23T21:21:06.165Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608/webApps/-/config 200
+[debug] [2026-01-23T21:21:06.165Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608/webApps/-/config {"projectId":"aiclock-82608","appId":"1:847148296718:web:a8bf69cb527ee7c7e1ea5f","databaseURL":"https://aiclock-82608-default-rtdb.firebaseio.com","storageBucket":"aiclock-82608.firebasestorage.app","apiKey":"AIzaSyBssR7qaFYd1Bcm7urHQrKfLPVvdoZJ1kw","authDomain":"aiclock-82608.firebaseapp.com","messagingSenderId":"847148296718","measurementId":"G-L6LMK5WY01","projectNumber":"847148296718","version":"2"}
+[debug] [2026-01-23T21:21:06.179Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:06.179Z] Checked if tokens are valid: true, expires at: 1769204837856
+[debug] [2026-01-23T21:21:06.179Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608 [none]
+[debug] [2026-01-23T21:21:06.587Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608 200
+[debug] [2026-01-23T21:21:06.587Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/aiclock-82608 {"projectId":"aiclock-82608","projectNumber":"847148296718","displayName":"aiclock","name":"projects/aiclock-82608","resources":{"hostingSite":"aiclock-82608","realtimeDatabaseInstance":"aiclock-82608-default-rtdb"},"state":"ACTIVE","etag":"1_fbcc71fc-555d-44b1-96d5-aa85011a1aeb"}
+[info] i  functions: Watching "/Users/mobalife/Documents/Dropbox/projects development/aiclock/functions" for Cloud Functions... {"metadata":{"emulator":{"name":"functions"},"message":"Watching \"/Users/mobalife/Documents/Dropbox/projects development/aiclock/functions\" for Cloud Functions..."}}
+[info] i  hosting[aiclock-82608]: Serving hosting files from: src {"metadata":{"emulator":{"name":"hosting"},"message":"Serving hosting files from: \u001b[1msrc\u001b[22m"}}
+[info] ✔  hosting[aiclock-82608]: Local server: http://0.0.0.0:5000 {"metadata":{"emulator":{"name":"hosting"},"message":"Local server: \u001b[4m\u001b[1mhttp://0.0.0.0:5000\u001b[22m\u001b[24m"}}
+[debug] [2026-01-23T21:21:06.667Z] Validating nodejs source
+[warn] ⚠  functions: Couldn't find firebase-functions package in your source code. Have you run 'npm install'? 
+[debug] [2026-01-23T21:21:06.668Z] getFunctionsSDKVersion encountered error: Cannot find module 'firebase-functions'
+Require stack:
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/versioning.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorShared.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/frameworks/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/serve/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/commands/serve.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/commands/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/bin/cli.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/bin/firebase.js {"code":"MODULE_NOT_FOUND","requireStack":["/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/versioning.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/index.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorShared.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/frameworks/index.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/serve/index.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/commands/serve.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/commands/index.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/index.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/bin/cli.js","/Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/bin/firebase.js"]}
+[debug] [2026-01-23T21:21:06.669Z] checkFunctionsSDKVersion encountered error: Invalid Version:  {}
+[debug] [2026-01-23T21:21:06.670Z] > [functions] package.json contents: {
+  "name": "aiclock-functions",
+  "description": "Cloud Functions for AiClock Multi-tenant SaaS",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^4.8.0",
+    "busboy": "^1.6.0"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.1.0"
+  },
+  "private": true
+}
+[debug] [2026-01-23T21:21:06.670Z] Building nodejs source
+[debug] [2026-01-23T21:21:06.671Z] Failed to find version of module node: reached end of search path /Users/mobalife/Documents/Dropbox/projects development/aiclock/functions/node_modules
+[info] ✔  functions: Using node@20 from host. 
+[debug] [2026-01-23T21:21:06.672Z] Could not parse firebase-functions version '' into semver.
+[debug] [2026-01-23T21:21:06.673Z] Could not find functions.yaml. Must use http discovery
+[error] ⬢  functions: Failed to load function definition from source: Error: Cannot find module 'firebase-functions'
+Require stack:
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorShared.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/frameworks/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/serve/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/commands/serve.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/commands/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/index.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/bin/cli.js
+- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/bin/firebase.js {"metadata":{"emulator":{"name":"functions"},"message":"Failed to load function definition from source: Error: Cannot find module 'firebase-functions'\nRequire stack:\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/node/index.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/runtimes/index.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/deploy/functions/prepare.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/emulator/functionsEmulatorShared.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/frameworks/index.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/serve/index.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/commands/serve.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/commands/index.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/index.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/bin/cli.js\n- /Users/mobalife/.nvm/versions/node/v20.18.3/lib/node_modules/firebase-tools/lib/bin/firebase.js"}}

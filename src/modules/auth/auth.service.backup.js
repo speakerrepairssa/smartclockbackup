@@ -90,7 +90,7 @@ class AuthService {
       const businessDoc = querySnapshot.docs[0];
       const businessData = businessDoc.data();
 
-      // Verify password
+      // Verify password (in production, use Firebase Auth)
       if (businessData.password !== password) {
         throw new Error("Invalid password");
       }
@@ -123,7 +123,7 @@ class AuthService {
       };
     } catch (error) {
       console.error("Business login error:", error);
-      throw new Error(error.message);
+      throw new Error(this.getErrorMessage(error.code) || error.message);
     }
   }
 
@@ -158,18 +158,18 @@ class AuthService {
         password, // In production, hash this
         deviceId: deviceId || "",
         plan: "Basic",
-        slotsAllowed: 6,
+        slotsAllowed: 6, // Default to 6 slots
         monthlyFee: 29.99,
         status: "active",
-        approved: false,
-        apiEnabled: false,
-        breakDuration: 60,
+        approved: false, // Needs admin approval
+        apiEnabled: false, // Admin enables after device setup
+        breakDuration: 60, // Default 1 hour break
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
       console.log("Business document created");
 
-      // Initialize business slots
+      // Initialize business slots and collections
       await this.initializeBusinessSlots(businessId, 6);
       console.log("Business slots initialized");
 
@@ -181,14 +181,15 @@ class AuthService {
   }
 
   /**
-   * Initialize empty slots for a business
+   * Initialize empty slots and all collections for a business
    * @param {string} businessId 
    * @param {number} slotsAllowed 
    */
   async initializeBusinessSlots(businessId, slotsAllowed) {
     try {
-      console.log("Initializing slots for:", businessId);
+      console.log("Initializing complete collection structure for:", businessId);
       
+      // 1. Create Staff Collection with numbered slots
       const staffRef = collection(db, "businesses", businessId, "staff");
       for (let i = 1; i <= slotsAllowed; i++) {
         const slotRef = doc(staffRef, i.toString());
@@ -197,27 +198,114 @@ class AuthService {
           employeeName: `Employee ${i}`,
           badgeNumber: i.toString(),
           slotNumber: i,
-          active: false,
           isActive: false,
-          deviceId: "",
+          deviceId: "", // Blank - admin will set manually
           assignedAt: null,
           createdAt: new Date().toISOString()
         });
-
-        const statusRef = doc(collection(db, "businesses", businessId, "status"), i.toString());
-        await setDoc(statusRef, {
+      }
+      
+      // 2. Create Status Collection with numbered slots
+      const statusRef = collection(db, "businesses", businessId, "status");
+      for (let i = 1; i <= slotsAllowed; i++) {
+        const statusSlotRef = doc(statusRef, i.toString());
+        await setDoc(statusSlotRef, {
           employeeId: i.toString(),
           employeeName: `Employee ${i}`,
-          attendanceStatus: "out",
-          lastClockTime: null,
-          active: false,
-          deviceId: ""
+          currentStatus: "out",
+          lastUpdate: new Date().toISOString(),
+          isActive: false,
+          slotNumber: i,
+          deviceId: "" // Blank - admin will set manually
         });
       }
       
-      console.log(`Created ${slotsAllowed} slots for business ${businessId}`);
+      // 3. Create Employee Last Attendance Collection with numbered slots
+      const lastAttendanceRef = collection(db, "businesses", businessId, "employee_last_attendance");
+      for (let i = 1; i <= slotsAllowed; i++) {
+        const lastAttendanceSlotRef = doc(lastAttendanceRef, i.toString());
+        await setDoc(lastAttendanceSlotRef, {
+          employeeId: i.toString(),
+          employeeName: `Employee ${i}`,
+          lastClockIn: null,
+          lastClockOut: null,
+          currentStatus: "out",
+          lastUpdate: new Date().toISOString(),
+          deviceId: "" // Blank - admin will set manually
+        });
+      }
+      
+      console.log(`✅ Created complete collection structure for ${businessId} with ${slotsAllowed} slots`);
+      console.log("📋 Collections created: staff, status, employee_last_attendance");
+      console.log("🔧 Device fields left blank for manual admin assignment");
+      
+    } catch (error) {
+      console.error("Error initializing business collections:", error);
+      throw error;
+    }
+  }
+
+      console.log(`Successfully initialized ${slotsAllowed} slots for ${businessId}`);
     } catch (error) {
       console.error("Error initializing slots:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync staff slots when admin changes slotsAllowed
+   * @param {string} businessId 
+   * @param {number} newSlotsAllowed 
+   */
+  async syncBusinessSlots(businessId, newSlotsAllowed) {
+    try {
+      console.log(`🔄 Syncing slots for ${businessId}: ${newSlotsAllowed} slots`);
+      const staffRef = collection(db, "businesses", businessId, "staff");
+      
+      // Get current slots
+      const currentSlots = await getDocs(staffRef);
+      const currentSlotCount = currentSlots.size;
+      
+      console.log(`Current slots: ${currentSlotCount}, New slots: ${newSlotsAllowed}`);
+
+      if (newSlotsAllowed > currentSlotCount) {
+        // Add new slots
+        for (let i = currentSlotCount + 1; i <= newSlotsAllowed; i++) {
+          const slotRef = doc(staffRef, i.toString());
+          await setDoc(slotRef, {
+            employeeId: i.toString(),
+            employeeName: `Employee ${i}`,
+            badgeNumber: i.toString(),
+            deviceId: i.toString(),
+            slot: i,
+            active: false,
+            assignedAt: null,
+            createdAt: new Date().toISOString(),
+            status: "empty"
+          });
+        }
+        console.log(`✅ Added ${newSlotsAllowed - currentSlotCount} new slots`);
+        
+      } else if (newSlotsAllowed < currentSlotCount) {
+        // Remove excess slots (only if they're empty/inactive)
+        for (let i = currentSlotCount; i > newSlotsAllowed; i--) {
+          const slotDoc = currentSlots.docs.find(doc => doc.id === i.toString());
+          if (slotDoc) {
+            const slotData = slotDoc.data();
+            // Only remove if slot is not active (no employee assigned)
+            if (!slotData.active && (!slotData.employeeName || slotData.employeeName.startsWith('Employee '))) {
+              await deleteDoc(doc(staffRef, i.toString()));
+              console.log(`🗑️ Removed empty slot ${i}`);
+            } else {
+              console.log(`⚠️ Keeping slot ${i} - has active employee: ${slotData.employeeName}`);
+            }
+          }
+        }
+      }
+
+      console.log(`✅ Successfully synced slots for ${businessId}`);
+    } catch (error) {
+      console.error("❌ Error syncing slots:", error);
       throw error;
     }
   }
@@ -259,6 +347,25 @@ class AuthService {
    */
   getBusinessId() {
     return sessionStorage.getItem("businessId");
+  }
+
+  /**
+   * Get user-friendly error messages
+   * @param {string} errorCode 
+   * @returns {string}
+   */
+  getErrorMessage(errorCode) {
+    const errorMessages = {
+      "invalid-email": "Invalid email address",
+      "user-disabled": "This account has been disabled",
+      "user-not-found": "No account found with this email",
+      "wrong-password": "Incorrect password",
+      "email-already-in-use": "Email already in use",
+      "weak-password": "Password should be at least 6 characters",
+      "network-request-failed": "Network error. Please check your connection"
+    };
+
+    return errorMessages[errorCode] || "An error occurred. Please try again.";
   }
 }
 

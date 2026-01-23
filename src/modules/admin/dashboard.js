@@ -28,7 +28,7 @@ class AdminDashboardController {
   async init() {
     // Check authentication
     if (!authService.isAuthenticated() || authService.getUserRole() !== "admin") {
-      window.location.href = "login.html";
+      window.location.href = "/pages/login.html";
       return;
     }
 
