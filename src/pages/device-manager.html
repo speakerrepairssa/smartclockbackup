@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Manager - AiClock</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <style>
+    .device-container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 2rem;
+    }
+
+    .device-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .device-header h1 {
+      font-size: 1.8rem;
+      color: #333;
+      margin: 0;
+    }
+
+    .back-btn {
+      background: #f0f0f0;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .back-btn:hover {
+      background: #e0e0e0;
+    }
+
+    .device-section {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .devices-list {
+      margin-top: 1.5rem;
+    }
+
+    .device-card {
+      background: #f9f9f9;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    .device-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+    }
+
+    .device-info {
+      flex: 1;
+    }
+
+    .device-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .device-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.25rem;
+    }
+
+    .device-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(220, 53, 69, 0.4);
+    }
+
+    .btn-small {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    .message {
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      display: block;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      display: block;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      color: #667eea;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-badge.active {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-badge.inactive {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: #999;
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .message {
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+
+    .config-section {
+      background: #f8f9ff;
+      border: 2px solid #667eea;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .config-instructions {
+      background: #263238;
+      color: #e8eaf6;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      margin: 1rem 0;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+
+    .copy-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      margin-left: 0.5rem;
+    }
+
+    .copy-btn:hover {
+      background: #5a6fd8;
+    }
+
+    .test-connection {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .test-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .test-btn:hover {
+      background: #218838;
+    }
+
+    .test-result {
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .test-result.success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .test-result.failed {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .hikvision-form {
+      background: #fff3cd;
+      border: 2px solid #ffeaa7;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .webhook-url {
+      background: #e8f5e8;
+      border: 1px solid #c3e6cb;
+      padding: 1rem;
+      border-radius: 6px;
+      font-family: monospace;
+      word-break: break-all;
+      margin: 0.5rem 0;
+    }
+
+    .advanced-toggle {
+      color: #667eea;
+      cursor: pointer;
+      text-decoration: underline;
+      margin: 1rem 0;
+    }
+
+    .advanced-section {
+      display: none;
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 6px;
+      margin: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="device-container">
+    <div class="device-header">
+      <div>
+        <h1>🖥️ Device Manager</h1>
+        <p style="color: #666; margin: 0.5rem 0 0 0;">Manage devices linked to business</p>
+      </div>
+      <button class="back-btn" onclick="goBack()">← Back to Admin</button>
+    </div>
+
+    <div id="message" class="message"></div>
+
+    <!-- Register New Hikvision Device Section -->
+    <div class="device-section">
+      <div class="section-title">🎯 Add New Hikvision Device</div>
+      
+      <form onsubmit="handleRegisterDevice(event)">
+        <!-- Business & Device Basic Info -->
+        <div class="form-group">
+          <label>📍 Business Location Name</label>
+          <input type="text" id="locationName" placeholder="e.g., Main Office Reception" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>🏷️ Device Model</label>
+            <select id="deviceModel" onchange="updateDeviceSpecs()" required>
+              <option value="">Select Hikvision Model</option>
+              <option value="DS-K1T341CMFW">DS-K1T341CMFW (Face Recognition)</option>
+              <option value="DS-K1T804MF">DS-K1T804MF (Card + Face)</option>
+              <option value="DS-K1A804MF">DS-K1A804MF (Metal Face Terminal)</option>
+              <option value="DS-K3G401SF">DS-K3G401SF (Swing Gate)</option>
+              <option value="other">Other Hikvision Device</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>📱 Device IP Address</label>
+            <input type="text" id="deviceIP" placeholder="e.g., 192.168.0.114" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>🔑 Device ID/Serial</label>
+            <input type="text" id="deviceId" placeholder="e.g., FC4349999" required>
+          </div>
+
+          <div class="form-group">
+            <label>👤 Max Employees</label>
+            <select id="maxEmployees" required>
+              <option value="5">5 employees ($29.99/month)</option>
+              <option value="10">10 employees ($49.99/month)</option>
+              <option value="25">25 employees ($89.99/month)</option>
+              <option value="50">50 employees ($149.99/month)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="advanced-toggle" onclick="toggleAdvanced()">🔧 Advanced Network Settings</div>
+        <div id="advancedSection" class="advanced-section">
+          <div class="form-row">
+            <div class="form-group">
+              <label>📡 Device Username</label>
+              <input type="text" id="deviceUsername" placeholder="admin" value="admin">
+            </div>
+            <div class="form-group">
+              <label>🔐 Device Password</label>
+              <input type="password" id="devicePassword" placeholder="Device admin password">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>🌐 HTTP Port</label>
+              <input type="number" id="httpPort" value="80" min="1" max="65535">
+            </div>
+            <div class="form-group">
+              <label>🔒 HTTPS Port</label>
+              <input type="number" id="httpsPort" value="443" min="1" max="65535">
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; margin-top: 1rem;">
+          🚀 Register Device & Generate Configuration
+        </button>
+      </form>
+    </div>
+
+    <!-- Device Configuration Instructions Section -->
+    <div id="configSection" class="device-section" style="display: none;">
+      <div class="section-title">⚙️ Device Configuration Instructions</div>
+      
+      <div class="config-section">
+        <h3>📋 Copy These Settings to Your Device</h3>
+        <p>Access your device at: <strong id="deviceUrl"></strong></p>
+        
+        <div class="hikvision-form">
+          <h4>🌐 HTTP Listening Configuration</h4>
+          <p><strong>Path:</strong> Network → Advanced → HTTP Listening</p>
+          
+          <div class="form-row">
+            <div style="flex: 1;">
+              <strong>Enable HTTP Listening:</strong> ✅ ON<br>
+              <strong>Event Alarm IP/Domain:</strong> <span id="vpsIP">69.62.109.168</span>
+              <button class="copy-btn" onclick="copyToClipboard('69.62.109.168')">Copy</button><br>
+              <strong>URL:</strong> <span id="webhookPath"></span>
+              <button class="copy-btn" onclick="copyToClipboard(document.getElementById('webhookPath').textContent)">Copy</button><br>
+              <strong>Port:</strong> 7660<br>
+              <strong>Protocol:</strong> HTTP
+            </div>
+          </div>
+        </div>
+
+        <div class="test-connection">
+          <button class="test-btn" onclick="testDeviceConnection()">🔍 Test Connection</button>
+          <div id="testResult" class="test-result" style="display: none;"></div>
+        </div>
+
+        <div class="config-instructions" id="fullConfig">
+Complete Configuration Copy-Paste:
+
+1. Access Device Interface:
+   http://[DEVICE-IP]
+   Username: admin
+   Password: [your-device-password]
+
+2. Navigate to: Network → Advanced → HTTP Listening
+
+3. Set these values exactly:
+   ✅ Enable: ON
+   📡 Event Alarm IP: 69.62.109.168
+   🔗 URL: [WEBHOOK-PATH]
+   🌐 Port: 7660
+   📋 Protocol: HTTP
+   📤 HTTP Method: POST
+
+4. Navigate to: Event → Smart Event → Face Recognition
+   ✅ Enable Face Recognition Events
+   📤 Upload Center: Enable
+   🔗 Upload to HTTP Server: Enable
+
+5. Save and Apply Settings
+
+6. Test by scanning a face - you should see events in Firebase!
+        </div>
+
+        <button class="copy-btn" onclick="copyToClipboard(document.getElementById('fullConfig').textContent)">📋 Copy All Instructions</button>
+      </div>
+    </div>
+
+    <!-- Registered Devices Section -->
+    <div class="device-section">
+      <div class="section-title">📋 Registered Devices</div>
+      
+      <div id="devicesList" class="devices-list">
+        <div class="empty-state">
+          <div class="empty-icon">📱</div>
+          <p>No devices registered yet</p>
+          <p style="font-size: 0.9rem;">Register your first device above</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Processing...</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { 
+      collection, 
+      getDocs, 
+      doc, 
+      getDoc,
+      addDoc,
+      deleteDoc,
+      updateDoc
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from "/config/firebase.js";
+
+    let businessId = null;
+    let businessName = null;
+
+    async function initializePage() {
+      try {
+        // Get business ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        businessId = urlParams.get('businessId');
+
+        if (!businessId) {
+          showMessage("No business ID provided", "error");
+          return;
+        }
+
+        // Load business info
+        const businessRef = doc(db, "businesses", businessId);
+        const businessSnap = await getDoc(businessRef);
+
+        if (!businessSnap.exists()) {
+          showMessage("Business not found", "error");
+          return;
+        }
+
+        businessName = businessSnap.data().businessName;
+        document.querySelector('.section-title').textContent = `📋 Devices for ${businessName}`;
+        document.querySelector('.device-header h1').textContent = `🖥️ Device Manager - ${businessName}`;
+
+        // Load devices
+        await loadDevices();
+
+      } catch (error) {
+        console.error("Init error:", error);
+        showMessage("Error: " + error.message, "error");
+      }
+    }
+
+    async function loadDevices() {
+      try {
+        const devicesRef = collection(db, "businesses", businessId, "devices");
+        const devicesSnap = await getDocs(devicesRef);
+
+        const devicesList = document.getElementById('devicesList');
+
+        if (devicesSnap.empty) {
+          devicesList.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">📱</div>
+              <p>No devices registered yet</p>
+              <p style="font-size: 0.9rem;">Register your first device above</p>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        devicesSnap.forEach(doc => {
+          const device = doc.data();
+          const lastSeen = device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'Never';
+          const webhookUrl = `http://69.62.109.168:7660${device.webhookPath || ''}`;
+          const deviceUrl = `http://${device.deviceIP || 'N/A'}`;
+          
+          html += `
+            <div class="device-card">
+              <div class="device-info">
+                <div class="device-name">🖥️ ${device.locationName || device.deviceName || 'Unnamed Device'}</div>
+                <div class="device-details">
+                  <div class="detail-item">
+                    <span class="detail-label">Model:</span>
+                    <span>${device.deviceModel || device.deviceType || 'N/A'}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Device IP:</span>
+                    <span><a href="${deviceUrl}" target="_blank">${device.deviceIP || 'N/A'}</a></span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Device ID:</span>
+                    <span>${device.deviceId || device.serialNumber || 'N/A'}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Max Employees:</span>
+                    <span>${device.maxEmployees || 'N/A'}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Webhook URL:</span>
+                    <span style="font-family: monospace; font-size: 0.8rem;">${webhookUrl}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Connection:</span>
+                    <span class="status-badge ${device.connectionTested ? 'active' : 'inactive'}">
+                      ${device.connectionTested ? '✅ Tested' : '⚠️ Untested'}
+                    </span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Last Seen:</span>
+                    <span>${lastSeen}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Status:</span>
+                    <span class="status-badge ${device.status}">${device.status}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="device-actions">
+                <button class="btn btn-primary btn-small" onclick="showDeviceConfig('${doc.id}')">
+                  📋 Config
+                </button>
+                <button class="btn btn-secondary btn-small" onclick="editDeviceStatus('${doc.id}', '${device.status}')">
+                  ✏️ Edit
+                </button>
+                <button class="btn btn-success btn-small" onclick="testDeviceById('${doc.id}')">
+                  🔍 Test
+                </button>
+                <button class="btn btn-danger btn-small" onclick="deleteDevice('${doc.id}')">
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        devicesList.innerHTML = html;
+
+      } catch (error) {
+        console.error("Load devices error:", error);
+        showMessage("Error loading devices: " + error.message, "error");
+      }
+    }
+
+    window.handleRegisterDevice = async function(e) {
+      e.preventDefault();
+      
+      console.log("🔧 Device registration started");
+      
+      try {
+        document.getElementById('loading').style.display = 'block';
+
+        // Validate businessId
+        if (!businessId) {
+          throw new Error("No business ID available");
+        }
+
+        const locationName = document.getElementById('locationName').value;
+        const deviceModel = document.getElementById('deviceModel').value;
+        const deviceIP = document.getElementById('deviceIP').value;
+        const deviceId = document.getElementById('deviceId').value;
+        const maxEmployees = document.getElementById('maxEmployees').value;
+        const deviceUsername = document.getElementById('deviceUsername').value || 'admin';
+        const devicePassword = document.getElementById('devicePassword').value;
+        const httpPort = document.getElementById('httpPort').value || '80';
+        const httpsPort = document.getElementById('httpsPort').value || '443';
+
+        console.log("📝 Form data:", {
+          businessId,
+          locationName,
+          deviceModel,
+          deviceIP,
+          deviceId,
+          maxEmployees,
+          deviceUsername,
+          httpPort,
+          httpsPort
+        });
+
+        if (!locationName || !deviceModel || !deviceIP || !deviceId) {
+          throw new Error("All required fields must be filled");
+        }
+
+        // Generate webhook path based on device ID
+        const webhookPath = `/${deviceId.toLowerCase()}-webhook`;
+        
+        // Store device configuration in Firestore
+        const devicesRef = collection(db, "businesses", businessId, "devices");
+        console.log("📡 Adding device to Firestore...");
+        
+        await addDoc(devicesRef, {
+          locationName,
+          deviceModel,
+          deviceIP,
+          deviceId,
+          maxEmployees: parseInt(maxEmployees),
+          deviceUsername,
+          devicePassword: devicePassword ? btoa(devicePassword) : null, // Basic encoding
+          httpPort: parseInt(httpPort),
+          httpsPort: parseInt(httpsPort),
+          webhookPath,
+          vpsIP: '69.62.109.168',
+          vpsPort: 7660,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          lastSeen: null,
+          connectionTested: false
+        });
+
+        // Update business slots allowed and device count
+        const businessRef = doc(db, "businesses", businessId);
+        const devicesSnapshot = await getDocs(collection(db, "businesses", businessId, "devices"));
+        const deviceCount = devicesSnapshot.size + 1; // +1 for the device we just added
+        
+        await updateDoc(businessRef, {
+          slotsAllowed: parseInt(maxEmployees),
+          deviceId: deviceId,
+          deviceIp: deviceIP,
+          deviceCount: deviceCount,
+          lastDeviceUpdate: new Date().toISOString()
+        });
+
+        console.log("✅ Device registered successfully in Firestore");
+        
+        // Generate and show configuration instructions
+        generateConfigurationInstructions(deviceIP, deviceId, webhookPath);
+        
+        showMessage("✅ Device registered successfully! Configuration instructions generated below.", "success");
+        
+        // Clear form
+        document.querySelector('form').reset();
+        
+        // Reload devices
+        await loadDevices();
+
+        document.getElementById('loading').style.display = 'none';
+
+      } catch (error) {
+        console.error("❌ Register device error:", error);
+        showMessage("❌ Error: " + error.message, "error");
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    function generateConfigurationInstructions(deviceIP, deviceId, webhookPath) {
+      const configSection = document.getElementById('configSection');
+      const deviceUrl = document.getElementById('deviceUrl');
+      const webhookPathElement = document.getElementById('webhookPath');
+      const fullConfig = document.getElementById('fullConfig');
+
+      // Update dynamic values
+      deviceUrl.textContent = `http://${deviceIP}`;
+      webhookPathElement.textContent = webhookPath;
+      
+      // Update full configuration text
+      fullConfig.textContent = `
+Complete Configuration Copy-Paste:
+
+1. Access Device Interface:
+   http://${deviceIP}
+   Username: admin
+   Password: [your-device-password]
+
+2. Navigate to: Network → Advanced → HTTP Listening
+
+3. Set these values exactly:
+   ✅ Enable: ON
+   📡 Event Alarm IP: 69.62.109.168
+   🔗 URL: ${webhookPath}
+   🌐 Port: 7660
+   📋 Protocol: HTTP
+   📤 HTTP Method: POST
+
+4. Navigate to: Event → Smart Event → Face Recognition
+   ✅ Enable Face Recognition Events
+   📤 Upload Center: Enable
+   🔗 Upload to HTTP Server: Enable
+
+5. Save and Apply Settings
+
+6. Test by scanning a face - you should see events in Firebase!
+
+🎯 Webhook URL for reference:
+http://69.62.109.168:7660${webhookPath}
+
+📋 Device Details:
+- Device ID: ${deviceId}
+- Device IP: ${deviceIP}
+- Business: ${businessName}
+`;
+
+      // Show the configuration section
+      configSection.style.display = 'block';
+      configSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    window.toggleAdvanced = function() {
+      const section = document.getElementById('advancedSection');
+      section.style.display = section.style.display === 'none' ? 'block' : 'none';
+    };
+
+    window.updateDeviceSpecs = function() {
+      const model = document.getElementById('deviceModel').value;
+      // You can add model-specific defaults here
+      console.log("Selected model:", model);
+    };
+
+    window.copyToClipboard = async function(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showMessage("✅ Copied to clipboard!", "success");
+      } catch (err) {
+        console.error('Failed to copy:', err);
+        showMessage("❌ Failed to copy to clipboard", "error");
+      }
+    };
+
+    window.testDeviceConnection = async function() {
+      const testResult = document.getElementById('testResult');
+      const deviceIP = document.getElementById('deviceIP')?.value;
+      
+      if (!deviceIP) {
+        showMessage("❌ Please register device first", "error");
+        return;
+      }
+
+      testResult.style.display = 'block';
+      testResult.className = 'test-result';
+      testResult.textContent = '🔍 Testing connection...';
+
+      try {
+        // Test device HTTP response
+        const response = await fetch(`http://${deviceIP}`, { 
+          method: 'HEAD',
+          mode: 'no-cors',
+          timeout: 5000
+        });
+        
+        testResult.className = 'test-result success';
+        testResult.textContent = '✅ Device is reachable!';
+        
+      } catch (error) {
+        testResult.className = 'test-result failed';
+        testResult.textContent = '❌ Device not reachable. Check IP address and network connectivity.';
+      }
+    };
+
+    window.editDeviceStatus = async function(deviceId, currentStatus) {
+      const newStatus = prompt("Enter new status (active/inactive/maintenance):", currentStatus);
+      if (!newStatus || !['active', 'inactive', 'maintenance'].includes(newStatus)) {
+        return;
+      }
+
+      try {
+        const deviceRef = doc(db, "businesses", businessId, "devices", deviceId);
+        await updateDoc(deviceRef, { status: newStatus });
+        showMessage("✅ Device status updated!", "success");
+        await loadDevices();
+      } catch (error) {
+        showMessage("Error: " + error.message, "error");
+      }
+    };
+
+    window.showDeviceConfig = async function(deviceId) {
+      try {
+        const deviceRef = doc(db, "businesses", businessId, "devices", deviceId);
+        const deviceSnap = await getDoc(deviceRef);
+        
+        if (!deviceSnap.exists()) {
+          showMessage("Device not found", "error");
+          return;
+        }
+
+        const device = deviceSnap.data();
+        generateConfigurationInstructions(device.deviceIP, device.deviceId, device.webhookPath);
+        
+      } catch (error) {
+        showMessage("Error loading device config: " + error.message, "error");
+      }
+    };
+
+    window.testDeviceById = async function(deviceId) {
+      try {
+        const deviceRef = doc(db, "businesses", businessId, "devices", deviceId);
+        const deviceSnap = await getDoc(deviceRef);
+        
+        if (!deviceSnap.exists()) {
+          showMessage("Device not found", "error");
+          return;
+        }
+
+        const device = deviceSnap.data();
+        showMessage("🔍 Testing device connection via webhook...", "info");
+        
+        // Test via webhook URL instead of direct device connection
+        try {
+          const webhookUrl = device.webhookURL;
+          if (!webhookUrl) {
+            showMessage("❌ No webhook URL configured for this device", "error");
+            return;
+          }
+          
+          // Send a test event to the webhook
+          const testPayload = {
+            deviceId: device.deviceId,
+            employeeId: "test",
+            employeeName: "Test User",
+            attendanceStatus: "test",
+            timestamp: new Date().toISOString(),
+            testMode: true
+          };
+          
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testPayload)
+          });
+          
+          if (response.ok) {
+            // Update device as tested
+            await updateDoc(deviceRef, { 
+              connectionTested: true, 
+              lastSeen: new Date().toISOString(),
+              lastTestResult: 'success'
+            });
+            
+            showMessage(`✅ Device ${device.locationName} webhook test successful!`, "success");
+            await loadDevices(); // Refresh list
+          } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+        } catch (error) {
+          console.error("Test error:", error);
+          await updateDoc(deviceRef, { 
+            lastTestResult: 'failed',
+            lastTestError: error.message 
+          });
+          showMessage(`❌ Webhook test failed: ${error.message}`, "error");
+        }
+        
+      } catch (error) {
+        showMessage("Error testing device: " + error.message, "error");
+      }
+    };
+
+    window.deleteDevice = async function(deviceId) {
+      if (!confirm("Are you sure you want to delete this device?")) return;
+
+      try {
+        document.getElementById('loading').style.display = 'block';
+        const deviceRef = doc(db, "businesses", businessId, "devices", deviceId);
+        await deleteDoc(deviceRef);
+        
+        // Update business device count
+        const devicesSnapshot = await getDocs(collection(db, "businesses", businessId, "devices"));
+        const deviceCount = devicesSnapshot.size; // Already decreased by 1 from deletion
+        
+        const businessRef = doc(db, "businesses", businessId);
+        await updateDoc(businessRef, {
+          deviceCount: deviceCount,
+          lastDeviceUpdate: new Date().toISOString()
+        });
+        
+        showMessage("✅ Device deleted!", "success");
+        await loadDevices();
+        document.getElementById('loading').style.display = 'none';
+      } catch (error) {
+        showMessage("Error: " + error.message, "error");
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    window.goBack = function() {
+      window.location.href = "/pages/admin-dashboard.html";
+    };
+
+    function showMessage(msg, type) {
+      const msgEl = document.getElementById('message');
+      msgEl.textContent = msg;
+      msgEl.className = `message ${type}`;
+    }
+
+    // Initialize page
+    initializePage();
+  </script>
+</body>
+</html>

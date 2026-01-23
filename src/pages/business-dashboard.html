@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Dashboard - AiClock</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    .dashboard-wrapper {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 200px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem 1rem;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      font-size: 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sidebar-menu {
+      list-style: none;
+    }
+
+    .sidebar-menu li {
+      margin-bottom: 1rem;
+    }
+
+    .sidebar-menu button {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .sidebar-menu button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+
+    .sidebar-menu button.active {
+      background: rgba(255, 255, 255, 0.3);
+      border-left: 3px solid white;
+    }
+
+    .sidebar-footer {
+      position: absolute;
+      bottom: 1rem;
+      width: 180px;
+    }
+
+    .logout-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255, 67, 67, 0.8);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255, 67, 67, 1);
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: 200px;
+      flex: 1;
+      padding: 2rem;
+    }
+
+    .dashboard-header {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-title {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-title h1 {
+      font-size: 1.8rem;
+      color: #667eea;
+      margin-bottom: 0.25rem;
+    }
+
+    .header-title p {
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-small {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-icon {
+      font-size: 2.5rem;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .stat-subtext {
+      color: #999;
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Modules Grid */
+    .modules-section {
+      margin-top: 2rem;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+
+    .section-description {
+      color: #666;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .module-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      border: 2px solid transparent;
+    }
+
+    .module-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+      border-color: #667eea;
+    }
+
+    .module-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .module-name {
+      font-weight: 600;
+      color: #333;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .module-status {
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 0.5rem;
+    }
+
+    /* Views */
+    .view-section {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: none;
+    }
+
+    .view-section.active {
+      display: block;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        padding: 1rem;
+      }
+
+      .main-content {
+        margin-left: 0;
+        padding: 1rem;
+      }
+
+      .dashboard-header {
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .modules-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      }
+
+      .stat-card {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .sidebar-footer {
+        position: relative;
+        width: 100%;
+        margin-top: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">🕐 AiClock</div>
+      <ul class="sidebar-menu">
+        <li><button class="menu-btn active" data-module="dashboard">📊 Dashboard</button></li>
+        <li><button class="menu-btn" data-module="monitor">🔴 Monitor Mode</button></li>
+        <li><button class="menu-btn" data-module="attendance">✓ Attendance</button></li>
+        <li><button class="menu-btn" data-module="reports">📈 Reports</button></li>
+        <li><button class="menu-btn" data-module="employees">👥 Employees</button></li>
+        <li><button class="menu-btn" data-module="timecard">🕐 Timecard</button></li>
+        <li><button class="menu-btn" data-module="settings">⚙️ Settings</button></li>
+      </ul>
+      <div class="sidebar-footer">
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <div class="dashboard-header">
+        <div class="header-title">
+          <h1 id="businessName">Business Dashboard</h1>
+          <p id="userEmail">Loading...</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="refreshBtn">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">👥</div>
+          <div>
+            <div class="stat-label">Active Employees</div>
+            <div class="stat-value" id="activeEmployees">0</div>
+            <div class="stat-subtext">Out of 5 slots</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">✓</div>
+          <div>
+            <div class="stat-label">Present Today</div>
+            <div class="stat-value" id="presentToday">0</div>
+            <div class="stat-subtext">Clocked in</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🕐</div>
+          <div>
+            <div class="stat-label">Plan Status</div>
+            <div class="stat-value" id="planStatus">Basic</div>
+            <div class="stat-subtext">Active Plan</div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🎯</div>
+          <div>
+            <div class="stat-label">Attendance Rate</div>
+            <div class="stat-value" id="attendanceRate">--</div>
+            <div class="stat-subtext">This month</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard View -->
+      <div class="view-section active" id="dashboardView">
+        <div class="modules-section">
+          <h2 class="section-title">Quick Access Modules</h2>
+          <p class="section-description">Click any module to manage your business operations</p>
+
+          <div class="modules-grid">
+            <div class="module-card" data-module="monitor">
+              <div class="module-icon">📊</div>
+              <div class="module-name">Monitor Mode</div>
+              <div class="module-status">Live Status</div>
+            </div>
+
+            <div class="module-card" data-module="attendance">
+              <div class="module-icon">✓</div>
+              <div class="module-name">Attendance Tracker</div>
+              <div class="module-status">History</div>
+            </div>
+
+            <div class="module-card" data-module="timecard">
+              <div class="module-icon">🕐</div>
+              <div class="module-name">Timecard</div>
+              <div class="module-status">Daily Hours</div>
+            </div>
+
+            <div class="module-card" data-module="reports">
+              <div class="module-icon">📈</div>
+              <div class="module-name">Reports</div>
+              <div class="module-status">Analytics</div>
+            </div>
+
+            <div class="module-card" data-module="employees">
+              <div class="module-icon">👥</div>
+              <div class="module-name">Employees</div>
+              <div class="module-status">Manage Staff</div>
+            </div>
+
+            <div class="module-card" data-module="settings">
+              <div class="module-icon">⚙️</div>
+              <div class="module-name">Settings</div>
+              <div class="module-status">Configuration</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monitor View (Real-Time) -->
+      <div class="view-section" id="monitorView">
+        <style>
+          .monitor-header {
+            background: #2c3e50;
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+          }
+
+          .monitor-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+          }
+
+          .monitor-actions {
+            display: flex;
+            gap: 1rem;
+          }
+
+          .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+          }
+
+          .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+          }
+
+          .monitor-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+          }
+
+          .status-section {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          }
+
+          .status-header {
+            padding: 1rem;
+            color: white;
+            font-weight: 700;
+            font-size: 1.3rem;
+            text-align: center;
+          }
+
+          .status-header.in {
+            background: #4caf50;
+          }
+
+          .status-header.out {
+            background: #f44336;
+          }
+
+          .status-body {
+            padding: 1.5rem;
+            min-height: 300px;
+          }
+
+          .employee-item {
+            padding: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .employee-item:last-child {
+            border-bottom: none;
+          }
+
+          .employee-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95rem;
+          }
+
+          .employee-slot {
+            color: #999;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+          }
+
+          .employee-time {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #f44336;
+            text-align: right;
+          }
+
+          .no-employees {
+            text-align: center;
+            color: #999;
+            padding: 2rem;
+          }
+
+          .monitor-footer {
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          }
+
+          .refresh-time {
+            color: #667eea;
+            font-weight: 600;
+          }
+
+          @media (max-width: 768px) {
+            .monitor-header {
+              flex-direction: column;
+              gap: 1rem;
+              text-align: center;
+            }
+
+            .monitor-content {
+              grid-template-columns: 1fr;
+            }
+          }
+        </style>
+
+        <!-- Monitor Header -->
+        <div class="monitor-header">
+          <div class="monitor-title">
+            <button class="back-btn" onclick="switchModule('dashboard')">← Back</button>
+            <span>🕐 LIVE ATTENDANCE MONITOR</span>
+          </div>
+          <button class="btn btn-primary" onclick="loadMonitorData()">↻ Refresh</button>
+        </div>
+
+        <!-- Debug Section -->
+        <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #ffc107;">
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button class="btn btn-small" onclick="addTestEmployee()" style="background: #28a745; color: white;">+ Add Test Employee (IN)</button>
+            <button class="btn btn-small" onclick="addTestEmployeeOut()" style="background: #dc3545; color: white;">+ Add Test Employee (OUT)</button>
+            <button class="btn btn-small" onclick="clearAllStaff()" style="background: #6c757d; color: white;">Clear All Staff</button>
+          </div>
+        </div>
+
+        <!-- Monitor Content -->
+        <div class="monitor-content" id="monitorContent">
+          <!-- IN Section -->
+          <div class="status-section">
+            <div class="status-header in">IN</div>
+            <div class="status-body" id="inEmployees">
+              <div class="no-employees">Loading...</div>
+            </div>
+          </div>
+
+          <!-- OUT Section -->
+          <div class="status-section">
+            <div class="status-header out">OUT</div>
+            <div class="status-body" id="outEmployees">
+              <div class="no-employees">Loading...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monitor Footer -->
+        <div class="monitor-footer">
+          ⏱ Auto-refreshes every 30 seconds • Last updated: <span class="refresh-time" id="lastUpdateTime">Just now</span>
+        </div>
+      </div>
+
+      <!-- Reports View -->
+      <div class="view-section" id="reportsView">
+        <h2 class="section-title">Reports</h2>
+        <p class="section-description">View detailed attendance and performance reports</p>
+        <div id="reportsContent" style="padding: 2rem; text-align: center; color: #999;">
+          Loading reports...
+        </div>
+      </div>
+
+      <!-- Employees View -->
+      <div class="view-section" id="employeesView">
+        <h2 class="section-title">Employees</h2>
+        <p class="section-description">Manage your team members and slots</p>
+        <div id="employeesContent" style="padding: 2rem; text-align: center; color: #999;">
+          Loading employees...
+        </div>
+      </div>
+
+      <!-- Timecard View -->
+      <div class="view-section" id="timecardView">
+        <h2 class="section-title">Timecard</h2>
+        <p class="section-description">View daily hours and working time</p>
+        <div id="timecardContent" style="padding: 2rem; text-align: center; color: #999;">
+          Loading timecard...
+        </div>
+      </div>
+
+      <!-- Settings View -->
+      <div class="view-section" id="settingsView">
+        <h2 class="section-title">Settings</h2>
+        <p class="section-description">Configure your business preferences</p>
+        <div id="settingsContent" style="padding: 2rem; text-align: center; color: #999;">
+          Loading settings...
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import authService from '/modules/auth/auth.service.js';
+    import { doc, getDoc, collection, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from '/config/firebase.js';
+
+    let businessId = null;
+    let pollingInterval = null;
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+      initDashboard();
+    });
+
+    async function initDashboard() {
+      // Check authentication
+      if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
+        window.location.href = '/pages/login.html';
+        return;
+      }
+
+      businessId = authService.getBusinessId();
+      const businessName = sessionStorage.getItem("businessName");
+      const userEmail = sessionStorage.getItem("userEmail") || sessionStorage.getItem("businessId");
+      
+      document.getElementById('businessName').textContent = businessName || "Business Dashboard";
+      document.getElementById('userEmail').textContent = userEmail;
+
+      loadDashboardData();
+      setupEventListeners();
+      
+      // Start polling for monitor mode - auto-refresh every 30 seconds
+      if (pollingInterval) clearInterval(pollingInterval);
+      pollingInterval = setInterval(() => {
+        if (document.querySelector('.menu-btn[data-module="monitor"].active')) {
+          loadMonitorData();
+        }
+      }, 30000); // Refresh every 30 seconds when monitor is active
+    }
+
+    function setupEventListeners() {
+      // Menu buttons
+      document.querySelectorAll('.menu-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          const module = this.dataset.module;
+          switchModule(module);
+        });
+      });
+
+      // Module cards
+      document.querySelectorAll('.module-card[data-module]').forEach(card => {
+        card.addEventListener('click', function(e) {
+          const module = this.dataset.module;
+          switchModule(module);
+        });
+      });
+
+      // Logout
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        if (pollingInterval) clearInterval(pollingInterval);
+        await authService.logout();
+        window.location.href = '/pages/login.html';
+      });
+
+      // Refresh
+      document.getElementById('refreshBtn').addEventListener('click', () => {
+        loadDashboardData();
+        loadMonitorData();
+      });
+    }
+
+    function switchModule(module) {
+      // Update menu
+      document.querySelectorAll('.menu-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.module === module) {
+          btn.classList.add('active');
+        }
+      });
+
+      // Update view
+      document.querySelectorAll('.view-section').forEach(view => {
+        view.classList.remove('active');
+      });
+      
+      let viewId = module + 'View';
+      if (module === 'dashboard') viewId = 'dashboardView';
+      if (module === 'monitor') viewId = 'monitorView';
+      
+      const view = document.getElementById(viewId);
+      if (view) {
+        view.classList.add('active');
+      }
+
+      if (module === 'monitor') {
+        loadMonitorData();
+      } else {
+        loadModuleData(module);
+      }
+    }
+
+    async function loadDashboardData() {
+      try {
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+
+        if (businessDoc.exists()) {
+          const data = businessDoc.data();
+          document.getElementById('planStatus').textContent = data.plan || 'Basic';
+          
+          // Load staff to count active employees
+          const staffRef = collection(db, "businesses", businessId, "staff");
+          const staffSnap = await getDocs(staffRef);
+          const activeCount = Array.from(staffSnap.docs).filter(doc => doc.data().active).length;
+          
+          document.getElementById('activeEmployees').textContent = activeCount;
+          document.getElementById('presentToday').textContent = activeCount;
+          document.getElementById('attendanceRate').textContent = '95%';
+        }
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+      }
+    }
+
+    async function loadMonitorData() {
+      try {
+        console.log("Loading monitor data for business:", businessId);
+        
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const staffSnap = await getDocs(staffRef);
+        
+        console.log("Retrieved staff documents:", staffSnap.size);
+        
+        let inEmployees = [];
+        let outEmployees = [];
+        
+        staffSnap.forEach(doc => {
+          const staff = doc.data();
+          console.log("Processing employee:", staff.employeeName, "active:", staff.active);
+          if (staff.active) {
+            inEmployees.push(staff);
+          } else {
+            outEmployees.push(staff);
+          }
+        });
+
+        console.log("IN employees:", inEmployees.length);
+        console.log("OUT employees:", outEmployees.length);
+
+        // Render IN employees
+        let inHtml = '';
+        if (inEmployees.length === 0) {
+          inHtml = '<div class="no-employees">No employees clocked in</div>';
+        } else {
+          inEmployees.forEach(emp => {
+            inHtml += `
+              <div class="employee-item">
+                <div>
+                  <div class="employee-name">${emp.employeeName}</div>
+                  <div class="employee-slot">SLOT ${emp.slot}</div>
+                </div>
+              </div>
+            `;
+          });
+        }
+        document.getElementById('inEmployees').innerHTML = inHtml;
+
+        // Render OUT employees
+        let outHtml = '';
+        if (outEmployees.length === 0) {
+          outHtml = '<div class="no-employees">No employees clocked out</div>';
+        } else {
+          outEmployees.forEach(emp => {
+            const duration = formatDuration(emp.outTime || 0);
+            outHtml += `
+              <div class="employee-item">
+                <div>
+                  <div class="employee-name">${emp.employeeName}</div>
+                  <div class="employee-slot">SLOT ${emp.slot}</div>
+                </div>
+                <div class="employee-time">${duration}</div>
+              </div>
+            `;
+          });
+        }
+        document.getElementById('outEmployees').innerHTML = outHtml;
+
+        // Update timestamp
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+        document.getElementById('lastUpdateTime').textContent = timeStr;
+
+      } catch (error) {
+        console.error("Error loading monitor data:", error);
+        console.error("Error code:", error.code);
+        const errorMsg = error.code === 'permission-denied' ? 'Permission denied - check Firestore rules' : error.message;
+        document.getElementById('inEmployees').innerHTML = '<div class="no-employees" style="color: #c33;">Error: ' + errorMsg + '</div>';
+        document.getElementById('outEmployees').innerHTML = '<div class="no-employees"></div>';
+      }
+    }
+
+    function formatDuration(timestamp) {
+      // Format as HH:MM:SS
+      const date = new Date(timestamp);
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
+    }
+
+    async function loadModuleData(module) {
+      console.log('Loading module:', module);
+      
+      const contentIds = {
+        'attendance': 'attendanceContent',
+        'reports': 'reportsContent',
+        'employees': 'employeesContent',
+        'timecard': 'timecardContent',
+        'settings': 'settingsContent'
+      };
+
+      const contentId = contentIds[module];
+      if (contentId) {
+        const content = document.getElementById(contentId);
+        if (content) {
+          setTimeout(() => {
+            content.innerHTML = `<p style="color: #999;">Module content for ${module} will be displayed here</p>`;
+          }, 500);
+        }
+      }
+    }
+
+    // Debug functions for testing
+    async function addTestEmployee() {
+      try {
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const slotRef = doc(staffRef, "1");
+        await setDoc(slotRef, {
+          employeeId: "1",
+          employeeName: "John Smith",
+          badgeNumber: "1001",
+          deviceId: "device_1",
+          slot: 1,
+          active: true,
+          assignedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        });
+        console.log("Test employee added (IN)");
+        loadMonitorData();
+      } catch (error) {
+        console.error("Error adding test employee:", error);
+        alert("Error: " + error.message);
+      }
+    }
+
+    async function addTestEmployeeOut() {
+      try {
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const slotRef = doc(staffRef, "2");
+        await setDoc(slotRef, {
+          employeeId: "2",
+          employeeName: "Jane Doe",
+          badgeNumber: "1002",
+          deviceId: "device_2",
+          slot: 2,
+          active: false,
+          assignedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          outTime: new Date().getTime()
+        });
+        console.log("Test employee added (OUT)");
+        loadMonitorData();
+      } catch (error) {
+        console.error("Error adding test employee:", error);
+        alert("Error: " + error.message);
+      }
+    }
+
+    async function clearAllStaff() {
+      try {
+        if (!confirm("Are you sure? This will clear all staff data.")) return;
+        
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const staffSnap = await getDocs(staffRef);
+        
+        for (let doc of staffSnap.docs) {
+          await deleteDoc(doc.ref);
+        }
+        console.log("All staff cleared");
+        loadMonitorData();
+      } catch (error) {
+        console.error("Error clearing staff:", error);
+        alert("Error: " + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

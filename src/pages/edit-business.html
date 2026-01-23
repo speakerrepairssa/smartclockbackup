@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Business - AiClock</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <style>
+    .edit-container {
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .edit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .edit-header h1 {
+      font-size: 1.8rem;
+      color: #333;
+      margin: 0;
+    }
+
+    .back-btn {
+      background: #f0f0f0;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .back-btn:hover {
+      background: #e0e0e0;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 2px solid #f0f0f0;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(220, 53, 69, 0.4);
+    }
+
+    .message {
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      display: block;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      display: block;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      color: #667eea;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .field-info {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+
+    .devices-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .device-checkbox {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #f9f9f9;
+    }
+
+    .device-checkbox:hover {
+      border-color: #667eea;
+      background: #f5f7ff;
+    }
+
+    .device-checkbox input[type="checkbox"] {
+      margin-right: 0.75rem;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .device-checkbox input[type="checkbox"]:checked + label {
+      color: #667eea;
+      font-weight: 700;
+    }
+
+    .device-checkbox label {
+      cursor: pointer;
+      flex: 1;
+      margin: 0;
+    }
+
+    .device-info-small {
+      font-size: 0.75rem;
+      color: #999;
+      margin-top: 0.25rem;
+    }
+
+    .no-devices-msg {
+      padding: 2rem;
+      text-align: center;
+      color: #999;
+      background: #f9f9f9;
+      border-radius: 8px;
+      border: 2px dashed #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+  <div class="edit-container">
+    <div class="edit-header">
+      <h1>Edit Business</h1>
+      <button class="back-btn" onclick="goBack()">← Back</button>
+    </div>
+
+    <div id="message" class="message"></div>
+
+    <form onsubmit="handleSave(event)">
+      <div class="form-group">
+        <label>Business Name</label>
+        <input type="text" id="businessName" required>
+      </div>
+
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="businessEmail" required>
+        <div class="field-info">Primary contact email for the business</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Plan</label>
+          <select id="businessPlan" required>
+            <option value="">Select a plan</option>
+            <option value="Basic">Basic</option>
+            <option value="Professional">Professional</option>
+            <option value="Enterprise">Enterprise</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Staff Slots Allowed</label>
+          <input type="number" id="slotsAllowed" placeholder="e.g., 50" min="1" max="1000" required>
+          <small>Number of staff slots this business can use</small>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Status</label>
+        <select id="businessStatus" required>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="businessPassword" placeholder="Leave blank to keep current password">
+        <div class="field-info">Only fill this field if you want to change the password</div>
+      </div>
+
+      <!-- Device Settings Section -->
+      <div style="padding: 1.5rem; background: #f9f9f9; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid #667eea;">
+        <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; color: #333;">🖥️ Device Configuration</div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Device ID</label>
+            <input type="text" id="deviceId" placeholder="e.g., FC4349999">
+            <div class="field-info">Unique device identifier</div>
+          </div>
+
+          <div class="form-group">
+            <label>Device Name</label>
+            <input type="text" id="deviceName" placeholder="e.g., Reception Card Reader">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Device IP Address</label>
+            <input type="text" id="deviceIp" placeholder="e.g., 192.168.0.114">
+            <div class="field-info">Device network IP address</div>
+          </div>
+
+          <div class="form-group">
+            <label>Device Username</label>
+            <input type="text" id="deviceUsername" placeholder="e.g., admin">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Device Password</label>
+            <input type="password" id="devicePassword" placeholder="Device access password">
+          </div>
+
+          <div class="form-group">
+            <label>Timezone</label>
+            <select id="timezone">
+              <option value="Africa/Johannesburg">Africa/Johannesburg (UTC+2)</option>
+              <option value="UTC">UTC (UTC+0)</option>
+              <option value="America/New_York">America/New_York (UTC-5)</option>
+              <option value="Europe/London">Europe/London (UTC+0)</option>
+              <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Work Start Time</label>
+            <input type="time" id="workStartTime">
+          </div>
+
+          <div class="form-group">
+            <label>Work End Time</label>
+            <input type="time" id="workEndTime">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Break Duration (minutes)</label>
+            <input type="number" id="breakDuration" placeholder="e.g., 60">
+          </div>
+
+          <div class="form-group">
+            <label>Late Grace Period (minutes)</label>
+            <input type="number" id="lateGracePeriod" placeholder="e.g., 15">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>🖥️ Link Devices</label>
+        <div id="devicesContainer" class="devices-grid">
+          <div class="no-devices-msg">Loading devices...</div>
+        </div>
+        <div class="field-info">Select devices that are linked to this business</div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="goBack()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Processing...</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { doc, getDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from "/config/firebase.js";
+
+    let businessId = null;
+
+    async function loadBusiness() {
+      try {
+        // Get business ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        businessId = urlParams.get('id');
+
+        if (!businessId) {
+          showMessage("No business ID provided", "error");
+          return;
+        }
+
+        document.getElementById('loading').style.display = 'block';
+
+        // Load business data
+        const businessRef = doc(db, "businesses", businessId);
+        const businessSnap = await getDoc(businessRef);
+        if (!businessSnap.exists()) {
+          showMessage("Business not found", "error");
+          document.getElementById('loading').style.display = 'none';
+          return;
+        }
+
+        const business = businessSnap.data();
+        document.getElementById('businessName').value = business.businessName || '';
+        document.getElementById('businessEmail').value = business.email || '';
+        document.getElementById('businessPlan').value = business.plan || '';
+        document.getElementById('slotsAllowed').value = business.slotsAllowed || 50;
+        document.getElementById('businessStatus').value = business.status || 'active';
+
+        // Load device settings
+        document.getElementById('deviceId').value = business.deviceId || '';
+        document.getElementById('deviceName').value = business.deviceName || '';
+        document.getElementById('deviceIp').value = business.deviceIp || '';
+        document.getElementById('deviceUsername').value = business.deviceUsername || '';
+        document.getElementById('devicePassword').value = business.devicePassword || '';
+        document.getElementById('timezone').value = business.timezone || 'Africa/Johannesburg';
+        document.getElementById('workStartTime').value = business.workStartTime || '';
+        document.getElementById('workEndTime').value = business.workEndTime || '';
+        document.getElementById('breakDuration').value = business.breakDuration || '';
+        document.getElementById('lateGracePeriod').value = business.lateGracePeriod || '';
+
+        // Load devices
+        await loadDevices(business.linkedDevices || []);
+
+        document.getElementById('loading').style.display = 'none';
+
+      } catch (error) {
+        console.error("Error loading business:", error);
+        showMessage("Error: " + error.message, "error");
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    async function loadDevices(linkedDevices) {
+      try {
+        const devicesContainer = document.getElementById('devicesContainer');
+        
+        // Get all devices from this business
+        const devicesRef = collection(db, "businesses", businessId, "devices");
+        const devicesSnap = await getDocs(devicesRef);
+
+        if (devicesSnap.empty) {
+          devicesContainer.innerHTML = `
+            <div class="no-devices-msg" style="grid-column: 1/-1;">
+              📱 No devices registered yet<br>
+              <small>Register devices in the Device Manager first</small>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        devicesSnap.forEach(doc => {
+          const device = doc.data();
+          const isLinked = linkedDevices.includes(doc.id);
+          html += `
+            <div class="device-checkbox">
+              <input 
+                type="checkbox" 
+                id="device_${doc.id}" 
+                value="${doc.id}"
+                ${isLinked ? 'checked' : ''}
+                class="device-selector"
+              >
+              <div style="flex: 1;">
+                <label for="device_${doc.id}">
+                  🖥️ ${device.deviceName}
+                  <div class="device-info-small">${device.deviceType.replace(/_/g, ' ')}</div>
+                  <div class="device-info-small">SN: ${device.serialNumber}</div>
+                </label>
+              </div>
+            </div>
+          `;
+        });
+
+        devicesContainer.innerHTML = html;
+
+      } catch (error) {
+        console.error("Error loading devices:", error);
+        devicesContainer.innerHTML = `
+          <div class="no-devices-msg" style="grid-column: 1/-1;">
+            Error loading devices: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    window.handleSave = async function(e) {
+      e.preventDefault();
+      try {
+        document.getElementById('loading').style.display = 'block';
+
+        // Get selected devices
+        const selectedDevices = Array.from(document.querySelectorAll('.device-selector:checked'))
+          .map(el => el.value);
+
+        const updates = {
+          businessName: document.getElementById('businessName').value,
+          email: document.getElementById('businessEmail').value,
+          plan: document.getElementById('businessPlan').value,
+          slotsAllowed: parseInt(document.getElementById('slotsAllowed').value),
+          status: document.getElementById('businessStatus').value,
+          linkedDevices: selectedDevices,
+          devicesCount: selectedDevices.length,
+          updatedAt: new Date().toISOString(),
+          // Device settings
+          deviceId: document.getElementById('deviceId').value,
+          deviceName: document.getElementById('deviceName').value,
+          deviceIp: document.getElementById('deviceIp').value,
+          deviceUsername: document.getElementById('deviceUsername').value,
+          devicePassword: document.getElementById('devicePassword').value,
+          timezone: document.getElementById('timezone').value,
+          workStartTime: document.getElementById('workStartTime').value,
+          workEndTime: document.getElementById('workEndTime').value,
+          breakDuration: parseInt(document.getElementById('breakDuration').value) || 60,
+          lateGracePeriod: parseInt(document.getElementById('lateGracePeriod').value) || 15
+        };
+
+        // Only update password if provided
+        const newPassword = document.getElementById('businessPassword').value;
+        if (newPassword) {
+          updates.password = newPassword;
+        }
+
+        const businessRef = doc(db, "businesses", businessId);
+        
+        // Get current slots for comparison
+        const currentBusinessSnap = await getDoc(businessRef);
+        const currentBusiness = currentBusinessSnap.data();
+        const oldSlots = currentBusiness.slotsAllowed || 50;
+        const newSlots = parseInt(document.getElementById('slotsAllowed').value);
+        
+        await updateDoc(businessRef, updates);
+
+        // 🔄 SYNC SLOTS IF CHANGED
+        if (oldSlots !== newSlots) {
+          console.log(`🔄 Syncing slots: ${oldSlots} → ${newSlots}`);
+          
+          try {
+            const response = await fetch('https://syncbusinessslots-4q7htrps4q-uc.a.run.app', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                businessId: businessId,
+                slotsAllowed: newSlots
+              })
+            });
+            
+            const result = await response.json();
+            console.log('📊 Slot sync result:', result);
+            
+            if (!result.success) {
+              throw new Error(result.error);
+            }
+            
+            showMessage(`✅ Business updated! Slots synced: ${result.slotsCreated} created, ${result.slotsRemoved} removed`, "success");
+          } catch (syncError) {
+            console.error('❌ Slot sync failed:', syncError);
+            showMessage('⚠️ Business updated but slot sync failed: ' + syncError.message, "error");
+          }
+        } else {
+          showMessage("✅ Business updated successfully!", "success");
+        }
+        setTimeout(() => {
+          window.location.href = "/pages/admin-dashboard.html";
+        }, 1500);
+
+      } catch (error) {
+        console.error("Error saving business:", error);
+        showMessage("Error: " + error.message, "error");
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    window.goBack = function() {
+      window.location.href = "/pages/admin-dashboard.html";
+    };
+
+    function showMessage(msg, type) {
+      const msgEl = document.getElementById('message');
+      msgEl.textContent = msg;
+      msgEl.className = `message ${type}`;
+    }
+
+    // Load business on page load
+    loadBusiness();
+  </script>
+</body>
+</html>

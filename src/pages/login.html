@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - AiClock</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="stylesheet" href="/styles/auth.css">
+  <style>
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+    }
+
+    .login-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 450px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .login-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+      color: white;
+      text-align: center;
+    }
+
+    .login-header h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 2.5rem;
+    }
+
+    .login-header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 1rem;
+      border: none;
+      background: white;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #666;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .tab-btn:hover {
+      background-color: #f5f5f5;
+    }
+
+    .tab-btn.active {
+      color: #667eea;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #667eea;
+    }
+
+    .form-content {
+      padding: 2rem;
+    }
+
+    .login-form {
+      display: none;
+    }
+
+    .login-form.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #333;
+      font-size: 0.95rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group input::placeholder {
+      color: #999;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 0.875rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .form-footer {
+      margin-top: 1.5rem;
+      text-align: center;
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .form-footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    .form-footer a:hover {
+      color: #764ba2;
+    }
+
+    .error-message {
+      background-color: #fee;
+      color: #c33;
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .success-message {
+      background-color: #efe;
+      color: #3c3;
+      padding: 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+
+    @media (max-width: 480px) {
+      .login-card {
+        margin: 0;
+      }
+
+      .login-header {
+        padding: 1.5rem;
+      }
+
+      .login-header h1 {
+        font-size: 2rem;
+      }
+
+      .form-content {
+        padding: 1.5rem;
+      }
+
+      .tabs {
+        flex-direction: column;
+      }
+
+      .tab-btn {
+        border-bottom: 2px solid #e0e0e0;
+      }
+
+      .tab-btn.active::after {
+        display: none;
+      }
+
+      .tab-btn.active {
+        background-color: #f0f0ff;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <h1>🕐 AiClock</h1>
+        <p>Attendance Tracking System</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="admin">Admin Login</button>
+        <button class="tab-btn" data-tab="business">Business Login</button>
+      </div>
+
+      <div class="form-content">
+        <!-- Admin Login Form -->
+        <form id="adminForm" class="login-form active">
+          <div class="error-message" id="adminError"></div>
+          <div class="success-message" id="adminSuccess"></div>
+
+          <div class="form-group">
+            <label for="adminEmail">Email Address</label>
+            <input 
+              type="email" 
+              id="adminEmail" 
+              placeholder="admin@example.com"
+              value="info@simplewebhost.co.za"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="adminPassword">Password</label>
+            <input 
+              type="password" 
+              id="adminPassword" 
+              placeholder="Enter password"
+              value="Azam198419880001#"
+              required
+            >
+          </div>
+
+          <button type="submit" class="submit-btn">Login as Admin</button>
+        </form>
+
+        <!-- Business Login Form -->
+        <form id="businessForm" class="login-form">
+          <div class="error-message" id="businessError"></div>
+          <div class="success-message" id="businessSuccess"></div>
+
+          <div class="form-group">
+            <label for="businessEmail">Business Email</label>
+            <input 
+              type="email" 
+              id="businessEmail" 
+              placeholder="your-business@example.com"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="businessPassword">Password</label>
+            <input 
+              type="password" 
+              id="businessPassword" 
+              placeholder="Enter password"
+              required
+            >
+          </div>
+
+          <button type="submit" class="submit-btn">Login</button>
+
+          <div class="form-footer">
+            <p>Don't have an account? <a href="/pages/admin-register.html">Register here</a></p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import authService from '/modules/auth/auth.service.js';
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log("Tab clicked:", this.dataset.tab);
+        
+        // Update active tab
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        // Update active form
+        const tabName = this.dataset.tab;
+        const formId = tabName + 'Form';
+        console.log("Switching to form:", formId);
+        
+        document.querySelectorAll('.login-form').forEach(form => form.classList.remove('active'));
+        const targetForm = document.getElementById(formId);
+        if (targetForm) {
+          targetForm.classList.add('active');
+          console.log("Form activated:", formId);
+        } else {
+          console.error("Form not found:", formId);
+        }
+      });
+    });
+
+    // Admin login handler
+    document.getElementById('adminForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('adminEmail').value;
+      const password = document.getElementById('adminPassword').value;
+      const btn = e.target.querySelector('.submit-btn');
+      const errorDiv = document.getElementById('adminError');
+      const successDiv = document.getElementById('adminSuccess');
+
+      errorDiv.classList.remove('show');
+      successDiv.classList.remove('show');
+
+      try {
+        btn.disabled = true;
+        btn.textContent = 'Logging in...';
+
+        const result = await authService.adminLogin(email, password);
+        
+        successDiv.textContent = 'Login successful! Redirecting...';
+        successDiv.classList.add('show');
+
+        setTimeout(() => {
+          window.location.href = '/pages/admin-dashboard.html';
+        }, 1000);
+      } catch (error) {
+        errorDiv.textContent = error.message;
+        errorDiv.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Login as Admin';
+      }
+    });
+
+    // Business login handler
+    document.getElementById('businessForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('businessEmail').value;
+      const password = document.getElementById('businessPassword').value;
+      const btn = e.target.querySelector('.submit-btn');
+      const errorDiv = document.getElementById('businessError');
+      const successDiv = document.getElementById('businessSuccess');
+
+      errorDiv.classList.remove('show');
+      successDiv.classList.remove('show');
+
+      try {
+        btn.disabled = true;
+        btn.textContent = 'Logging in...';
+        
+        console.log("Business login attempt:", { email });
+
+        const result = await authService.businessLogin(email, password);
+        
+        console.log("Business login successful:", result);
+        
+        successDiv.textContent = `Welcome, ${result.businessName}! Redirecting...`;
+        successDiv.classList.add('show');
+
+        setTimeout(() => {
+          window.location.href = '/pages/business-dashboard.html';
+        }, 1000);
+      } catch (error) {
+        console.error("Business login error:", error);
+        errorDiv.textContent = error.message;
+        errorDiv.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Login';
+      }
+    });
+  </script>
+</body>
+</html>

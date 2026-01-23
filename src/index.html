@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AiClock - Multi-Tenant Attendance System</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <style>
+    .landing-container {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+    }
+
+    .landing-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 3rem;
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+      animation: slideUp 0.4s ease;
+    }
+
+    .landing-logo {
+      font-size: 5rem;
+      margin-bottom: 1rem;
+    }
+
+    .landing-title {
+      font-size: 2.5rem;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+
+    .landing-subtitle {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+
+    .landing-features {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin: 2rem 0;
+      text-align: left;
+    }
+
+    .feature-item {
+      padding: 1rem;
+      background-color: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      transition: transform 0.2s ease;
+    }
+
+    .feature-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-text {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .landing-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .action-section {
+      padding: 1.5rem;
+      background-color: var(--bg-secondary);
+      border-radius: var(--border-radius);
+      margin-bottom: 1rem;
+    }
+
+    .action-section h3 {
+      margin: 0 0 1rem 0;
+      color: var(--text-primary);
+      font-size: 1.125rem;
+    }
+
+    .action-section p {
+      margin: 0 0 1rem 0;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .landing-card {
+        padding: 2rem;
+      }
+
+      .landing-title {
+        font-size: 2rem;
+      }
+
+      .landing-features {
+        grid-template-columns: 1fr;
+      }
+
+      .action-buttons {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="landing-container">
+    <div class="landing-card">
+      <div class="landing-logo">🕐</div>
+      <h1 class="landing-title">AiClock</h1>
+      <p class="landing-subtitle">
+        Multi-Tenant Attendance Tracking System
+      </p>
+
+      <div class="landing-features">
+        <div class="feature-item">
+          <div class="feature-icon">👤</div>
+          <div class="feature-text">Face Recognition</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">📊</div>
+          <div class="feature-text">Real-Time Monitoring</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🏢</div>
+          <div class="feature-text">Multi-Business Support</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">💰</div>
+          <div class="feature-text">Slot-Based Pricing</div>
+        </div>
+      </div>
+
+      <div class="landing-actions">
+        <!-- Admin Section -->
+        <div class="action-section">
+          <h3>🔐 System Administrator</h3>
+          <p>Manage businesses, monitor system, and control access</p>
+          <div class="action-buttons">
+            <a href="/pages/login.html" class="btn btn-primary">
+              Admin Login
+            </a>
+          </div>
+        </div>
+
+        <!-- Employee Section -->
+        <div class="action-section">
+          <h3>⏰ Employee</h3>
+          <p>Clock in/out and manage your attendance</p>
+          <div class="action-buttons">
+            <a href="/pages/employee-login.html" class="btn btn-primary">
+              Clock In/Out
+            </a>
+          </div>
+        </div>
+
+        <!-- Business Section -->
+        <div class="action-section">
+          <h3>🏢 Business Owner</h3>
+          <p>Track employees, view reports, and manage attendance</p>
+          <div class="action-buttons">
+            <a href="/pages/login.html" class="btn btn-primary">
+              Business Login
+            </a>
+            <a href="/pages/admin-register.html" class="btn btn-secondary">
+              Register Business
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0;">
+          Powered by Firebase & Hikvision Technology
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

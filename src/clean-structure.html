@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AiClock Firebase Structure - Clean Architecture</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .structure-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .collection-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .collection-card h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        
+        .path {
+            font-family: 'Monaco', 'Consolas', monospace;
+            background: #ecf0f1;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #e74c3c;
+        }
+        
+        .hierarchy {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        
+        .example-data {
+            background: #e8f5e8;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .workflow {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .benefits {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .active { background: #d4edda; color: #155724; }
+        .available { background: #cce5ff; color: #004085; }
+        .locked { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ AiClock Clean Firebase Structure</h1>
+        
+        <div class="benefits">
+            <h3>✨ Clean Architecture Benefits</h3>
+            <ul>
+                <li><strong>Numbered Slots:</strong> Easy employee management with slots 1, 2, 3...</li>
+                <li><strong>Date Organization:</strong> Events stored by date for efficient querying</li>
+                <li><strong>Real-time Monitoring:</strong> Separate collection for live dashboard</li>
+                <li><strong>Multi-tenant Ready:</strong> Scalable for multiple businesses</li>
+                <li><strong>Audit Trail:</strong> Complete system activity logging</li>
+            </ul>
+        </div>
+        
+        <div class="hierarchy">
+<strong>📊 Firebase Collections Hierarchy</strong>
+
+🏢 <strong>businesses/</strong>
+  └── 📁 biz_srcomponents/
+      ├── 📄 Business Config (name, maxSlots, timezone)
+      ├── 🎯 <strong>slots/</strong>
+      │   ├── 1/ (Employee 1 - LOCKED)
+      │   ├── 2/ (Available)
+      │   ├── 3/ (Available)
+      │   └── ... (up to 10)
+      │   
+      └── 📊 <strong>live_monitoring/</strong>
+          ├── 1/ (Employee 1 status)
+          ├── 2/ (Slot 2 status)
+          └── ...
+
+🎯 <strong>Each Slot Structure:</strong>
+   slots/{slotNumber}/
+   ├── 📄 Slot Config (employeeName, deviceId, status)
+   └── 📅 <strong>events/</strong>
+       ├── 2026-01-23/ (Today's events)
+       ├── 2026-01-24/ (Future events)
+       └── ...
+
+🔧 <strong>device_mapping/</strong>
+   └── I30zHlMXSZssZgWvd3t1iH → Employee 1, Slot 1
+
+⚙️ <strong>system_config/</strong> (Global settings)
+📝 <strong>audit_logs/</strong> (Activity tracking)
+        </div>
+        
+        <div class="structure-overview">
+            <div class="collection-card">
+                <h3>🏢 Business Management</h3>
+                <div class="path">businesses/{businessId}</div>
+                <div class="example-data">
+                    <strong>biz_srcomponents:</strong><br>
+                    • Name: SR Components<br>
+                    • Max Slots: 10<br>
+                    • Timezone: Africa/Johannesburg<br>
+                    • Status: <span class="status-badge active">Active</span>
+                </div>
+            </div>
+            
+            <div class="collection-card">
+                <h3>🎯 Employee Slots</h3>
+                <div class="path">businesses/{businessId}/slots/{1-10}</div>
+                <div class="example-data">
+                    <strong>Slot 1:</strong> <span class="status-badge locked">Locked to Employee 1</span><br>
+                    <strong>Slot 2-10:</strong> <span class="status-badge available">Available</span><br>
+                    • Device: I30zHlMXSZssZgWvd3t1iH → Slot 1<br>
+                    • Auto-assignment on first clock-in
+                </div>
+            </div>
+            
+            <div class="collection-card">
+                <h3>📅 Event Storage</h3>
+                <div class="path">slots/{slotNumber}/events/{YYYY-MM-DD}</div>
+                <div class="example-data">
+                    <strong>Daily Events:</strong><br>
+                    • Clock In/Out times<br>
+                    • Break tracking<br>
+                    • Working hours calculation<br>
+                    • Event array with timestamps
+                </div>
+            </div>
+            
+            <div class="collection-card">
+                <h3>📊 Live Monitoring</h3>
+                <div class="path">businesses/{businessId}/live_monitoring/{slotNumber}</div>
+                <div class="example-data">
+                    <strong>Real-time Data:</strong><br>
+                    • Current status: In/Out/Break<br>
+                    • Last clock in/out times<br>
+                    • Today's working hours<br>
+                    • Break duration tracking
+                </div>
+            </div>
+            
+            <div class="collection-card">
+                <h3>🔧 Device Mapping</h3>
+                <div class="path">device_mapping/{deviceId}</div>
+                <div class="example-data">
+                    <strong>I30zHlMXSZssZgWvd3t1iH:</strong><br>
+                    • Business: biz_srcomponents<br>
+                    • Employee Slot: 1<br>
+                    • Name: Employee 1<br>
+                    • Status: <span class="status-badge active">Active</span>
+                </div>
+            </div>
+            
+            <div class="collection-card">
+                <h3>⚙️ System Config</h3>
+                <div class="path">system_config/global</div>
+                <div class="example-data">
+                    <strong>Global Settings:</strong><br>
+                    • Version: 2.0.0<br>
+                    • Supported devices<br>
+                    • Feature flags<br>
+                    • System limits
+                </div>
+            </div>
+        </div>
+        
+        <div class="workflow">
+            <h3>🔄 Clock-In Workflow</h3>
+            <ol>
+                <li><strong>Device Event:</strong> Hikvision device sends attendance data</li>
+                <li><strong>Device Mapping:</strong> System looks up device ID → finds Employee slot</li>
+                <li><strong>Slot Assignment:</strong> If first time, lock employee to slot number</li>
+                <li><strong>Event Storage:</strong> Save event to date-specific subcollection</li>
+                <li><strong>Live Update:</strong> Update real-time monitoring collection</li>
+                <li><strong>Audit Log:</strong> Record system activity for tracking</li>
+            </ol>
+        </div>
+        
+        <div class="example-data">
+            <h3>📝 Example Event Structure</h3>
+            <pre><strong>Path:</strong> /businesses/biz_srcomponents/slots/1/events/2026-01-23
+
+<strong>Document Data:</strong>
+{
+  "date": "2026-01-23",
+  "events": [
+    {
+      "time": "08:15:30",
+      "type": "in",
+      "timestamp": "2026-01-23T08:15:30Z",
+      "deviceId": "I30zHlMXSZssZgWvd3t1iH"
+    },
+    {
+      "time": "12:30:00",
+      "type": "break_start",
+      "timestamp": "2026-01-23T12:30:00Z"
+    }
+  ],
+  "totalEvents": 2,
+  "firstClockIn": "08:15:30",
+  "workingHours": 4.25
+}</pre>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+            <p><strong>🎉 Clean Firebase Structure Setup Complete!</strong></p>
+            <p>Your AiClock system now has a properly organized, scalable database structure ready for production use.</p>
+            <p style="color: #6c757d; font-size: 0.9em;">Generated on: January 23, 2026</p>
+        </div>
+    </div>
+</body>
+</html>

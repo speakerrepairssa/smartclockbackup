@@ -1,0 +1,30 @@
+{
+  "name": "aiclock-app",
+  "version": "2.0.0",
+  "description": "Multi-tenant SaaS attendance tracking system with face recognition",
+  "type": "module",
+  "scripts": {
+    "dev": "firebase serve",
+    "build": "echo 'Building project...'",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:functions": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "keywords": [
+    "attendance",
+    "face-recognition",
+    "multi-tenant",
+    "saas",
+    "firebase",
+    "hikvision"
+  ],
+  "author": "AiClock Team",
+  "license": "MIT",
+  "dependencies": {
+    "firebase": "^10.7.1"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  }
+}

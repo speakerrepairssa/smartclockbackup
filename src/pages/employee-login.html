@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Clock In - AiClock</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    .login-container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 420px;
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+
+    .login-header {
+      margin-bottom: 2rem;
+    }
+
+    .logo {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .login-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .login-subtitle {
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #555;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.85rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 0.5rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .message {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      display: none;
+      font-weight: 600;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      display: block;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      display: block;
+    }
+
+    .back-link {
+      display: block;
+      margin-top: 1.5rem;
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .back-link:hover {
+      color: #764ba2;
+      text-decoration: underline;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 2rem 0;
+      gap: 1rem;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e0e0e0;
+    }
+
+    .divider span {
+      color: #999;
+      font-size: 0.85rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      background: #f5f5f5;
+      padding: 0.5rem;
+      border-radius: 8px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 0.75rem;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #666;
+      transition: all 0.3s ease;
+    }
+
+    .tab-btn.active {
+      background: white;
+      color: #667eea;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      color: #667eea;
+      margin-top: 1rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-header">
+      <div class="logo">⏰</div>
+      <div class="login-title">AiClock</div>
+      <div class="login-subtitle">Employee Clock In/Out System</div>
+    </div>
+
+    <div id="message" class="message"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('clockin')">Clock In</button>
+      <button class="tab-btn" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- Clock In Tab -->
+    <div id="clockin" class="tab-content active">
+      <form onsubmit="handleClockIn(event)">
+        <div class="form-group">
+          <label>Business ID</label>
+          <input type="text" id="businessIdClockIn" placeholder="Enter your business ID" required>
+        </div>
+
+        <div class="form-group">
+          <label>Badge Number / Employee ID</label>
+          <input type="text" id="badgeNumberClockIn" placeholder="e.g., 1001" required>
+        </div>
+
+        <button type="submit" class="btn">🟢 Clock In</button>
+      </form>
+
+      <button class="btn" style="background: #6c757d; margin-top: 0.5rem;" onclick="checkSlots()">🔍 Check Available Slots</button>
+
+      <div class="divider"><span>or</span></div>
+
+      <button class="btn" style="background: #dc3545;" onclick="handleClockOut()">🔴 Clock Out</button>
+    </div>
+
+    <!-- Register Employee Tab -->
+    <div id="register" class="tab-content">
+      <form onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label>Business ID</label>
+          <input type="text" id="businessIdRegister" placeholder="Enter your business ID" required>
+        </div>
+
+        <div class="form-group">
+          <label>Employee Name</label>
+          <input type="text" id="employeeName" placeholder="John Smith" required>
+        </div>
+
+        <div class="form-group">
+          <label>Badge Number / Employee ID</label>
+          <input type="text" id="badgeNumberRegister" placeholder="e.g., 1001" required>
+        </div>
+
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="employeePassword" placeholder="Your password" required>
+        </div>
+
+        <button type="submit" class="btn">Register Employee</button>
+      </form>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Processing...</p>
+    </div>
+
+    <a href="/" class="back-link">← Back to Home</a>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+      collection, 
+      query, 
+      where, 
+      getDocs, 
+      doc, 
+      setDoc, 
+      getDoc,
+      updateDoc,
+      addDoc
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from "/config/firebase.js";
+
+    window.switchTab = function(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tab).classList.add('active');
+      event.target.classList.add('active');
+    };
+
+    function showMessage(msg, type) {
+      const msgEl = document.getElementById('message');
+      msgEl.textContent = msg;
+      msgEl.className = `message ${type}`;
+      setTimeout(() => {
+        msgEl.className = 'message';
+      }, 3000);
+    }
+
+    window.handleClockIn = async function(e) {
+      e.preventDefault();
+      try {
+        document.getElementById('loading').style.display = 'block';
+
+        const businessId = document.getElementById('businessIdClockIn').value;
+        const badgeNumber = document.getElementById('badgeNumberClockIn').value;
+
+        console.log("Clocking in:", { businessId, badgeNumber });
+
+        // Find employee in database
+        const employeesRef = collection(db, "businesses", businessId, "employees");
+        const q = query(employeesRef, where("badgeNumber", "==", badgeNumber));
+        const querySnap = await getDocs(q);
+
+        if (querySnap.empty) {
+          throw new Error("Employee not found. Please register first.");
+        }
+
+        const employeeDoc = querySnap.docs[0];
+        const employee = employeeDoc.data();
+
+        // Find available slot in staff collection
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const staffSnap = await getDocs(staffRef);
+
+        console.log("Total staff slots found:", staffSnap.size);
+        staffSnap.forEach(doc => {
+          console.log("Slot", doc.id, ":", doc.data());
+        });
+
+        let availableSlot = null;
+        staffSnap.forEach(doc => {
+          if (!availableSlot && !doc.data().active) {
+            availableSlot = { id: doc.id, ...doc.data() };
+          }
+        });
+
+        if (!availableSlot) {
+          console.error("No available slots found");
+          throw new Error("No available slots. All employees are clocked in.");
+        }
+
+        console.log("Using slot:", availableSlot.id);
+
+        // Update slot with employee data
+        const slotRef = doc(staffRef, availableSlot.id);
+        await updateDoc(slotRef, {
+          active: true,
+          employeeId: employeeDoc.id,
+          employeeName: employee.name,
+          badgeNumber: badgeNumber,
+          clockInTime: new Date().toISOString(),
+          clockInTimestamp: new Date().getTime(),
+          status: "IN"
+        });
+
+        // Store session
+        sessionStorage.setItem("employeeLoggedIn", "true");
+        sessionStorage.setItem("employeeBadge", badgeNumber);
+        sessionStorage.setItem("businessId", businessId);
+        sessionStorage.setItem("slotId", availableSlot.id);
+
+        showMessage("✅ Clocked in successfully!", "success");
+        setTimeout(() => {
+          window.location.href = `/pages/employee-dashboard.html`;
+        }, 1000);
+
+      } catch (error) {
+        console.error("Clock in error:", error);
+        showMessage("Error: " + error.message, "error");
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    window.handleClockOut = async function() {
+      try {
+        document.getElementById('loading').style.display = 'block';
+
+        const businessId = sessionStorage.getItem("businessId");
+        const slotId = sessionStorage.getItem("slotId");
+
+        if (!businessId || !slotId) {
+          throw new Error("No active clock-in session. Please clock in first.");
+        }
+
+        // Update slot to inactive
+        const slotRef = doc(db, "businesses", businessId, "staff", slotId);
+        await updateDoc(slotRef, {
+          active: false,
+          clockOutTime: new Date().toISOString(),
+          clockOutTimestamp: new Date().getTime(),
+          status: "OUT"
+        });
+
+        // Clear session
+        sessionStorage.removeItem("employeeLoggedIn");
+        sessionStorage.removeItem("employeeBadge");
+        sessionStorage.removeItem("businessId");
+        sessionStorage.removeItem("slotId");
+
+        showMessage("✅ Clocked out successfully!", "success");
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+
+      } catch (error) {
+        console.error("Clock out error:", error);
+        showMessage("Error: " + error.message, "error");
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    window.handleRegister = async function(e) {
+      e.preventDefault();
+      try {
+        document.getElementById('loading').style.display = 'block';
+
+        const businessId = document.getElementById('businessIdRegister').value;
+        const name = document.getElementById('employeeName').value;
+        const badgeNumber = document.getElementById('badgeNumberRegister').value;
+        const password = document.getElementById('employeePassword').value;
+
+        console.log("Registering employee:", { businessId, name, badgeNumber });
+
+        // Check if business exists
+        const businessRef = doc(db, "businesses", businessId);
+        const businessSnap = await getDoc(businessRef);
+
+        if (!businessSnap.exists()) {
+          throw new Error("Business not found.");
+        }
+
+        // Check if employee already registered
+        const employeesRef = collection(db, "businesses", businessId, "employees");
+        const q = query(employeesRef, where("badgeNumber", "==", badgeNumber));
+        const querySnap = await getDocs(q);
+
+        if (!querySnap.empty) {
+          throw new Error("Employee with this badge number already registered.");
+        }
+
+        // Create employee record
+        await addDoc(employeesRef, {
+          name,
+          badgeNumber,
+          password, // In production, hash this!
+          createdAt: new Date().toISOString(),
+          status: "active"
+        });
+
+        showMessage("✅ Employee registered successfully! You can now clock in.", "success");
+        setTimeout(() => {
+          document.getElementById('register').parentElement.scrollIntoView();
+          document.querySelectorAll('.tab-btn')[0].click();
+          document.getElementById('badgeNumberClockIn').value = badgeNumber;
+        }, 1000);
+
+      } catch (error) {
+        console.error("Registration error:", error);
+        showMessage("Error: " + error.message, "error");
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    window.checkSlots = async function() {
+      try {
+        const businessId = document.getElementById('businessIdClockIn').value;
+        if (!businessId) {
+          alert("Please enter a Business ID first");
+          return;
+        }
+
+        document.getElementById('loading').style.display = 'block';
+
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const staffSnap = await getDocs(staffRef);
+
+        console.log("Total slots:", staffSnap.size);
+        
+        let slots = [];
+        staffSnap.forEach(doc => {
+          const data = doc.data();
+          slots.push({
+            id: doc.id,
+            active: data.active,
+            employeeName: data.employeeName || "EMPTY",
+            status: data.status || "UNKNOWN"
+          });
+          console.log("Slot", doc.id, ":", data);
+        });
+
+        if (slots.length === 0) {
+          alert("❌ NO SLOTS FOUND\n\nBusiness: " + businessId + "\n\nSlots haven't been created. Make sure the business is registered properly.");
+        } else {
+          const slotsText = slots.map(s => {
+            const status = s.active ? "🟢 OCCUPIED" : "🔴 AVAILABLE";
+            return `Slot ${s.id}: ${status} - ${s.employeeName}`;
+          }).join("\n");
+          alert("✅ SLOTS FOUND:\n\n" + slotsText);
+        }
+
+      } catch (error) {
+        console.error("Check slots error:", error);
+        alert("Error: " + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+  </script>
+</body>
+</html>

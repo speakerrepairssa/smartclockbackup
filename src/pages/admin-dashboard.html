@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - AiClock</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="stylesheet" href="/styles/dashboard.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="dashboard-header">
+    <div class="header-left">
+      <h1>🕐 AiClock Admin</h1>
+    </div>
+    <div class="header-right">
+      <button id="refreshBtn" class="btn btn-secondary">↻ Refresh</button>
+      <button id="logoutBtn" class="btn btn-danger">Logout</button>
+    </div>
+  </header>
+
+  <!-- Main Dashboard -->
+  <main class="dashboard-main">
+    <div class="dashboard-container">
+      
+      <!-- Statistics Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">🏢</div>
+          <div class="stat-content">
+            <h3>Total Businesses</h3>
+            <p class="stat-value" id="totalBusinesses">0</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-content">
+            <h3>Active Businesses</h3>
+            <p class="stat-value" id="activeBusinesses">0</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon"></div>
+          <div class="stat-content">
+            <h3>Total Slots</h3>
+            <p class="stat-value" id="totalSlots">0</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🖥️</div>
+          <div class="stat-content">
+            <h3>Total Devices</h3>
+            <p class="stat-value" id="totalDevices">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions Bar -->
+      <div class="actions-bar">
+        <h2>Business Management</h2>
+        <button id="createBusinessBtn" class="btn btn-primary">+ Register New Business</button>
+      </div>
+
+      <!-- Businesses Table -->
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Business Name</th>
+              <th>Email</th>
+              <th>Plan</th>
+              <th>Slots</th>
+
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="businessesTableBody">
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 2rem;">
+                Loading businesses...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Devices Section -->
+      <div class="actions-bar" style="margin-top: 3rem;">
+        <h2>🖥️ Active Devices</h2>
+        <button id="addDeviceBtn" class="btn btn-primary" onclick="openAddDeviceModal()">+ Register New Device</button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Device ID</th>
+              <th>Device Name</th>
+              <th>Device Type</th>
+              <th>Serial Number</th>
+              <th>IP Address</th>
+              <th>Linked Business</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="devicesTableBody">
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 2rem;">
+                Loading devices...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div id="notificationContainer"></div>
+
+  <!-- Import as ES Module -->
+  <script type="module">
+    import { initAdminDashboard } from '/modules/admin/dashboard.js';
+    
+    // Initialize admin dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      initAdminDashboard();
+    });
+  </script>
+</body>
+</html>
