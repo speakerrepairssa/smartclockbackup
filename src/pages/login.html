@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - AiClock</title>
-  <link rel="stylesheet" href="/styles/main.css">
-  <link rel="stylesheet" href="/styles/auth.css">
+  <link rel="stylesheet" href="../styles/main.css">
+  <link rel="stylesheet" href="../styles/auth.css">
   <style>
     .login-container {
       min-height: 100vh;
@@ -310,7 +310,7 @@
           <button type="submit" class="submit-btn">Login</button>
 
           <div class="form-footer">
-            <p>Don't have an account? <a href="/pages/admin-register.html">Register here</a></p>
+            <p>Don't have an account? <a href="admin-register.html">Register here</a></p>
           </div>
         </form>
       </div>
@@ -318,7 +318,7 @@
   </div>
 
   <script type="module">
-    import authService from '/modules/auth/auth.service.js';
+    import authService from '../modules/auth/auth.service.js';
 
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -370,7 +370,7 @@
         successDiv.classList.add('show');
 
         setTimeout(() => {
-          window.location.href = '/pages/admin-dashboard.html';
+          window.location.href = 'admin-dashboard.html';
         }, 1000);
       } catch (error) {
         errorDiv.textContent = error.message;
@@ -406,7 +406,7 @@
         successDiv.classList.add('show');
 
         setTimeout(() => {
-          window.location.href = '/pages/business-dashboard.html';
+          window.location.href = 'business-dashboard.html';
         }, 1000);
       } catch (error) {
         console.error("Business login error:", error);

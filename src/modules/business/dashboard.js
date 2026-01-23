@@ -9,9 +9,9 @@ import {
   orderBy,
   limit 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db } from "/config/firebase.js";
-import authService from "/modules/auth/auth.service.js";
-import { showNotification, showLoader, hideLoader } from "/modules/shared/ui.js";
+import { db } from "../../config/firebase.js";
+import authService from "../auth/auth.service.js";
+import { showNotification, showLoader, hideLoader } from "../shared/ui.js";
 
 /**
  * Business Dashboard Controller
