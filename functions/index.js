@@ -800,16 +800,28 @@ async function syncSlots(businessId, slotsAllowed) {
       const slotDoc = await staffRef.doc(slotNum.toString()).get();
       const slotData = slotDoc.data();
       
-      // Only remove if slot is not active and not assigned
-      if (!slotData.active && !slotData.assignedAt) {
+      // Check status collection to see if someone is currently clocked in
+      const statusDoc = await businessRef.collection('status').doc(slotNum.toString()).get();
+      const statusData = statusDoc.exists ? statusDoc.data() : null;
+      const isCurrentlyIn = statusData && (statusData.currentStatus === 'in' || statusData.attendanceStatus === 'in');
+      
+      // Only remove if slot is not currently in use (not clocked in)
+      if (!isCurrentlyIn && !slotData.isActive && !slotData.active) {
         slotsToRemove.push(slotNum);
       }
     }
   }
 
-  // Remove excess empty slots
+  // Remove excess empty slots and their related documents
   for (const slotNum of slotsToRemove) {
+    // Delete staff slot
     await staffRef.doc(slotNum.toString()).delete();
+    
+    // Delete status slot
+    await businessRef.collection('status').doc(slotNum.toString()).delete();
+    
+    // Delete employee_last_attendance slot
+    await businessRef.collection('employee_last_attendance').doc(slotNum.toString()).delete();
   }
 
   // Update business document
