@@ -664,11 +664,12 @@
 
   <script type="module">
     import authService from '../modules/auth/auth.service.js';
-    import { doc, getDoc, collection, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { db } from '../config/firebase.js';
 
     let businessId = null;
     let pollingInterval = null;
+    let statusUnsubscribe = null;
 
     // Initialize on load
     document.addEventListener('DOMContentLoaded', () => {
@@ -691,14 +692,21 @@
 
       loadDashboardData();
       setupEventListeners();
-      
-      // Start polling for monitor mode - auto-refresh every 30 seconds
-      if (pollingInterval) clearInterval(pollingInterval);
-      pollingInterval = setInterval(() => {
+      setupRealtimeListeners();
+    }
+
+    function setupRealtimeListeners() {
+      // Setup real-time listener for status collection
+      const statusRef = collection(db, "businesses", businessId, "status");
+      statusUnsubscribe = onSnapshot(statusRef, (snapshot) => {
+        console.log("Status update received from Firebase");
+        // Only update if monitor view is active
         if (document.querySelector('.menu-btn[data-module="monitor"].active')) {
           loadMonitorData();
         }
-      }, 30000); // Refresh every 30 seconds when monitor is active
+      }, (error) => {
+        console.error("Error listening to status:", error);
+      });
     }
 
     function setupEventListeners() {
@@ -721,6 +729,7 @@
       // Logout
       document.getElementById('logoutBtn').addEventListener('click', async () => {
         if (pollingInterval) clearInterval(pollingInterval);
+        if (statusUnsubscribe) statusUnsubscribe();
         await authService.logout();
         window.location.href = '/pages/login.html';
       });
@@ -789,21 +798,22 @@
       try {
         console.log("Loading monitor data for business:", businessId);
         
-        const staffRef = collection(db, "businesses", businessId, "staff");
-        const staffSnap = await getDocs(staffRef);
+        const statusRef = collection(db, "businesses", businessId, "status");
+        const statusSnap = await getDocs(statusRef);
         
-        console.log("Retrieved staff documents:", staffSnap.size);
+        console.log("Retrieved status documents:", statusSnap.size);
         
         let inEmployees = [];
         let outEmployees = [];
         
-        staffSnap.forEach(doc => {
-          const staff = doc.data();
-          console.log("Processing employee:", staff.employeeName, "active:", staff.active);
-          if (staff.active) {
-            inEmployees.push(staff);
+        statusSnap.forEach(doc => {
+          const status = doc.data();
+          console.log("Processing employee:", status.employeeName, "attendanceStatus:", status.attendanceStatus);
+          // Check attendanceStatus field for IN/OUT
+          if (status.attendanceStatus === 'in') {
+            inEmployees.push(status);
           } else {
-            outEmployees.push(staff);
+            outEmployees.push(status);
           }
         });
 
@@ -816,11 +826,12 @@
           inHtml = '<div class="no-employees">No employees clocked in</div>';
         } else {
           inEmployees.forEach(emp => {
+            const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
             inHtml += `
               <div class="employee-item">
                 <div>
                   <div class="employee-name">${emp.employeeName}</div>
-                  <div class="employee-slot">SLOT ${emp.slot}</div>
+                  <div class="employee-slot">SLOT ${slotDisplay}</div>
                 </div>
               </div>
             `;
@@ -834,14 +845,15 @@
           outHtml = '<div class="no-employees">No employees clocked out</div>';
         } else {
           outEmployees.forEach(emp => {
-            const duration = formatDuration(emp.outTime || 0);
+            const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
+            const lastTime = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString() : 'N/A';
             outHtml += `
               <div class="employee-item">
                 <div>
                   <div class="employee-name">${emp.employeeName}</div>
-                  <div class="employee-slot">SLOT ${emp.slot}</div>
+                  <div class="employee-slot">SLOT ${slotDisplay}</div>
                 </div>
-                <div class="employee-time">${duration}</div>
+                <div class="employee-time">${lastTime}</div>
               </div>
             `;
           });

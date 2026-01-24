@@ -7,7 +7,8 @@ import {
   query, 
   where,
   orderBy,
-  limit 
+  limit,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { db } from "../../config/firebase.js";
 import authService from "../auth/auth.service.js";
@@ -23,6 +24,8 @@ class BusinessDashboardController {
     this.staff = [];
     this.statusData = [];
     this.pollingInterval = null;
+    this.statusUnsubscribe = null;
+    this.staffUnsubscribe = null;
     this.init();
   }
 
@@ -40,8 +43,7 @@ class BusinessDashboardController {
     this.initializeEventListeners();
     await this.loadBusinessData();
     await this.loadStaff();
-    await this.loadStatus();
-    this.startPolling();
+    this.setupRealtimeListeners();
   }
 
   /**
@@ -168,6 +170,55 @@ class BusinessDashboardController {
   }
 
   /**
+   * Setup real-time Firestore listeners
+   */
+  setupRealtimeListeners() {
+    // Listen to status collection changes
+    const statusRef = collection(db, "businesses", this.businessId, "status");
+    this.statusUnsubscribe = onSnapshot(statusRef, (snapshot) => {
+      console.log("Status update received from Firebase");
+      this.statusData = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        this.statusData.push({
+          id: doc.id,
+          ...data
+        });
+      });
+
+      // Sort by slot number
+      this.statusData.sort((a, b) => {
+        const slotA = parseInt(a.slot || a.employeeId || 0);
+        const slotB = parseInt(b.slot || b.employeeId || 0);
+        return slotA - slotB;
+      });
+
+      this.displayMonitor();
+    }, (error) => {
+      console.error("Error listening to status:", error);
+    });
+
+    // Listen to staff collection changes
+    const staffRef = collection(db, "businesses", this.businessId, "staff");
+    this.staffUnsubscribe = onSnapshot(staffRef, (snapshot) => {
+      console.log("Staff update received from Firebase");
+      this.staff = [];
+      snapshot.forEach((doc) => {
+        this.staff.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      this.staff.sort((a, b) => a.slot - b.slot);
+      this.displayStaff();
+      this.displayBusinessInfo(); // Update slots used count
+    }, (error) => {
+      console.error("Error listening to staff:", error);
+    });
+  }
+
+  /**
    * Load current status of all employees
    */
   async loadStatus() {
@@ -178,12 +229,18 @@ class BusinessDashboardController {
       this.statusData = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.active) {
-          this.statusData.push({
-            id: doc.id,
-            ...data
-          });
-        }
+        // Show all status entries (no filter needed - webhook creates status for active employees)
+        this.statusData.push({
+          id: doc.id,
+          ...data
+        });
+      });
+
+      // Sort by slot number
+      this.statusData.sort((a, b) => {
+        const slotA = parseInt(a.slot || a.employeeId || 0);
+        const slotB = parseInt(b.slot || b.employeeId || 0);
+        return slotA - slotB;
       });
 
       this.displayMonitor();
@@ -234,35 +291,40 @@ class BusinessDashboardController {
   }
 
   /**
-   * Start polling for updates
+   * Start polling for updates (DEPRECATED - using real-time listeners now)
    */
   startPolling() {
-    // Poll every 30 seconds
-    this.pollingInterval = setInterval(() => {
-      this.loadStatus();
-    }, 30000);
+    // No longer needed - real-time listeners are active
+    console.log("Real-time listeners active - polling disabled");
   }
 
   /**
-   * Stop polling
+   * Stop polling and clean up listeners
    */
   stopPolling() {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
+    
+    // Unsubscribe from real-time listeners
+    if (this.statusUnsubscribe) {
+      this.statusUnsubscribe();
+      this.statusUnsubscribe = null;
+    }
+    if (this.staffUnsubscribe) {
+      this.staffUnsubscribe();
+      this.staffUnsubscribe = null;
+    }
   }
 
   /**
-   * Refresh all data
+   * Refresh all data (manual refresh - real-time listeners already handle updates)
    */
   async refreshData() {
     showLoader();
-    await Promise.all([
-      this.loadBusinessData(),
-      this.loadStaff(),
-      this.loadStatus()
-    ]);
+    await this.loadBusinessData();
+    // Staff and status are already updated via real-time listeners
     hideLoader();
     showNotification("Data refreshed", "success");
   }
