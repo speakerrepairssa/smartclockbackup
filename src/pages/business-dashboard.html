@@ -581,6 +581,507 @@
           }
         </style>
 
+        <style>
+          /* Employee Management Styles */
+          .employees-container {
+            padding: 1rem;
+          }
+
+          .employees-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+          }
+
+          .employee-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-left: 4px solid #667eea;
+          }
+
+          .employee-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+          }
+
+          .employee-card.inactive {
+            border-left-color: #ccc;
+            opacity: 0.7;
+          }
+
+          .employee-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+          }
+
+          .employee-info h3 {
+            margin: 0 0 0.25rem 0;
+            color: #2c3e50;
+            font-size: 1.1rem;
+          }
+
+          .employee-slot-badge {
+            background: #667eea;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+          }
+
+          .employee-details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1rem 0;
+          }
+
+          .employee-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.9rem;
+          }
+
+          .detail-label {
+            color: #666;
+            font-weight: 500;
+          }
+
+          .detail-value {
+            color: #2c3e50;
+            font-weight: 600;
+          }
+
+          .employee-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+          }
+
+          .employee-status.clocked-in {
+            background: #d4edda;
+            color: #155724;
+          }
+
+          .employee-status.clocked-out {
+            background: #f8d7da;
+            color: #721c24;
+          }
+
+          .employee-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+          }
+
+          .btn-edit {
+            flex: 1;
+            padding: 0.6rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+          }
+
+          .btn-edit:hover {
+            background: #5568d3;
+          }
+
+          .btn-view {
+            flex: 1;
+            padding: 0.6rem;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+          }
+
+          .btn-view:hover {
+            background: #38a169;
+          }
+
+          .no-employees {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+            font-size: 1.1rem;
+          }
+
+          /* Employee Edit Modal */
+          .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 1rem;
+          }
+
+          .modal-employee {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+          }
+
+          .modal-employee h2 {
+            margin: 0 0 1.5rem 0;
+            color: #2c3e50;
+          }
+
+          .form-group {
+            margin-bottom: 1.25rem;
+          }
+
+          .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 0.9rem;
+          }
+
+          .form-group input,
+          .form-group select,
+          .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: inherit;
+          }
+
+          .form-group input:focus,
+          .form-group select:focus,
+          .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+          }
+
+          .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+          }
+
+          .form-group input[readonly] {
+            background: #f5f5f5;
+            color: #666;
+          }
+
+          .modal-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+          }
+
+          .btn-save {
+            flex: 1;
+            padding: 0.75rem;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.2s;
+          }
+
+          .btn-save:hover {
+            background: #38a169;
+          }
+
+          .btn-cancel {
+            flex: 1;
+            padding: 0.75rem;
+            background: #e2e8f0;
+            color: #2c3e50;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.2s;
+          }
+
+          .btn-cancel:hover {
+            background: #cbd5e0;
+          }
+
+          @media (max-width: 768px) {
+            .employees-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+        </style>
+
+        <style>
+          /* Timecard Module Styles */
+          .timecard-container {
+            padding: 1rem;
+          }
+
+          .timecard-controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+          }
+
+          .control-group {
+            flex: 1;
+            min-width: 200px;
+          }
+
+          .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 0.9rem;
+          }
+
+          .control-group select,
+          .control-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: inherit;
+          }
+
+          .btn-refresh-timecard,
+          .btn-print-timecard {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+          }
+
+          .btn-refresh-timecard {
+            background: #667eea;
+            color: white;
+          }
+
+          .btn-refresh-timecard:hover {
+            background: #5568d3;
+          }
+
+          .btn-print-timecard {
+            background: #48bb78;
+            color: white;
+          }
+
+          .btn-print-timecard:hover {
+            background: #38a169;
+          }
+
+          .timecard-display {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+          }
+
+          .timecard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+          }
+
+          .timecard-header h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+          }
+
+          .timecard-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+          }
+
+          .timecard-table-wrapper {
+            overflow-x: auto;
+            padding: 1rem;
+          }
+
+          .timecard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+          }
+
+          .timecard-table th {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #dee2e6;
+          }
+
+          .timecard-table th:last-child,
+          .timecard-table td:last-child {
+            text-align: right;
+          }
+
+          .timecard-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+          }
+
+          .timecard-table tr:hover {
+            background: #f8f9fa;
+          }
+
+          .day-date {
+            font-weight: 600;
+            color: #2c3e50;
+          }
+
+          .day-name {
+            color: #6c757d;
+            font-size: 0.85rem;
+          }
+
+          .weekend {
+            background: #fff3cd !important;
+          }
+
+          .no-data {
+            color: #999;
+            font-style: italic;
+          }
+
+          .time-in, .time-out {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+          }
+
+          .hours-worked {
+            font-weight: 600;
+            color: #48bb78;
+          }
+
+          .overtime {
+            color: #f6ad55;
+            font-weight: 600;
+          }
+
+          .timecard-summary {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-top: 3px solid #667eea;
+          }
+
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+          }
+
+          .summary-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+          }
+
+          .summary-item.overtime-item {
+            border-left-color: #f6ad55;
+          }
+
+          .summary-item.total-item {
+            border-left-color: #48bb78;
+          }
+
+          .summary-label {
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+          }
+
+          .summary-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+          }
+
+          @media print {
+            .timecard-controls,
+            .sidebar,
+            .btn-refresh-timecard,
+            .btn-print-timecard {
+              display: none !important;
+            }
+
+            .timecard-display {
+              box-shadow: none;
+            }
+          }
+
+          @media (max-width: 768px) {
+            .timecard-controls {
+              flex-direction: column;
+              align-items: stretch;
+            }
+
+            .control-group {
+              min-width: 100%;
+            }
+
+            .timecard-table {
+              font-size: 0.8rem;
+            }
+
+            .timecard-table th,
+            .timecard-table td {
+              padding: 0.5rem;
+            }
+          }
+        </style>
+
         <!-- Monitor Header -->
         <div class="monitor-header">
           <div class="monitor-title">
@@ -635,19 +1136,46 @@
 
       <!-- Employees View -->
       <div class="view-section" id="employeesView">
-        <h2 class="section-title">Employees</h2>
-        <p class="section-description">Manage your team members and slots</p>
-        <div id="employeesContent" style="padding: 2rem; text-align: center; color: #999;">
-          Loading employees...
+        <h2 class="section-title">Employee Management</h2>
+        <p class="section-description">Manage employee details and HR information</p>
+        
+        <div class="employees-container">
+          <div id="employeesGrid" class="employees-grid">
+            <!-- Employee cards will be loaded here -->
+          </div>
         </div>
       </div>
 
       <!-- Timecard View -->
       <div class="view-section" id="timecardView">
-        <h2 class="section-title">Timecard</h2>
-        <p class="section-description">View daily hours and working time</p>
-        <div id="timecardContent" style="padding: 2rem; text-align: center; color: #999;">
-          Loading timecard...
+        <h2 class="section-title">Employee Timecard</h2>
+        <p class="section-description">View monthly attendance and calculate working hours</p>
+        
+        <div class="timecard-container">
+          <!-- Selection Controls -->
+          <div class="timecard-controls">
+            <div class="control-group">
+              <label for="employeeSelect">Select Employee:</label>
+              <select id="employeeSelect" onchange="loadTimecard()">
+                <option value="">-- Select Employee --</option>
+              </select>
+            </div>
+            
+            <div class="control-group">
+              <label for="monthSelect">Select Month:</label>
+              <input type="month" id="monthSelect" onchange="loadTimecard()">
+            </div>
+            
+            <button class="btn-refresh-timecard" onclick="loadTimecard()">🔄 Refresh</button>
+            <button class="btn-print-timecard" onclick="printTimecard()">🖨️ Print</button>
+          </div>
+          
+          <!-- Timecard Display -->
+          <div id="timecardDisplay" class="timecard-display">
+            <div style="text-align: center; padding: 3rem; color: #999;">
+              Select an employee and month to view timecard
+            </div>
+          </div>
         </div>
       </div>
 
@@ -896,11 +1424,19 @@
     async function loadModuleData(module) {
       console.log('Loading module:', module);
       
+      if (module === 'employees') {
+        await loadEmployees();
+        return;
+      }
+      
+      if (module === 'timecard') {
+        await initTimecard();
+        return;
+      }
+      
       const contentIds = {
         'attendance': 'attendanceContent',
         'reports': 'reportsContent',
-        'employees': 'employeesContent',
-        'timecard': 'timecardContent',
         'settings': 'settingsContent'
       };
 
@@ -914,6 +1450,526 @@
         }
       }
     }
+
+    async function loadEmployees() {
+      try {
+        const employeesGrid = document.getElementById('employeesGrid');
+        employeesGrid.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading employees...</div>';
+
+        // Load all staff with lastClockTime (active employees who have clocked in)
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const statusRef = collection(db, "businesses", businessId, "status");
+        
+        const [staffSnap, statusSnap] = await Promise.all([
+          getDocs(staffRef),
+          getDocs(statusRef)
+        ]);
+
+        // Create a map of current statuses
+        const statusMap = new Map();
+        statusSnap.forEach(doc => {
+          const status = doc.data();
+          if (status.lastClockTime) {
+            statusMap.set(doc.id, status);
+          }
+        });
+
+        // Filter staff to only show those who have clocked in
+        const activeEmployees = [];
+        staffSnap.forEach(doc => {
+          const staff = doc.data();
+          const status = statusMap.get(doc.id);
+          
+          // Only include if they have a status record with lastClockTime
+          if (status && status.lastClockTime) {
+            activeEmployees.push({
+              id: doc.id,
+              ...staff,
+              currentStatus: status.attendanceStatus,
+              lastClockTime: status.lastClockTime
+            });
+          }
+        });
+
+        // Sort by slot number
+        activeEmployees.sort((a, b) => (a.slot || 0) - (b.slot || 0));
+
+        if (activeEmployees.length === 0) {
+          employeesGrid.innerHTML = '<div class="no-employees">No employees found. Employees will appear here after their first clock-in.</div>';
+          return;
+        }
+
+        // Render employee cards
+        employeesGrid.innerHTML = activeEmployees.map(emp => {
+          const isIn = emp.currentStatus === 'in';
+          const statusClass = isIn ? 'clocked-in' : 'clocked-out';
+          const statusText = isIn ? '● Clocked In' : '○ Clocked Out';
+          const lastTime = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleString() : 'N/A';
+          
+          return `
+            <div class="employee-card ${emp.active ? '' : 'inactive'}">
+              <div class="employee-header">
+                <div class="employee-info">
+                  <h3>${emp.employeeName || 'Unnamed Employee'}</h3>
+                  <div class="employee-status ${statusClass}">${statusText}</div>
+                </div>
+                <span class="employee-slot-badge">SLOT ${emp.slot || emp.employeeId}</span>
+              </div>
+              
+              <div class="employee-details">
+                <div class="employee-detail-row">
+                  <span class="detail-label">Employee ID:</span>
+                  <span class="detail-value">${emp.employeeId || 'N/A'}</span>
+                </div>
+                <div class="employee-detail-row">
+                  <span class="detail-label">Badge Number:</span>
+                  <span class="detail-value">${emp.badgeNumber || 'N/A'}</span>
+                </div>
+                <div class="employee-detail-row">
+                  <span class="detail-label">Phone:</span>
+                  <span class="detail-value">${emp.phone || 'Not set'}</span>
+                </div>
+                <div class="employee-detail-row">
+                  <span class="detail-label">Email:</span>
+                  <span class="detail-value">${emp.email || 'Not set'}</span>
+                </div>
+                <div class="employee-detail-row">
+                  <span class="detail-label">Position:</span>
+                  <span class="detail-value">${emp.position || 'Not set'}</span>
+                </div>
+                <div class="employee-detail-row">
+                  <span class="detail-label">Last Clock:</span>
+                  <span class="detail-value">${lastTime}</span>
+                </div>
+              </div>
+              
+              <div class="employee-actions">
+                <button class="btn-edit" onclick="editEmployee('${emp.id}')">✏️ Edit Details</button>
+                <button class="btn-view" onclick="viewEmployeeHistory('${emp.id}')">📊 View History</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (error) {
+        console.error("Error loading employees:", error);
+        document.getElementById('employeesGrid').innerHTML = 
+          '<div class="no-employees" style="color: #e53e3e;">Error loading employees: ' + error.message + '</div>';
+      }
+    }
+
+    async function editEmployee(employeeId) {
+      try {
+        const staffRef = doc(db, "businesses", businessId, "staff", employeeId);
+        const staffDoc = await getDoc(staffRef);
+        
+        if (!staffDoc.exists()) {
+          alert('Employee not found');
+          return;
+        }
+
+        const emp = staffDoc.data();
+        
+        const modal = `
+          <div class="modal-overlay" onclick="closeModal(event)">
+            <div class="modal-employee" onclick="event.stopPropagation()">
+              <h2>Edit Employee Details</h2>
+              <form id="employeeEditForm" onsubmit="saveEmployee(event, '${employeeId}')">
+                <div class="form-group">
+                  <label>Employee Name*</label>
+                  <input type="text" name="employeeName" value="${emp.employeeName || ''}" required>
+                </div>
+                
+                <div class="form-group">
+                  <label>Slot Number</label>
+                  <input type="text" name="slot" value="${emp.slot || ''}" readonly>
+                </div>
+                
+                <div class="form-group">
+                  <label>Badge Number</label>
+                  <input type="text" name="badgeNumber" value="${emp.badgeNumber || ''}" readonly>
+                </div>
+                
+                <div class="form-group">
+                  <label>Phone Number</label>
+                  <input type="tel" name="phone" value="${emp.phone || ''}" placeholder="+27 XX XXX XXXX">
+                </div>
+                
+                <div class="form-group">
+                  <label>Email Address</label>
+                  <input type="email" name="email" value="${emp.email || ''}" placeholder="employee@example.com">
+                </div>
+                
+                <div class="form-group">
+                  <label>Position/Title</label>
+                  <input type="text" name="position" value="${emp.position || ''}" placeholder="e.g., Technician, Manager">
+                </div>
+                
+                <div class="form-group">
+                  <label>Department</label>
+                  <input type="text" name="department" value="${emp.department || ''}" placeholder="e.g., Production, Sales">
+                </div>
+                
+                <div class="form-group">
+                  <label>ID Number</label>
+                  <input type="text" name="idNumber" value="${emp.idNumber || ''}" placeholder="SA ID Number">
+                </div>
+                
+                <div class="form-group">
+                  <label>Address</label>
+                  <textarea name="address" placeholder="Full address">${emp.address || ''}</textarea>
+                </div>
+                
+                <div class="form-group">
+                  <label>Hire Date</label>
+                  <input type="date" name="hireDate" value="${emp.hireDate || ''}">
+                </div>
+                
+                <div class="form-group">
+                  <label>Hourly Rate (ZAR)</label>
+                  <input type="number" name="hourlyRate" value="${emp.hourlyRate || ''}" step="0.01" placeholder="0.00">
+                </div>
+                
+                <div class="form-group">
+                  <label>Notes</label>
+                  <textarea name="notes" placeholder="Additional notes or comments">${emp.notes || ''}</textarea>
+                </div>
+                
+                <div class="modal-actions">
+                  <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+                  <button type="submit" class="btn-save">💾 Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modal);
+        
+      } catch (error) {
+        console.error("Error editing employee:", error);
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function saveEmployee(event, employeeId) {
+      event.preventDefault();
+      
+      try {
+        const form = event.target;
+        const formData = new FormData(form);
+        
+        const employeeData = {
+          employeeName: formData.get('employeeName'),
+          phone: formData.get('phone'),
+          email: formData.get('email'),
+          position: formData.get('position'),
+          department: formData.get('department'),
+          idNumber: formData.get('idNumber'),
+          address: formData.get('address'),
+          hireDate: formData.get('hireDate'),
+          hourlyRate: parseFloat(formData.get('hourlyRate')) || 0,
+          notes: formData.get('notes'),
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Update Firebase
+        const staffRef = doc(db, "businesses", businessId, "staff", employeeId);
+        await setDoc(staffRef, employeeData, { merge: true });
+        
+        console.log("Employee updated successfully");
+        
+        // Close modal
+        closeModal();
+        
+        // Reload employees
+        await loadEmployees();
+        
+        alert('Employee details updated successfully!');
+        
+      } catch (error) {
+        console.error("Error saving employee:", error);
+        alert('Error saving: ' + error.message);
+      }
+    }
+
+    function closeModal(event) {
+      if (event && event.target.classList.contains('modal-overlay')) {
+        event.target.remove();
+      } else {
+        document.querySelector('.modal-overlay')?.remove();
+      }
+    }
+
+    async function viewEmployeeHistory(employeeId) {
+      alert('Employee history view coming soon!');
+      // TODO: Implement attendance history view
+    }
+
+    // Make functions globally available
+    window.editEmployee = editEmployee;
+    window.saveEmployee = saveEmployee;
+    window.closeModal = closeModal;
+    window.viewEmployeeHistory = viewEmployeeHistory;
+
+    // ============================================
+    // TIMECARD MODULE FUNCTIONS
+    // ============================================
+    
+    async function initTimecard() {
+      try {
+        // Load employee list for dropdown
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const statusRef = collection(db, "businesses", businessId, "status");
+        
+        const [staffSnap, statusSnap] = await Promise.all([
+          getDocs(staffRef),
+          getDocs(statusRef)
+        ]);
+
+        // Create a map of employees with lastClockTime
+        const statusMap = new Map();
+        statusSnap.forEach(doc => {
+          const status = doc.data();
+          if (status.lastClockTime) {
+            statusMap.set(doc.id, status);
+          }
+        });
+
+        // Filter and populate employee dropdown
+        const employeeSelect = document.getElementById('employeeSelect');
+        employeeSelect.innerHTML = '<option value="">-- Select Employee --</option>';
+        
+        const employees = [];
+        staffSnap.forEach(doc => {
+          const staff = doc.data();
+          const status = statusMap.get(doc.id);
+          
+          if (status && status.lastClockTime) {
+            employees.push({
+              id: doc.id,
+              name: staff.employeeName,
+              slot: staff.slot
+            });
+          }
+        });
+
+        // Sort by slot
+        employees.sort((a, b) => (a.slot || 0) - (b.slot || 0));
+
+        // Add to dropdown
+        employees.forEach(emp => {
+          const option = document.createElement('option');
+          option.value = emp.id;
+          option.textContent = `${emp.name} (Slot ${emp.slot || emp.id})`;
+          employeeSelect.appendChild(option);
+        });
+
+        // Set default month to current month
+        const now = new Date();
+        const monthInput = document.getElementById('monthSelect');
+        monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+      } catch (error) {
+        console.error("Error initializing timecard:", error);
+        alert('Error loading timecard: ' + error.message);
+      }
+    }
+
+    async function loadTimecard() {
+      const employeeId = document.getElementById('employeeSelect').value;
+      const month = document.getElementById('monthSelect').value;
+      const display = document.getElementById('timecardDisplay');
+
+      if (!employeeId || !month) {
+        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Select an employee and month to view timecard</div>';
+        return;
+      }
+
+      try {
+        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Loading timecard...</div>';
+
+        // Get employee info
+        const staffRef = doc(db, "businesses", businessId, "staff", employeeId);
+        const staffDoc = await getDoc(staffRef);
+        const employee = staffDoc.data();
+
+        // Parse month
+        const [year, monthNum] = month.split('-');
+        const monthDate = new Date(year, monthNum - 1, 1);
+        const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        // Get all days in month
+        const daysInMonth = new Date(year, monthNum, 0).getDate();
+        const dailyRecords = [];
+
+        // Get working hours from settings (default 8 hours)
+        const workingHours = 8; // TODO: Load from settings
+
+        // Fetch attendance events for each day
+        for (let day = 1; day <= daysInMonth; day++) {
+          // Create date at noon to avoid timezone issues
+          const date = new Date(year, monthNum - 1, day, 12, 0, 0);
+          const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+          const isWeekend = dayName === 'Sat' || dayName === 'Sun';
+
+          try {
+            // Query attendance events for this day and employee
+            const eventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
+            const eventsSnap = await getDocs(eventsRef);
+
+            const events = [];
+            eventsSnap.forEach(doc => {
+              events.push(doc.data());
+            });
+
+            // Sort by timestamp
+            events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            // Calculate hours for this day
+            let clockIns = [];
+            let clockOuts = [];
+            let totalHours = 0;
+
+            events.forEach(event => {
+              if (event.type === 'clock-in') {
+                clockIns.push(new Date(event.timestamp));
+              } else if (event.type === 'clock-out') {
+                clockOuts.push(new Date(event.timestamp));
+              }
+            });
+
+            // Calculate work periods - pair each clock-in with next clock-out
+            for (let i = 0; i < clockIns.length; i++) {
+              // Find the next clock-out after this clock-in
+              const nextClockOut = clockOuts.find(cout => cout > clockIns[i]);
+              
+              if (nextClockOut) {
+                const hours = (nextClockOut - clockIns[i]) / (1000 * 60 * 60);
+                // Only add positive hours
+                if (hours > 0) {
+                  totalHours += hours;
+                }
+              }
+            }
+
+            const overtime = Math.max(0, totalHours - workingHours);
+
+            dailyRecords.push({
+              date: dateStr,
+              day: day,
+              dayName: dayName,
+              isWeekend: isWeekend,
+              clockIns: clockIns,
+              clockOuts: clockOuts,
+              totalHours: totalHours,
+              overtime: overtime,
+              hasData: events.length > 0
+            });
+
+          } catch (error) {
+            console.error(`Error fetching events for ${dateStr}:`, error);
+            dailyRecords.push({
+              date: dateStr,
+              day: day,
+              dayName: dayName,
+              isWeekend: isWeekend,
+              clockIns: [],
+              clockOuts: [],
+              totalHours: 0,
+              overtime: 0,
+              hasData: false
+            });
+          }
+        }
+
+        // Calculate totals
+        const totalHours = dailyRecords.reduce((sum, record) => sum + record.totalHours, 0);
+        const totalOvertime = dailyRecords.reduce((sum, record) => sum + record.overtime, 0);
+        const daysWorked = dailyRecords.filter(r => r.hasData).length;
+
+        // Render timecard
+        display.innerHTML = `
+          <div class="timecard-header">
+            <h3>${employee.employeeName} - ${monthName}</h3>
+            <p>Slot ${employee.slot || employeeId} • Badge ${employee.badgeNumber || 'N/A'}</p>
+          </div>
+
+          <div class="timecard-table-wrapper">
+            <table class="timecard-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Day</th>
+                  <th>Clock In</th>
+                  <th>Clock Out</th>
+                  <th>Hours</th>
+                  <th>Overtime</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${dailyRecords.map(record => {
+                  const clockInTime = record.clockIns.length > 0 
+                    ? record.clockIns[0].toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+                    : '-';
+                  const clockOutTime = record.clockOuts.length > 0
+                    ? record.clockOuts[record.clockOuts.length - 1].toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+                    : '-';
+                  const hours = record.totalHours > 0 ? record.totalHours.toFixed(2) : '-';
+                  const overtime = record.overtime > 0 ? record.overtime.toFixed(2) : '-';
+
+                  return `
+                    <tr class="${record.isWeekend ? 'weekend' : ''}">
+                      <td class="day-date">${record.day}</td>
+                      <td class="day-name">${record.dayName}</td>
+                      <td class="time-in ${!record.hasData ? 'no-data' : ''}">${clockInTime}</td>
+                      <td class="time-out ${!record.hasData ? 'no-data' : ''}">${clockOutTime}</td>
+                      <td class="hours-worked">${hours}</td>
+                      <td class="overtime">${overtime}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="timecard-summary">
+            <div class="summary-grid">
+              <div class="summary-item">
+                <div class="summary-label">Days Worked</div>
+                <div class="summary-value">${daysWorked}</div>
+              </div>
+              <div class="summary-item total-item">
+                <div class="summary-label">Total Hours</div>
+                <div class="summary-value">${totalHours.toFixed(2)}</div>
+              </div>
+              <div class="summary-item overtime-item">
+                <div class="summary-label">Total Overtime</div>
+                <div class="summary-value">${totalOvertime.toFixed(2)}</div>
+              </div>
+              <div class="summary-item">
+                <div class="summary-label">Regular Hours</div>
+                <div class="summary-value">${(totalHours - totalOvertime).toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+      } catch (error) {
+        console.error("Error loading timecard:", error);
+        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #e53e3e;">Error loading timecard: ' + error.message + '</div>';
+      }
+    }
+
+    function printTimecard() {
+      window.print();
+    }
+
+    // Make timecard functions globally available
+    window.loadTimecard = loadTimecard;
+    window.printTimecard = printTimecard;
+    window.initTimecard = initTimecard;
 
     // Debug functions for testing
     async function addTestEmployee() {
