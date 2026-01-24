@@ -809,6 +809,14 @@
         statusSnap.forEach(doc => {
           const status = doc.data();
           console.log("Processing employee:", status.employeeName, "attendanceStatus:", status.attendanceStatus);
+          
+          // Only show employees who have actually clocked in at some point (have lastClockTime)
+          // This filters out unused slots that were auto-created
+          if (!status.lastClockTime) {
+            console.log("Skipping unused slot:", status.employeeName);
+            return;
+          }
+          
           // Check attendanceStatus field for IN/OUT
           if (status.attendanceStatus === 'in') {
             inEmployees.push(status);
@@ -827,12 +835,14 @@
         } else {
           inEmployees.forEach(emp => {
             const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
+            const lastTime = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString() : 'N/A';
             inHtml += `
               <div class="employee-item">
                 <div>
                   <div class="employee-name">${emp.employeeName}</div>
                   <div class="employee-slot">SLOT ${slotDisplay}</div>
                 </div>
+                <div class="employee-time">${lastTime}</div>
               </div>
             `;
           });
