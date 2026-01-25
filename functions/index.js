@@ -439,15 +439,20 @@ async function findBusinessByDeviceId(deviceId) {
   try {
     logger.info("Searching for business with deviceId", { deviceId });
 
-    // Query all businesses for device assignments
+    // Query all businesses to check their devices subcollection
     const businessesSnapshot = await db.collection('businesses').get();
     
     for (const doc of businessesSnapshot.docs) {
-      const businessData = doc.data();
+      // Check if this business has the device in its devices subcollection
+      const deviceDoc = await db.collection('businesses')
+        .doc(doc.id)
+        .collection('devices')
+        .doc(deviceId)
+        .get();
       
-      // Check if this business owns the device
-      if (businessData.deviceId === deviceId) {
-        logger.info("Found business for device", { 
+      if (deviceDoc.exists) {
+        const businessData = doc.data();
+        logger.info("Found business for device in subcollection", { 
           businessId: doc.id, 
           businessName: businessData.businessName,
           deviceId 

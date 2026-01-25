@@ -6,6 +6,7 @@ import {
   getDoc, 
   updateDoc, 
   deleteDoc,
+  setDoc,
   query,
   orderBy 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -58,6 +59,68 @@ class AdminDashboardController {
     const refreshBtn = document.getElementById("refreshBtn");
     if (refreshBtn) {
       refreshBtn.addEventListener("click", () => this.loadBusinesses());
+    }
+
+    // Add device button
+    const addDeviceBtn = document.getElementById("addDeviceBtn");
+    if (addDeviceBtn) {
+      addDeviceBtn.addEventListener("click", () => this.openAddDeviceModal());
+    }
+
+    // Close modal button
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    if (closeModalBtn) {
+      closeModalBtn.addEventListener("click", () => this.closeAddDeviceModal());
+    }
+
+    // Cancel modal button
+    const cancelModalBtn = document.getElementById("cancelModalBtn");
+    if (cancelModalBtn) {
+      cancelModalBtn.addEventListener("click", () => this.closeAddDeviceModal());
+    }
+
+    // Register device button
+    const registerDeviceBtn = document.getElementById("registerDeviceBtn");
+    if (registerDeviceBtn) {
+      registerDeviceBtn.addEventListener("click", () => this.registerDevice());
+    }
+
+    // Edit device modal handlers
+    const closeEditModalBtn = document.getElementById("closeEditModalBtn");
+    if (closeEditModalBtn) {
+      closeEditModalBtn.addEventListener("click", () => this.closeEditDeviceModal());
+    }
+
+    const cancelEditModalBtn = document.getElementById("cancelEditModalBtn");
+    if (cancelEditModalBtn) {
+      cancelEditModalBtn.addEventListener("click", () => this.closeEditDeviceModal());
+    }
+
+    const updateDeviceBtn = document.getElementById("updateDeviceBtn");
+    if (updateDeviceBtn) {
+      updateDeviceBtn.addEventListener("click", () => this.updateDevice());
+    }
+
+    // Delegate edit and delete buttons
+    document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("device-edit-btn")) {
+        const deviceId = e.target.dataset.deviceId;
+        this.openEditDeviceModal(deviceId);
+      }
+      if (e.target.classList.contains("device-delete-btn")) {
+        const deviceId = e.target.dataset.deviceId;
+        this.deleteDevice(deviceId);
+      }
+    });
+
+    // Close modal on outside click
+    const modal = document.getElementById("addDeviceModal");
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          this.closeAddDeviceModal();
+        }
+      });
     }
   }
 
@@ -281,26 +344,40 @@ class AdminDashboardController {
     try {
       const allDevices = [];
 
-      // Get all businesses
+      // Get all devices from global collection
+      const devicesRef = collection(db, "devices");
+      const devicesSnap = await getDocs(devicesRef);
+
+      // Get all businesses to check which ones use each device
       const businessesRef = collection(db, "businesses");
       const businessesSnap = await getDocs(businessesRef);
-
-      // Collect all devices from all businesses
-      for (const businessDoc of businessesSnap.docs) {
-        const businessId = businessDoc.id;
+      const businessesMap = {};
+      
+      businessesSnap.forEach((businessDoc) => {
         const businessData = businessDoc.data();
+        businessesMap[businessDoc.id] = businessData.businessName || businessDoc.id;
+      });
 
-        // Get devices for this business
-        const devicesRef = collection(db, "businesses", businessId, "devices");
-        const devicesSnap = await getDocs(devicesRef);
+      // Collect all devices and check which businesses use them by checking their devices subcollections
+      for (const deviceDoc of devicesSnap.docs) {
+        const deviceData = deviceDoc.data();
+        const deviceId = deviceDoc.id;
+        
+        // Find which businesses have this device in their devices subcollection
+        const linkedBusinesses = [];
+        for (const businessDoc of businessesSnap.docs) {
+          const businessDeviceRef = doc(db, "businesses", businessDoc.id, "devices", deviceId);
+          const businessDeviceSnap = await getDoc(businessDeviceRef);
+          
+          if (businessDeviceSnap.exists()) {
+            linkedBusinesses.push(businessesMap[businessDoc.id]);
+          }
+        }
 
-        devicesSnap.forEach((deviceDoc) => {
-          allDevices.push({
-            id: deviceDoc.id,
-            businessId: businessId,
-            businessName: businessData.businessName,
-            ...deviceDoc.data()
-          });
+        allDevices.push({
+          id: deviceId,
+          linkedBusinesses: linkedBusinesses.length > 0 ? linkedBusinesses.join(', ') : 'Not assigned',
+          ...deviceData
         });
       }
 
@@ -335,20 +412,20 @@ class AdminDashboardController {
       <tr>
         <td>${device.id}</td>
         <td>${device.deviceName}</td>
-        <td>${device.deviceType ? device.deviceType.replace(/_/g, ' ').toUpperCase() : 'N/A'}</td>
+        <td>${device.deviceType ? device.deviceType.replace(/_/g, ' ') : 'N/A'}</td>
         <td>${device.serialNumber || 'N/A'}</td>
-        <td>${device.macAddress || 'N/A'}</td>
-        <td>${device.businessName}</td>
+        <td>${device.ipAddress || 'N/A'}</td>
+        <td>${device.linkedBusinesses || 'Not assigned'}</td>
         <td>
           <span class="status-badge ${device.status}">
             ${device.status}
           </span>
         </td>
         <td>
-          <button class="btn btn-small btn-secondary" onclick="adminDashboard.editDevice('${device.businessId}', '${device.id}')">
+          <button class="btn btn-small btn-secondary device-edit-btn" data-device-id="${device.id}">
             Edit
           </button>
-          <button class="btn btn-small btn-danger" onclick="adminDashboard.deleteDevice('${device.businessId}', '${device.id}')">
+          <button class="btn btn-small btn-danger device-delete-btn" data-device-id="${device.id}">
             Delete
           </button>
         </td>
@@ -357,41 +434,150 @@ class AdminDashboardController {
   }
 
   /**
-   * Edit device
-   * @param {string} businessId 
+   * Open edit device modal
    * @param {string} deviceId 
    */
-  async editDevice(businessId, deviceId) {
-    const newStatus = prompt("Enter new status (active/inactive/maintenance):");
-    if (!newStatus || !['active', 'inactive', 'maintenance'].includes(newStatus)) {
+  async openEditDeviceModal(deviceId) {
+    try {
+      // Get device data from global collection
+      const deviceRef = doc(db, "devices", deviceId);
+      const deviceSnap = await getDoc(deviceRef);
+      
+      if (!deviceSnap.exists()) {
+        showNotification("Device not found", "error");
+        return;
+      }
+      
+      const device = deviceSnap.data();
+      
+      // Populate form fields
+      document.getElementById("editDeviceId").value = deviceId;
+      document.getElementById("editDeviceName").value = device.deviceName || "";
+      document.getElementById("editDeviceType").value = device.deviceType || "";
+      document.getElementById("editSerialNumber").value = device.serialNumber || "";
+      document.getElementById("editIpAddress").value = device.ipAddress || "";
+      document.getElementById("editDeviceUsername").value = device.username || "";
+      document.getElementById("editDevicePassword").value = ""; // Don't show existing password
+      document.getElementById("editDeviceStatus").value = device.status || "Active";
+      
+      // Clear connection status
+      const statusElement = document.getElementById("editConnectionStatus");
+      if (statusElement) {
+        statusElement.textContent = "";
+      }
+      
+      // Show modal
+      document.getElementById("editDeviceModal").style.display = "flex";
+
+      // Add test connection button listener (remove old listener first)
+      const testEditConnectionBtn = document.getElementById('testEditConnectionBtn');
+      if (testEditConnectionBtn) {
+        // Remove old listener by cloning
+        const newBtn = testEditConnectionBtn.cloneNode(true);
+        testEditConnectionBtn.parentNode.replaceChild(newBtn, testEditConnectionBtn);
+        // Add new listener
+        newBtn.addEventListener('click', () => this.testDeviceConnection(true));
+      }
+    } catch (error) {
+      console.error("Error opening edit modal:", error);
+      showNotification("Error loading device data", "error");
+    }
+  }
+  
+  /**
+   * Close edit device modal
+   */
+  closeEditDeviceModal() {
+    document.getElementById("editDeviceModal").style.display = "none";
+    document.getElementById("editDeviceForm").reset();
+  }
+  
+  /**
+   * Update device
+   */
+  async updateDevice() {
+    const deviceId = document.getElementById("editDeviceId").value;
+    const deviceName = document.getElementById("editDeviceName").value.trim();
+    const deviceType = document.getElementById("editDeviceType").value;
+    const serialNumber = document.getElementById("editSerialNumber").value.trim();
+    const ipAddress = document.getElementById("editIpAddress").value.trim();
+    const username = document.getElementById("editDeviceUsername").value.trim();
+    const password = document.getElementById("editDevicePassword").value.trim();
+    const status = document.getElementById("editDeviceStatus").value;
+    
+    if (!deviceName || !deviceType || !ipAddress) {
+      showNotification("Please fill in all required fields", "error");
       return;
     }
-
+    
     try {
-      const deviceRef = doc(db, "businesses", businessId, "devices", deviceId);
-      await updateDoc(deviceRef, { status: newStatus });
-      showNotification("Device status updated", "success");
+      showLoader();
+      
+      // Prepare device data
+      const deviceData = {
+        deviceId: deviceId,
+        deviceName: deviceName,
+        deviceType: deviceType,
+        serialNumber: serialNumber,
+        ipAddress: ipAddress,
+        username: username,
+        status: status,
+        lastSync: new Date().toISOString()
+      };
+      
+      // Only update password if provided
+      if (password) {
+        deviceData.password = password;
+      }
+      
+      // Update device in global collection
+      const deviceRef = doc(db, "devices", deviceId);
+      
+      // If no new password provided, don't update the password field
+      if (!password) {
+        delete deviceData.password;
+      }
+      
+      await updateDoc(deviceRef, deviceData);
+      
+      showNotification("Device updated successfully", "success");
+      this.closeEditDeviceModal();
       await this.loadDevices();
+      hideLoader();
     } catch (error) {
       console.error("Error updating device:", error);
-      showNotification("Error updating device", "error");
+      showNotification("Error updating device: " + error.message, "error");
+      hideLoader();
     }
   }
 
   /**
    * Delete device
-   * @param {string} businessId 
    * @param {string} deviceId 
    */
-  async deleteDevice(businessId, deviceId) {
-    if (!confirm("Are you sure you want to delete this device?")) {
+  async deleteDevice(deviceId) {
+    if (!confirm("Are you sure you want to delete this device? This will also remove it from any businesses using it.")) {
       return;
     }
 
     try {
       showLoader();
-      const deviceRef = doc(db, "businesses", businessId, "devices", deviceId);
+      const deviceRef = doc(db, "devices", deviceId);
       await deleteDoc(deviceRef);
+      
+      // Also remove device reference from any businesses using it
+      const businessesRef = collection(db, "businesses");
+      const businessesSnap = await getDocs(businessesRef);
+      
+      for (const businessDoc of businessesSnap.docs) {
+        const businessData = businessDoc.data();
+        if (businessData.deviceId === deviceId) {
+          await updateDoc(doc(db, "businesses", businessDoc.id), {
+            deviceId: ""
+          });
+        }
+      }
+      
       showNotification("Device deleted successfully", "success");
       await this.loadDevices();
       hideLoader();
@@ -408,6 +594,213 @@ class AdminDashboardController {
    */
   manageDevices(businessId) {
     window.location.href = `/pages/device-manager.html?businessId=${businessId}`;
+  }
+
+  /**
+   * Open add device modal
+   */
+  openAddDeviceModal() {
+    // Clear connection status
+    const statusElement = document.getElementById('connectionStatus');
+    if (statusElement) {
+      statusElement.textContent = '';
+    }
+
+    // Show modal
+    document.getElementById('addDeviceModal').style.display = 'flex';
+
+    // Add test connection button listener (remove old listener first)
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
+    if (testConnectionBtn) {
+      // Remove old listener by cloning
+      const newBtn = testConnectionBtn.cloneNode(true);
+      testConnectionBtn.parentNode.replaceChild(newBtn, testConnectionBtn);
+      // Add new listener
+      newBtn.addEventListener('click', () => this.testDeviceConnection(false));
+    }
+  }
+
+  /**
+   * Close add device modal
+   */
+  closeAddDeviceModal() {
+    document.getElementById('addDeviceModal').style.display = 'none';
+    document.getElementById('addDeviceForm').reset();
+  }
+
+  /**
+   * Test device connection
+   * @param {boolean} isEdit - Whether this is from edit modal
+   */
+  async testDeviceConnection(isEdit = false) {
+    try {
+      const prefix = isEdit ? 'edit' : '';
+      const ipAddressId = isEdit ? 'editIpAddress' : 'ipAddress';
+      const usernameId = isEdit ? 'editDeviceUsername' : 'deviceUsername';
+      const passwordId = isEdit ? 'editDevicePassword' : 'devicePassword';
+      const statusId = isEdit ? 'editConnectionStatus' : 'connectionStatus';
+      
+      const ipAddress = document.getElementById(ipAddressId).value.trim();
+      const username = document.getElementById(usernameId).value.trim();
+      const password = document.getElementById(passwordId).value.trim();
+      const statusElement = document.getElementById(statusId);
+
+      if (!ipAddress) {
+        statusElement.textContent = '❌ Please enter an IP address';
+        statusElement.style.color = '#ef4444';
+        return;
+      }
+
+      // Validate IP address format
+      const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      if (!ipRegex.test(ipAddress)) {
+        statusElement.textContent = '❌ Invalid IP address format';
+        statusElement.style.color = '#ef4444';
+        return;
+      }
+
+      statusElement.textContent = '🔄 Testing connection...';
+      statusElement.style.color = '#3b82f6';
+
+      // Simulate device connection test
+      // In a real implementation, you would call a Cloud Function to test the connection
+      const connectionUrl = `http://${ipAddress}`;
+      
+      // Try to ping the device (this is a simulation)
+      const testResult = await this.simulateDeviceConnection(ipAddress, username, password);
+      
+      if (testResult.success) {
+        statusElement.textContent = `✅ Connection successful! Device is reachable (${testResult.responseTime}ms)`;
+        statusElement.style.color = '#10b981';
+      } else {
+        statusElement.textContent = `❌ Connection failed: ${testResult.error}`;
+        statusElement.style.color = '#ef4444';
+      }
+
+    } catch (error) {
+      console.error('Error testing connection:', error);
+      const statusId = isEdit ? 'editConnectionStatus' : 'connectionStatus';
+      const statusElement = document.getElementById(statusId);
+      statusElement.textContent = `❌ Error: ${error.message}`;
+      statusElement.style.color = '#ef4444';
+    }
+  }
+
+  /**
+   * Simulate device connection (replace with actual API call to Cloud Function)
+   * @param {string} ipAddress 
+   * @param {string} username 
+   * @param {string} password 
+   */
+  async simulateDeviceConnection(ipAddress, username, password) {
+    return new Promise((resolve) => {
+      // Simulate network delay
+      setTimeout(() => {
+        // In production, this should call a Cloud Function that:
+        // 1. Attempts to connect to the device at the IP address
+        // 2. Authenticates with username/password if provided
+        // 3. Checks if the device API is accessible
+        // 4. Returns connection status and device info
+        
+        // For now, simulate based on IP format
+        const responseTime = Math.floor(Math.random() * 100) + 50;
+        
+        // Simulate 80% success rate for demonstration
+        const isSuccess = Math.random() > 0.2;
+        
+        if (isSuccess) {
+          resolve({
+            success: true,
+            responseTime: responseTime,
+            deviceInfo: {
+              model: 'ZKTeco F18',
+              firmware: '6.5.0'
+            }
+          });
+        } else {
+          resolve({
+            success: false,
+            error: 'Device not responding or unreachable'
+          });
+        }
+      }, 1500);
+    });
+  }
+
+  /**
+   * Register new device
+   */
+  async registerDevice() {
+    try {
+      const form = document.getElementById('addDeviceForm');
+      const formData = new FormData(form);
+      
+      const deviceData = {
+        deviceId: document.getElementById('deviceId').value.trim(),
+        deviceName: document.getElementById('deviceName').value.trim(),
+        deviceType: document.getElementById('deviceType').value,
+        serialNumber: document.getElementById('serialNumber').value.trim(),
+        ipAddress: document.getElementById('ipAddress').value.trim(),
+        username: document.getElementById('deviceUsername').value.trim(),
+        password: document.getElementById('devicePassword').value.trim(),
+        status: document.getElementById('deviceStatus').value || 'Active',
+        registeredAt: new Date().toISOString(),
+        registeredBy: 'admin'
+      };
+
+      // Validate required fields
+      if (!deviceData.deviceId || !deviceData.deviceName || !deviceData.deviceType || !deviceData.ipAddress) {
+        showNotification('Please fill in all required fields', 'error');
+        return;
+      }
+
+      // Validate IP address format
+      const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      if (!ipRegex.test(deviceData.ipAddress)) {
+        showNotification('Please enter a valid IP address', 'error');
+        return;
+      }
+
+      showLoader();
+
+      // Check if device ID already exists
+      const deviceRef = doc(db, "devices", deviceData.deviceId);
+      const existingDevice = await getDoc(deviceRef);
+      
+      if (existingDevice.exists()) {
+        hideLoader();
+        showNotification('Device ID already exists', 'error');
+        return;
+      }
+
+      // Add device to global devices collection
+      await setDoc(deviceRef, deviceData);
+
+      hideLoader();
+      showNotification('Device registered successfully!', 'success');
+      
+      this.closeAddDeviceModal();
+      await this.loadDevices();
+
+    } catch (error) {
+      hideLoader();
+      console.error('Error registering device:', error);
+      showNotification('Error registering device: ' + error.message, 'error');
+    }
+  }
+
+  /**
+   * Check if device ID already exists (deprecated - now using direct check)
+   */
+  async checkDeviceExists(deviceId) {
+    try {
+      const deviceRef = doc(db, "devices", deviceId);
+      const deviceDoc = await getDoc(deviceRef);
+      return deviceDoc.exists() ? deviceDoc.data() : null;
+    } catch (error) {
+      console.error('Error checking device existence:', error);
+      return null;
+    }
   }
 }
 

@@ -6,6 +6,103 @@
   <title>Admin Dashboard - AiClock</title>
   <link rel="stylesheet" href="/styles/main.css">
   <link rel="stylesheet" href="/styles/dashboard.css">
+  <style>
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: #1f2937;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .form-group small {
+      display: block;
+      margin-top: 0.25rem;
+      color: #6b7280;
+      font-size: 0.875rem;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+  </style>
 </head>
 <body>
   <!-- Navigation Header -->
@@ -91,7 +188,7 @@
       <!-- Devices Section -->
       <div class="actions-bar" style="margin-top: 3rem;">
         <h2>🖥️ Active Devices</h2>
-        <button id="addDeviceBtn" class="btn btn-primary" onclick="openAddDeviceModal()">+ Register New Device</button>
+        <button id="addDeviceBtn" class="btn btn-primary">+ Register New Device</button>
       </div>
 
       <div class="table-container">
@@ -123,6 +220,160 @@
 
   <!-- Toast Notification Container -->
   <div id="notificationContainer"></div>
+
+  <!-- Add Device Modal -->
+  <div id="addDeviceModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Register New Device</h3>
+        <button type="button" class="modal-close" id="closeModalBtn">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="addDeviceForm">
+          <div class="form-group">
+            <label for="deviceId">Device ID *</label>
+            <input type="text" id="deviceId" required placeholder="e.g., FC434999" />
+            <small>Unique identifier for the device</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="deviceName">Device Name *</label>
+            <input type="text" id="deviceName" required placeholder="e.g., Main Entrance Scanner" />
+          </div>
+          
+          <div class="form-group">
+            <label for="deviceType">Device Type *</label>
+            <select id="deviceType" required>
+              <option value="">Select device type</option>
+              <option value="Face Recognition">Face Recognition Terminal</option>
+              <option value="Fingerprint">Fingerprint Scanner</option>
+              <option value="Card Reader">Card Reader</option>
+              <option value="Biometric">Biometric Terminal</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="serialNumber">Serial Number</label>
+            <input type="text" id="serialNumber" placeholder="e.g., SN123456789" />
+          </div>
+          
+          <div class="form-group">
+            <label for="ipAddress">IP Address *</label>
+            <input type="text" id="ipAddress" required placeholder="e.g., 192.168.1.100" />
+            <small>Device's network IP address</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="deviceUsername">Device Username</label>
+            <input type="text" id="deviceUsername" placeholder="e.g., admin" />
+            <small>Username for device authentication</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="devicePassword">Device Password</label>
+            <input type="password" id="devicePassword" placeholder="Enter device password" />
+            <small>Password for device authentication</small>
+          </div>
+          
+          <div class="form-group">
+            <button type="button" class="btn btn-secondary" id="testConnectionBtn" style="width: 100%;">
+              🔌 Test Connection
+            </button>
+            <small id="connectionStatus" style="display: block; margin-top: 0.5rem;"></small>
+          </div>
+          
+          <div class="form-group">
+            <label for="deviceStatus">Status</label>
+            <select id="deviceStatus">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Maintenance">Maintenance</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="registerDeviceBtn">Register Device</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Device Modal -->
+  <div id="editDeviceModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edit Device</h3>
+        <button type="button" class="modal-close" id="closeEditModalBtn">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="editDeviceForm">
+          <input type="hidden" id="editDeviceId" />
+          
+          <div class="form-group">
+            <label for="editDeviceName">Device Name *</label>
+            <input type="text" id="editDeviceName" required placeholder="e.g., Main Entrance Scanner" />
+          </div>
+          
+          <div class="form-group">
+            <label for="editDeviceType">Device Type *</label>
+            <select id="editDeviceType" required>
+              <option value="">Select device type</option>
+              <option value="Face Recognition">Face Recognition Terminal</option>
+              <option value="Fingerprint">Fingerprint Scanner</option>
+              <option value="Card Reader">Card Reader</option>
+              <option value="Biometric">Biometric Terminal</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="editSerialNumber">Serial Number</label>
+            <input type="text" id="editSerialNumber" placeholder="e.g., SN123456789" />
+          </div>
+          
+          <div class="form-group">
+            <label for="editIpAddress">IP Address *</label>
+            <input type="text" id="editIpAddress" required placeholder="e.g., 192.168.1.100" />
+            <small>Device's network IP address</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="editDeviceUsername">Device Username</label>
+            <input type="text" id="editDeviceUsername" placeholder="e.g., admin" />
+            <small>Username for device authentication</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="editDevicePassword">Device Password</label>
+            <input type="password" id="editDevicePassword" placeholder="Enter device password" />
+            <small>Leave blank to keep existing password</small>
+          </div>
+          
+          <div class="form-group">
+            <button type="button" class="btn btn-secondary" id="testEditConnectionBtn" style="width: 100%;">
+              🔌 Test Connection
+            </button>
+            <small id="editConnectionStatus" style="display: block; margin-top: 0.5rem;"></small>
+          </div>
+          
+          <div class="form-group">
+            <label for="editDeviceStatus">Status</label>
+            <select id="editDeviceStatus">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Maintenance">Maintenance</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelEditModalBtn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="updateDeviceBtn">Update Device</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Import as ES Module -->
   <script type="module">

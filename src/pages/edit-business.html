@@ -282,7 +282,7 @@
 
       <div class="form-group">
         <label>Password</label>
-        <input type="password" id="businessPassword" placeholder="Leave blank to keep current password">
+        <input type="text" id="businessPassword" placeholder="Leave blank to keep current password">
         <div class="field-info">Only fill this field if you want to change the password</div>
       </div>
 
@@ -290,6 +290,15 @@
       <div style="padding: 1.5rem; background: #f9f9f9; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid #667eea;">
         <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; color: #333;">🖥️ Device Configuration</div>
         
+        <!-- Device Selector -->
+        <div class="form-group" style="margin-bottom: 1.5rem; padding: 1rem; background: white; border-radius: 6px; border: 2px dashed #667eea;">
+          <label style="color: #667eea;">📱 Select Registered Device</label>
+          <select id="deviceSelector" style="font-weight: 600;">
+            <option value="">-- Select a device to auto-fill fields --</option>
+          </select>
+          <div class="field-info" style="color: #667eea;">Choose a device from the registered devices list</div>
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label>Device ID</label>
@@ -319,7 +328,7 @@
         <div class="form-row">
           <div class="form-group">
             <label>Device Password</label>
-            <input type="password" id="devicePassword" placeholder="Device access password">
+            <input type="text" id="devicePassword" placeholder="Device access password">
           </div>
 
           <div class="form-group">
@@ -360,11 +369,19 @@
       </div>
 
       <div class="form-group">
-        <label>🖥️ Link Devices</label>
+        <label>🖥️ Link Device to Business</label>
+        <div style="padding: 1rem; background: #f0f9ff; border-radius: 6px; margin-bottom: 0.5rem; border-left: 4px solid #3b82f6;">
+          <strong>ℹ️ Single Device Selection:</strong> Each business can only have ONE linked device. The same device can be shared across multiple businesses.
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <button type="button" id="clearDeviceBtn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #ef4444; color: white;">
+            ❌ Clear Device Selection
+          </button>
+        </div>
         <div id="devicesContainer" class="devices-grid">
           <div class="no-devices-msg">Loading devices...</div>
         </div>
-        <div class="field-info">Select devices that are linked to this business</div>
+        <div class="field-info">Select ONE device for this business (device can be shared with other businesses)</div>
       </div>
 
       <div class="form-actions">
@@ -380,7 +397,7 @@
   </div>
 
   <script type="module">
-    import { doc, getDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, updateDoc, setDoc, deleteDoc, collection, getDocs, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { db } from "../config/firebase.js";
 
     let businessId = null;
@@ -414,20 +431,23 @@
         document.getElementById('slotsAllowed').value = business.slotsAllowed || 50;
         document.getElementById('businessStatus').value = business.status || 'active';
 
-        // Load device settings
-        document.getElementById('deviceId').value = business.deviceId || '';
-        document.getElementById('deviceName').value = business.deviceName || '';
-        document.getElementById('deviceIp').value = business.deviceIp || '';
-        document.getElementById('deviceUsername').value = business.deviceUsername || '';
-        document.getElementById('devicePassword').value = business.devicePassword || '';
+        // Load non-device settings only
         document.getElementById('timezone').value = business.timezone || 'Africa/Johannesburg';
         document.getElementById('workStartTime').value = business.workStartTime || '';
         document.getElementById('workEndTime').value = business.workEndTime || '';
         document.getElementById('breakDuration').value = business.breakDuration || '';
         document.getElementById('lateGracePeriod').value = business.lateGracePeriod || '';
 
-        // Load devices
+        // Clear device fields initially - they will be populated if a device is selected
+        document.getElementById('deviceId').value = '';
+        document.getElementById('deviceName').value = '';
+        document.getElementById('deviceIp').value = '';
+        document.getElementById('deviceUsername').value = '';
+        document.getElementById('devicePassword').value = '';
+
+        // Load devices - if business has a linked device, it will be selected and fields will populate
         await loadDevices(business.linkedDevices || []);
+        await loadAllDevicesForSelector();
 
         document.getElementById('loading').style.display = 'none';
 
@@ -441,46 +461,120 @@
     async function loadDevices(linkedDevices) {
       try {
         const devicesContainer = document.getElementById('devicesContainer');
-        
-        // Get all devices from this business
-        const devicesRef = collection(db, "businesses", businessId, "devices");
+        const allDevices = [];
+
+        // Get ALL devices from global devices collection
+        const devicesRef = collection(db, "devices");
         const devicesSnap = await getDocs(devicesRef);
 
-        if (devicesSnap.empty) {
+        devicesSnap.forEach((deviceDoc) => {
+          allDevices.push({
+            id: deviceDoc.id,
+            ...deviceDoc.data()
+          });
+        });
+
+        if (allDevices.length === 0) {
           devicesContainer.innerHTML = `
             <div class="no-devices-msg" style="grid-column: 1/-1;">
               📱 No devices registered yet<br>
-              <small>Register devices in the Device Manager first</small>
+              <small>Register devices in the Admin Panel first</small>
             </div>
           `;
           return;
         }
 
+        // Get the currently linked device (should be only one now)
+        const currentLinkedDevice = linkedDevices.length > 0 ? linkedDevices[0] : null;
+
         let html = '';
-        devicesSnap.forEach(doc => {
-          const device = doc.data();
-          const isLinked = linkedDevices.includes(doc.id);
+        allDevices.forEach(device => {
+          const isLinked = currentLinkedDevice === device.id;
           html += `
-            <div class="device-checkbox">
+            <div class="device-checkbox" style="padding: 1rem; border: 2px solid ${isLinked ? '#3b82f6' : '#e5e7eb'}; border-radius: 8px; background: ${isLinked ? '#eff6ff' : 'white'};">
               <input 
-                type="checkbox" 
-                id="device_${doc.id}" 
-                value="${doc.id}"
+                type="radio" 
+                id="device_${device.id}" 
+                name="linkedDevice"
+                value="${device.id}"
                 ${isLinked ? 'checked' : ''}
                 class="device-selector"
+                style="width: 20px; height: 20px; cursor: pointer;"
               >
-              <div style="flex: 1;">
-                <label for="device_${doc.id}">
-                  🖥️ ${device.deviceName}
-                  <div class="device-info-small">${device.deviceType.replace(/_/g, ' ')}</div>
-                  <div class="device-info-small">SN: ${device.serialNumber}</div>
-                </label>
-              </div>
+              <label for="device_${device.id}" style="cursor: pointer; margin-left: 0.5rem;">
+                <div style="font-weight: 600; color: #1f2937;">${device.deviceId || device.id}</div>
+                <div style="font-size: 0.875rem; color: #6b7280;">${device.deviceName || 'Unnamed Device'}</div>
+                <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem;">
+                  📍 ${device.ipAddress || 'No IP'} | 
+                  🔧 ${device.deviceType || 'Unknown Type'}
+                </div>
+              </label>
             </div>
           `;
         });
 
         devicesContainer.innerHTML = html;
+
+        // Add clear device button handler
+        const clearDeviceBtn = document.getElementById('clearDeviceBtn');
+        if (clearDeviceBtn) {
+          clearDeviceBtn.addEventListener('click', function() {
+            // Uncheck all radio buttons
+            document.querySelectorAll('.device-selector').forEach(radio => {
+              radio.checked = false;
+            });
+            // Reset all device box styles
+            document.querySelectorAll('.device-checkbox').forEach(box => {
+              box.style.borderColor = '#e5e7eb';
+              box.style.background = 'white';
+            });
+            // Clear device fields
+            document.getElementById('deviceId').value = '';
+            document.getElementById('deviceName').value = '';
+            document.getElementById('deviceIp').value = '';
+            document.getElementById('deviceUsername').value = '';
+            document.getElementById('devicePassword').value = '';
+          });
+        }
+
+        // Add change listener to highlight selected device and populate fields
+        document.querySelectorAll('.device-selector').forEach(radio => {
+          radio.addEventListener('change', function() {
+            document.querySelectorAll('.device-checkbox').forEach(box => {
+              box.style.borderColor = '#e5e7eb';
+              box.style.background = 'white';
+            });
+            if (this.checked) {
+              this.closest('.device-checkbox').style.borderColor = '#3b82f6';
+              this.closest('.device-checkbox').style.background = '#eff6ff';
+              
+              // Get device data and populate fields
+              const deviceId = this.value;
+              const device = allDevices.find(d => d.id === deviceId);
+              if (device) {
+                document.getElementById('deviceId').value = device.deviceId || device.id;
+                document.getElementById('deviceName').value = device.deviceName || '';
+                document.getElementById('deviceIp').value = device.ipAddress || '';
+                document.getElementById('deviceUsername').value = device.username || '';
+                // Don't populate password for security
+              }
+            }
+          });
+        });
+
+        // If a device is already selected (checked on page load), populate the fields
+        const checkedRadio = document.querySelector('.device-selector:checked');
+        if (checkedRadio) {
+          const deviceId = checkedRadio.value;
+          const device = allDevices.find(d => d.id === deviceId);
+          if (device) {
+            document.getElementById('deviceId').value = device.deviceId || device.id;
+            document.getElementById('deviceName').value = device.deviceName || '';
+            document.getElementById('deviceIp').value = device.ipAddress || '';
+            document.getElementById('deviceUsername').value = device.username || '';
+            // Don't populate password for security
+          }
+        }
 
       } catch (error) {
         console.error("Error loading devices:", error);
@@ -492,14 +586,66 @@
       }
     }
 
+    // Load all registered devices across all businesses for the selector
+    async function loadAllDevicesForSelector() {
+      try {
+        const deviceSelector = document.getElementById('deviceSelector');
+        const allDevices = [];
+
+        // Get all devices from global collection
+        const devicesRef = collection(db, "devices");
+        const devicesSnap = await getDocs(devicesRef);
+
+        devicesSnap.forEach((deviceDoc) => {
+          allDevices.push({
+            id: deviceDoc.id,
+            ...deviceDoc.data()
+          });
+        });
+
+        // Populate selector
+        allDevices.forEach(device => {
+          const option = document.createElement('option');
+          option.value = JSON.stringify({
+            deviceId: device.deviceId || device.id,
+            deviceName: device.deviceName || '',
+            ipAddress: device.ipAddress || ''
+          });
+          option.textContent = `${device.deviceId || device.id} - ${device.deviceName || 'Unnamed'}`;
+          deviceSelector.appendChild(option);
+        });
+
+        // Handle device selection
+        deviceSelector.addEventListener('change', function() {
+          if (this.value) {
+            const deviceData = JSON.parse(this.value);
+            document.getElementById('deviceId').value = deviceData.deviceId;
+            document.getElementById('deviceName').value = deviceData.deviceName;
+            document.getElementById('deviceIp').value = deviceData.ipAddress;
+            
+            // Show success message
+            const info = document.createElement('div');
+            info.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 1rem 1.5rem; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.2);';
+            info.textContent = '✅ Device fields populated!';
+            document.body.appendChild(info);
+            setTimeout(() => info.remove(), 2000);
+          }
+        });
+
+      } catch (error) {
+        console.error("Error loading devices for selector:", error);
+      }
+    }
+
     window.handleSave = async function(e) {
       e.preventDefault();
       try {
         document.getElementById('loading').style.display = 'block';
 
-        // Get selected devices
-        const selectedDevices = Array.from(document.querySelectorAll('.device-selector:checked'))
-          .map(el => el.value);
+        // Get selected device (only one radio button)
+        const selectedDeviceRadio = document.querySelector('.device-selector:checked');
+        const selectedDevice = selectedDeviceRadio ? selectedDeviceRadio.value : null;
+        const linkedDevices = selectedDevice ? [selectedDevice] : [];
 
         const updates = {
           businessName: document.getElementById('businessName').value,
@@ -507,15 +653,7 @@
           plan: document.getElementById('businessPlan').value,
           slotsAllowed: parseInt(document.getElementById('slotsAllowed').value),
           status: document.getElementById('businessStatus').value,
-          linkedDevices: selectedDevices,
-          devicesCount: selectedDevices.length,
           updatedAt: new Date().toISOString(),
-          // Device settings
-          deviceId: document.getElementById('deviceId').value,
-          deviceName: document.getElementById('deviceName').value,
-          deviceIp: document.getElementById('deviceIp').value,
-          deviceUsername: document.getElementById('deviceUsername').value,
-          devicePassword: document.getElementById('devicePassword').value,
           timezone: document.getElementById('timezone').value,
           workStartTime: document.getElementById('workStartTime').value,
           workEndTime: document.getElementById('workEndTime').value,
@@ -523,7 +661,29 @@
           lateGracePeriod: parseInt(document.getElementById('lateGracePeriod').value) || 15
         };
 
-        // Only update password if provided
+        // Handle device selection - use deleteField to remove if no device selected
+        if (selectedDevice) {
+          updates.linkedDevices = linkedDevices;
+          updates.linkedDevice = selectedDevice;
+          updates.devicesCount = linkedDevices.length;
+          updates.deviceId = document.getElementById('deviceId').value;
+          updates.deviceName = document.getElementById('deviceName').value;
+          updates.deviceIp = document.getElementById('deviceIp').value;
+          updates.deviceUsername = document.getElementById('deviceUsername').value;
+          updates.devicePassword = document.getElementById('devicePassword').value;
+        } else {
+          // Remove device fields completely when no device is selected
+          updates.linkedDevices = deleteField();
+          updates.linkedDevice = deleteField();
+          updates.devicesCount = 0;
+          updates.deviceId = deleteField();
+          updates.deviceName = deleteField();
+          updates.deviceIp = deleteField();
+          updates.deviceUsername = deleteField();
+          updates.devicePassword = deleteField();
+        }
+
+        // Only update business password if provided
         const newPassword = document.getElementById('businessPassword').value;
         if (newPassword) {
           updates.password = newPassword;
@@ -531,12 +691,50 @@
 
         const businessRef = doc(db, "businesses", businessId);
         
-        // Get current slots for comparison
+        // Get current business data to check what devices need to be removed
         const currentBusinessSnap = await getDoc(businessRef);
         const currentBusiness = currentBusinessSnap.data();
         const oldSlots = currentBusiness.slotsAllowed || 50;
         const newSlots = parseInt(document.getElementById('slotsAllowed').value);
+        const oldLinkedDevice = currentBusiness.linkedDevice || null;
         
+        // Get all existing devices in the business's devices subcollection
+        const businessDevicesRef = collection(db, "businesses", businessId, "devices");
+        const businessDevicesSnap = await getDocs(businessDevicesRef);
+        const existingDeviceIds = businessDevicesSnap.docs.map(doc => doc.id);
+        
+        // Handle device copying/removal in business's devices subcollection
+        if (selectedDevice) {
+          // Copy device from global collection to business's devices subcollection
+          const globalDeviceRef = doc(db, "devices", selectedDevice);
+          const globalDeviceSnap = await getDoc(globalDeviceRef);
+          
+          if (globalDeviceSnap.exists()) {
+            const deviceData = globalDeviceSnap.data();
+            const businessDeviceRef = doc(db, "businesses", businessId, "devices", selectedDevice);
+            await setDoc(businessDeviceRef, deviceData);
+            
+            console.log(`✅ Device ${selectedDevice} copied to business ${businessId}`);
+          }
+          
+          // Remove all other devices from business subcollection (only one device allowed)
+          for (const existingDeviceId of existingDeviceIds) {
+            if (existingDeviceId !== selectedDevice) {
+              const oldDeviceRef = doc(db, "businesses", businessId, "devices", existingDeviceId);
+              await deleteDoc(oldDeviceRef);
+              console.log(`🗑️ Old device ${existingDeviceId} removed from business ${businessId}`);
+            }
+          }
+        } else {
+          // No device selected - remove ALL devices from business subcollection
+          for (const existingDeviceId of existingDeviceIds) {
+            const deviceRef = doc(db, "businesses", businessId, "devices", existingDeviceId);
+            await deleteDoc(deviceRef);
+            console.log(`🗑️ Device ${existingDeviceId} removed from business ${businessId}`);
+          }
+        }
+        
+        // Update business document
         await updateDoc(businessRef, updates);
 
         // 🔄 SYNC SLOTS IF CHANGED

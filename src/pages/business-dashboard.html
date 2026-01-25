@@ -851,7 +851,8 @@
             padding: 1rem;
           }
 
-          .timecard-controls {
+          .timecard-controls,
+          .report-controls {
             background: white;
             padding: 1.5rem;
             border-radius: 12px;
@@ -887,7 +888,9 @@
           }
 
           .btn-refresh-timecard,
-          .btn-print-timecard {
+          .btn-print-timecard,
+          .btn-refresh-reports,
+          .btn-print-reports {
             padding: 0.75rem 1.5rem;
             border: none;
             border-radius: 6px;
@@ -897,21 +900,25 @@
             transition: all 0.2s;
           }
 
-          .btn-refresh-timecard {
+          .btn-refresh-timecard,
+          .btn-refresh-reports {
             background: #667eea;
             color: white;
           }
 
-          .btn-refresh-timecard:hover {
+          .btn-refresh-timecard:hover,
+          .btn-refresh-reports:hover {
             background: #5568d3;
           }
 
-          .btn-print-timecard {
+          .btn-print-timecard,
+          .btn-print-reports {
             background: #48bb78;
             color: white;
           }
 
-          .btn-print-timecard:hover {
+          .btn-print-timecard:hover,
+          .btn-print-reports:hover {
             background: #38a169;
           }
 
@@ -1048,196 +1055,376 @@
             color: #2c3e50;
           }
 
+          /* ============================================
+             REPORTS MODULE STYLES
+             ============================================ */
+
+          .reports-container {
+            padding: 1rem;
+          }
+
+          .report-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          }
+
+          .report-header h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.8rem;
+          }
+
+          .report-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+          }
+
+          .report-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+          }
+
+          .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s, box-shadow 0.2s;
+          }
+
+          .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+          }
+
+          .stat-card.highlight {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            border-left: 4px solid #2f855a;
+          }
+
+          .stat-label {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .stat-card.highlight .stat-label {
+            color: rgba(255, 255, 255, 0.9);
+          }
+
+          .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+          }
+
+          .stat-card.highlight .stat-value {
+            color: white;
+          }
+
+          .report-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+          }
+
+          .report-section h4 {
+            margin: 0 0 1.5rem 0;
+            color: #2c3e50;
+            font-size: 1.3rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #667eea;
+          }
+
+          .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+          }
+
+          .report-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+          }
+
+          .report-table th {
+            padding: 1rem 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .report-table td {
+            padding: 0.9rem 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+          }
+
+          .report-table tbody tr:hover {
+            background: #f7fafc;
+          }
+
+          .report-table tbody tr:last-child td {
+            border-bottom: none;
+          }
+
+          .report-table .total-row {
+            background: #f8f9fa !important;
+            font-weight: 700;
+            border-top: 2px solid #667eea;
+          }
+
+          .report-table .total-row td {
+            padding: 1.2rem 0.75rem;
+            color: #2c3e50;
+          }
+
           @media print {
-            /* Hide everything except timecard */
-            body > *:not(.view-section),
+            /* Hide everything first */
+            * {
+              visibility: hidden;
+            }
+
+            /* Show timecard or reports elements */
+            #timecardView,
+            #timecardView *,
+            #reportsView,
+            #reportsView *,
+            .print-company-info,
+            .print-company-info *,
+            .timecard-display,
+            .timecard-display *,
+            .reports-container,
+            .reports-container *,
+            .print-footer,
+            .print-footer * {
+              visibility: visible;
+            }
+
+            /* Completely hide dashboard and other sections */
             .sidebar,
             .header,
             .menu-sidebar,
-            .timecard-controls,
             .btn-refresh-timecard,
             .btn-print-timecard,
-            .view-section:not(#timecardView),
+            .btn-refresh-reports,
+            .btn-print-reports,
+            .timecard-controls,
+            .report-controls,
+            .section-title,
+            .section-description,
             #dashboardView,
             #monitorView,
             #employeesView,
             #attendanceView,
-            #reportsView,
             #settingsView {
               display: none !important;
+              visibility: hidden !important;
             }
 
-            /* Show only timecard view */
-            #timecardView {
-              display: block !important;
-              padding: 0;
-              margin: 0;
-            }
-
-            /* Reset page styling for print */
+            /* Reset page styling */
             body {
-              background: white;
-              margin: 0;
-              padding: 0;
+              background: white !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              font-family: Arial, sans-serif !important;
+            }
+
+            /* Position timecard at top */
+            #timecardView {
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              width: 100% !important;
+              padding: 0 !important;
+              margin: 0 !important;
             }
 
             .timecard-container {
-              padding: 0;
-              margin: 0;
+              padding: 0 !important;
+              margin: 0 !important;
             }
 
-            .timecard-display {
-              box-shadow: none;
-              border-radius: 0;
-              margin: 0;
-              page-break-inside: avoid;
-            }
-
-            /* Professional header for print */
-            .timecard-header {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              padding: 2rem;
-              text-align: center;
-              page-break-after: avoid;
-            }
-
-            .timecard-header h3 {
-              font-size: 1.8rem;
-              margin: 0 0 0.5rem 0;
-            }
-
-            .timecard-header p {
-              font-size: 1rem;
-              margin: 0;
-              opacity: 0.95;
-            }
-
-            /* Add company info section */
+            /* Company header styling - compact */
             .print-company-info {
               display: block !important;
-              padding: 1.5rem;
-              background: #f8f9fa;
-              border-bottom: 3px solid #667eea;
-              text-align: center;
+              padding: 0.8rem !important;
+              background: #f8f9fa !important;
+              border-bottom: 2px solid #667eea !important;
+              text-align: center !important;
+              margin: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
 
             .print-company-info h2 {
-              margin: 0 0 0.5rem 0;
-              color: #2c3e50;
-              font-size: 1.5rem;
+              margin: 0 0 0.3rem 0 !important;
+              color: #2c3e50 !important;
+              font-size: 1.2rem !important;
             }
 
             .print-company-info p {
-              margin: 0;
-              color: #6c757d;
+              margin: 0 !important;
+              color: #6c757d !important;
+              font-size: 0.9rem !important;
             }
 
-            /* Clean table styling */
+            /* Timecard display styling */
+            .timecard-display {
+              box-shadow: none !important;
+              border-radius: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+            }
+
+            /* Timecard header - compact */
+            .timecard-header {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+              color: white !important;
+              padding: 1rem !important;
+              text-align: center !important;
+              margin: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+
+            .timecard-header h3 {
+              font-size: 1.3rem !important;
+              margin: 0 0 0.3rem 0 !important;
+              color: white !important;
+            }
+
+            .timecard-header p {
+              font-size: 0.9rem !important;
+              margin: 0 !important;
+              color: white !important;
+              opacity: 0.95 !important;
+            }
+
+            /* Business timecard table styling */
             .timecard-table-wrapper {
-              padding: 1.5rem;
+              padding: 10px 20px !important;
             }
 
             .timecard-table {
-              width: 100%;
-              border-collapse: collapse;
-              font-size: 0.95rem;
+              width: 100% !important;
+              border-collapse: collapse !important;
+              font-size: 9pt !important;
+              margin: 0 !important;
+              border: 1px solid black !important;
             }
 
             .timecard-table th {
-              background: #2c3e50;
-              color: white;
-              padding: 0.75rem;
-              text-align: left;
-              font-weight: 600;
-              border: 1px solid #2c3e50;
+              background: white !important;
+              color: black !important;
+              padding: 8px 4px !important;
+              text-align: center !important;
+              font-weight: bold !important;
+              border: 1px solid black !important;
+              font-size: 8pt !important;
             }
 
             .timecard-table td {
-              padding: 0.75rem;
-              border: 1px solid #dee2e6;
-              color: #2c3e50;
+              padding: 6px 4px !important;
+              border: 1px solid black !important;
+              color: black !important;
+              font-size: 8pt !important;
+              text-align: center !important;
             }
 
             .timecard-table tr:nth-child(even) {
-              background: #f8f9fa;
+              background: white !important;
             }
 
             .weekend {
-              background: #fff3cd !important;
+              background: #f5f5f5 !important;
             }
 
-            /* Summary section */
+            /* Business timecard summary section */
             .timecard-summary {
-              background: white;
-              padding: 1.5rem;
-              border-top: 3px solid #667eea;
-              page-break-inside: avoid;
+              background: white !important;
+              padding: 15px 20px !important;
+              border-top: 2px solid black !important;
+              display: flex !important;
+              justify-content: space-between !important;
             }
 
             .summary-grid {
-              display: grid;
-              grid-template-columns: repeat(4, 1fr);
-              gap: 1rem;
+              display: flex !important;
+              justify-content: space-between !important;
+              width: 100% !important;
+              gap: 40px !important;
+            }
+
+            .summary-section {
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: flex-start !important;
             }
 
             .summary-item {
-              background: #f8f9fa;
-              padding: 1rem;
-              border-radius: 8px;
-              border-left: 4px solid #667eea;
-              text-align: center;
-            }
-
-            .summary-item.overtime-item {
-              border-left-color: #f6ad55;
-            }
-
-            .summary-item.total-item {
-              border-left-color: #48bb78;
+              background: white !important;
+              padding: 0 !important;
+              border: none !important;
+              text-align: left !important;
+              margin-bottom: 5px !important;
+              display: flex !important;
+              align-items: center !important;
             }
 
             .summary-label {
-              color: #6c757d;
-              font-size: 0.85rem;
-              margin-bottom: 0.25rem;
-              text-transform: uppercase;
-              font-weight: 600;
+              color: black !important;
+              font-size: 10pt !important;
+              font-weight: bold !important;
+              margin-right: 15px !important;
+              min-width: 80px !important;
             }
 
             .summary-value {
-              font-size: 1.8rem;
-              font-weight: 700;
-              color: #2c3e50;
+              font-size: 12pt !important;
+              font-weight: bold !important;
+              color: black !important;
             }
 
-            /* Add footer */
+            /* Hide print footer for business format */
             .print-footer {
-              display: block !important;
-              margin-top: 2rem;
-              padding: 1rem;
-              text-align: center;
-              color: #6c757d;
-              font-size: 0.85rem;
-              border-top: 2px solid #e9ecef;
+              display: none !important;
             }
 
-            /* Page breaks */
+            /* Page setup - single page */
+            @page {
+              margin: 0.4in;
+              size: letter;
+            }
+
+            /* Page break controls */
             .timecard-table {
-              page-break-inside: auto;
+              page-break-inside: auto !important;
             }
 
             .timecard-table tr {
-              page-break-inside: avoid;
-              page-break-after: auto;
+              page-break-inside: avoid !important;
             }
 
             .timecard-table thead {
-              display: table-header-group;
-            }
-
-            .timecard-table tfoot {
-              display: table-footer-group;
+              display: table-header-group !important;
             }
           }
 
@@ -1309,8 +1496,22 @@
       <div class="view-section" id="reportsView">
         <h2 class="section-title">Reports</h2>
         <p class="section-description">View detailed attendance and performance reports</p>
-        <div id="reportsContent" style="padding: 2rem; text-align: center; color: #999;">
-          Loading reports...
+        
+        <div class="reports-container">
+          <!-- Report Selection Controls -->
+          <div class="report-controls">
+            <div class="control-group">
+              <label for="reportMonth">Select Month:</label>
+              <input type="month" id="reportMonth" onchange="loadReports()">
+            </div>
+            <button class="btn-refresh-reports" onclick="loadReports()">🔄 Refresh Reports</button>
+            <button class="btn-print-reports" onclick="printReports()">🖨️ Print</button>
+          </div>
+
+          <!-- Reports Content -->
+          <div id="reportsContent" style="padding: 2rem;">
+            <div style="text-align: center; color: #999;">Select a month to generate reports</div>
+          </div>
         </div>
       </div>
 
@@ -1334,8 +1535,39 @@
         <div class="timecard-container">
           <!-- Print-Only Company Header (Hidden on Screen) -->
           <div class="print-company-info" style="display: none;">
-            <h2>AI Clock Attendance System</h2>
-            <p>Monthly Timecard Report</p>
+            <h1>TIME CARD REPORT</h1>
+            <div class="timecard-details">
+              <div class="detail-row">
+                <div class="detail-item">
+                  <label>PayPeriod:</label>
+                  <span>Monthly</span>
+                </div>
+                <div class="detail-item">
+                  <label>Roster:</label>
+                  <span>General</span>
+                </div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-item">
+                  <label>Division:</label>
+                  <span>Admin</span>
+                </div>
+                <div class="detail-item">
+                  <label>Group:</label>
+                  <span>All</span>
+                </div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-item">
+                  <label>Department:</label>
+                  <span>All</span>
+                </div>
+                <div class="detail-item">
+                  <label>Cost Centre:</label>
+                  <span>All</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Selection Controls -->
@@ -1626,9 +1858,13 @@
         return;
       }
       
+      if (module === 'reports') {
+        await initReports();
+        return;
+      }
+      
       const contentIds = {
         'attendance': 'attendanceContent',
-        'reports': 'reportsContent',
         'settings': 'settingsContent'
       };
 
@@ -2081,7 +2317,7 @@
         const totalOvertime = dailyRecords.reduce((sum, record) => sum + record.overtime, 0);
         const daysWorked = dailyRecords.filter(r => r.hasData).length;
 
-        // Render timecard
+        // Render timecard in business format
         display.innerHTML = `
           <div class="timecard-header">
             <h3>${employee.employeeName} - ${monthName}</h3>
@@ -2094,31 +2330,44 @@
                 <tr>
                   <th>Date</th>
                   <th>Day</th>
-                  <th>Clock In</th>
-                  <th>Clock Out</th>
+                  <th>Start</th>
+                  <th>Stop</th>
+                  <th>Shift</th>
+                  <th>Description</th>
                   <th>Hours</th>
-                  <th>Overtime</th>
+                  <th>Lunch</th>
+                  <th>Tea</th>
+                  <th>Breaks</th>
+                  <th>Target</th>
+                  <th>Total</th>
                 </tr>
               </thead>
               <tbody>
                 ${dailyRecords.map(record => {
                   const clockInTime = record.clockIns.length > 0 
                     ? record.clockIns[0].toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
-                    : '-';
+                    : '00:00';
                   const clockOutTime = record.clockOuts.length > 0
                     ? record.clockOuts[record.clockOuts.length - 1].toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
-                    : '-';
-                  const hours = record.totalHours > 0 ? record.totalHours.toFixed(2) : '-';
-                  const overtime = record.overtime > 0 ? record.overtime.toFixed(2) : '-';
+                    : '00:00';
+                  const hours = record.totalHours > 0 ? record.totalHours.toFixed(2) : '00:00';
+                  const shift = record.hasData ? (record.isWeekend ? 'Sat' : 'Mon-Fri 08:30-17:30') : '-';
+                  const description = record.hasData ? (record.isWeekend ? 'DAY OFF' : 'NORMAL TIME') : 'DAY OFF';
 
                   return `
                     <tr class="${record.isWeekend ? 'weekend' : ''}">
-                      <td class="day-date">${record.day}</td>
-                      <td class="day-name">${record.dayName}</td>
-                      <td class="time-in ${!record.hasData ? 'no-data' : ''}">${clockInTime}</td>
-                      <td class="time-out ${!record.hasData ? 'no-data' : ''}">${clockOutTime}</td>
-                      <td class="hours-worked">${hours}</td>
-                      <td class="overtime">${overtime}</td>
+                      <td>${year}-${String(monthNum).padStart(2, '0')}-${String(record.day).padStart(2, '0')}</td>
+                      <td>${record.dayName}</td>
+                      <td>${clockInTime}</td>
+                      <td>${clockOutTime}</td>
+                      <td>${shift}</td>
+                      <td>${description}</td>
+                      <td>${hours}</td>
+                      <td>01:00</td>
+                      <td>00:00</td>
+                      <td>00:00</td>
+                      <td>08:00</td>
+                      <td>${hours}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -2128,21 +2377,34 @@
 
           <div class="timecard-summary">
             <div class="summary-grid">
-              <div class="summary-item">
-                <div class="summary-label">Days Worked</div>
-                <div class="summary-value">${daysWorked}</div>
+              <div class="summary-section">
+                <div class="summary-item">
+                  <span class="summary-label">Normal</span>
+                  <span class="summary-value">${(totalHours - totalOvertime).toFixed(2)}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">OT 1.25</span>
+                  <span class="summary-value">${totalOvertime.toFixed(2)}</span>
+                </div>
               </div>
-              <div class="summary-item total-item">
-                <div class="summary-label">Total Hours</div>
-                <div class="summary-value">${totalHours.toFixed(2)}</div>
-              </div>
-              <div class="summary-item overtime-item">
-                <div class="summary-label">Total Overtime</div>
-                <div class="summary-value">${totalOvertime.toFixed(2)}</div>
-              </div>
-              <div class="summary-item">
-                <div class="summary-label">Regular Hours</div>
-                <div class="summary-value">${(totalHours - totalOvertime).toFixed(2)}</div>
+              
+              <div class="summary-section">
+                <div class="summary-item">
+                  <span class="summary-label">Breaks</span>
+                  <span class="summary-value">00:00</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Lunch</span>
+                  <span class="summary-value">${(daysWorked * 1).toFixed(2)}:00</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Tea</span>
+                  <span class="summary-value">00:00</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Shifts Worked</span>
+                  <span class="summary-value">${daysWorked}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -2175,6 +2437,331 @@
     window.loadTimecard = loadTimecard;
     window.printTimecard = printTimecard;
     window.initTimecard = initTimecard;
+
+    // ============================================
+    // REPORTS MODULE FUNCTIONS
+    // ============================================
+    
+    async function initReports() {
+      try {
+        // Set default month to current month
+        const now = new Date();
+        const monthInput = document.getElementById('reportMonth');
+        monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        
+        // Load reports for current month
+        await loadReports();
+      } catch (error) {
+        console.error("Error initializing reports:", error);
+        alert('Error loading reports: ' + error.message);
+      }
+    }
+
+    async function loadReports() {
+      const month = document.getElementById('reportMonth').value;
+      const display = document.getElementById('reportsContent');
+
+      if (!month) {
+        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Select a month to generate reports</div>';
+        return;
+      }
+
+      try {
+        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Generating reports...</div>';
+
+        // Parse month
+        const [year, monthNum] = month.split('-');
+        const monthDate = new Date(year, monthNum - 1, 1);
+        const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const daysInMonth = new Date(year, monthNum, 0).getDate();
+
+        // Get all active employees
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const statusRef = collection(db, "businesses", businessId, "status");
+        
+        const [staffSnap, statusSnap] = await Promise.all([
+          getDocs(staffRef),
+          getDocs(statusRef)
+        ]);
+
+        // Create status map
+        const statusMap = new Map();
+        statusSnap.forEach(doc => {
+          const status = doc.data();
+          if (status.lastClockTime) {
+            statusMap.set(doc.id, status);
+          }
+        });
+
+        // Get active employees
+        const employees = [];
+        staffSnap.forEach(doc => {
+          const staff = doc.data();
+          const status = statusMap.get(doc.id);
+          
+          if (status && status.lastClockTime) {
+            employees.push({
+              id: doc.id,
+              ...staff
+            });
+          }
+        });
+
+        // Sort by slot
+        employees.sort((a, b) => (a.slot || 0) - (b.slot || 0));
+
+        if (employees.length === 0) {
+          display.innerHTML = '<div class="no-employees">No employees found. Reports will be available after employees clock in.</div>';
+          return;
+        }
+
+        // Calculate attendance and hours for each employee
+        const employeeReports = [];
+        
+        for (const employee of employees) {
+          let totalHours = 0;
+          let totalOvertime = 0;
+          let daysWorked = 0;
+          let daysAbsent = 0;
+          let daysLate = 0;
+          let workingHours = 8;
+
+          // Get attendance for each day
+          for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            try {
+              const eventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employee.id);
+              const eventsSnap = await getDocs(eventsRef);
+
+              if (eventsSnap.size > 0) {
+                const events = [];
+                eventsSnap.forEach(doc => {
+                  events.push(doc.data());
+                });
+
+                // Sort by timestamp
+                events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                let clockIns = [];
+                let clockOuts = [];
+
+                events.forEach(event => {
+                  if (event.type === 'clock-in') {
+                    clockIns.push(new Date(event.timestamp));
+                  } else if (event.type === 'clock-out') {
+                    clockOuts.push(new Date(event.timestamp));
+                  }
+                });
+
+                // Calculate hours for this day
+                let dailyHours = 0;
+                for (let i = 0; i < clockIns.length; i++) {
+                  const nextClockOut = clockOuts.find(cout => cout > clockIns[i]);
+                  if (nextClockOut) {
+                    const hours = (nextClockOut - clockIns[i]) / (1000 * 60 * 60);
+                    if (hours > 0) {
+                      dailyHours += hours;
+                    }
+                  }
+                }
+
+                if (dailyHours > 0) {
+                  daysWorked++;
+                  totalHours += dailyHours;
+                  
+                  // Calculate overtime
+                  const overtime = Math.max(0, dailyHours - workingHours);
+                  totalOvertime += overtime;
+
+                  // Check if late (after 8:30 AM)
+                  if (clockIns.length > 0) {
+                    const firstClockIn = clockIns[0];
+                    const hours = firstClockIn.getHours();
+                    const minutes = firstClockIn.getMinutes();
+                    if (hours > 8 || (hours === 8 && minutes > 30)) {
+                      daysLate++;
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              console.error(`Error fetching events for ${dateStr}:`, error);
+            }
+          }
+
+          // Calculate expected workdays (weekdays in month)
+          let expectedWorkdays = 0;
+          for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, monthNum - 1, day);
+            const dayOfWeek = date.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday or Saturday
+              expectedWorkdays++;
+            }
+          }
+
+          daysAbsent = Math.max(0, expectedWorkdays - daysWorked);
+          const attendanceRate = expectedWorkdays > 0 ? ((daysWorked / expectedWorkdays) * 100).toFixed(1) : 0;
+          const regularHours = totalHours - totalOvertime;
+          const hourlyRate = employee.hourlyRate || 0;
+          const regularPay = regularHours * hourlyRate;
+          const overtimePay = totalOvertime * hourlyRate * 1.5; // 1.5x for overtime
+          const totalPay = regularPay + overtimePay;
+
+          employeeReports.push({
+            employee,
+            daysWorked,
+            daysAbsent,
+            daysLate,
+            attendanceRate,
+            totalHours,
+            regularHours,
+            totalOvertime,
+            hourlyRate,
+            regularPay,
+            overtimePay,
+            totalPay
+          });
+        }
+
+        // Calculate overall statistics
+        const totalEmployees = employeeReports.length;
+        const totalDaysWorked = employeeReports.reduce((sum, r) => sum + r.daysWorked, 0);
+        const totalHoursWorked = employeeReports.reduce((sum, r) => sum + r.totalHours, 0);
+        const totalOvertimeHours = employeeReports.reduce((sum, r) => sum + r.totalOvertime, 0);
+        const totalPayroll = employeeReports.reduce((sum, r) => sum + r.totalPay, 0);
+        const avgAttendanceRate = totalEmployees > 0 
+          ? (employeeReports.reduce((sum, r) => sum + parseFloat(r.attendanceRate), 0) / totalEmployees).toFixed(1)
+          : 0;
+
+        // Render reports
+        display.innerHTML = `
+          <!-- Report Header -->
+          <div class="report-header">
+            <h3>📊 Monthly Report - ${monthName}</h3>
+            <p>Generated on ${new Date().toLocaleString()}</p>
+          </div>
+
+          <!-- Overall Statistics -->
+          <div class="report-stats">
+            <div class="stat-card">
+              <div class="stat-label">Total Employees</div>
+              <div class="stat-value">${totalEmployees}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total Hours Worked</div>
+              <div class="stat-value">${totalHoursWorked.toFixed(1)}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Overtime Hours</div>
+              <div class="stat-value">${totalOvertimeHours.toFixed(1)}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Avg Attendance</div>
+              <div class="stat-value">${avgAttendanceRate}%</div>
+            </div>
+            <div class="stat-card highlight">
+              <div class="stat-label">Total Payroll</div>
+              <div class="stat-value">R ${totalPayroll.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <!-- Attendance Summary Table -->
+          <div class="report-section">
+            <h4>Attendance Summary</h4>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Slot</th>
+                  <th>Days Worked</th>
+                  <th>Days Absent</th>
+                  <th>Times Late</th>
+                  <th>Attendance %</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${employeeReports.map(report => {
+                  const status = parseFloat(report.attendanceRate) >= 95 ? '✅ Excellent' :
+                                parseFloat(report.attendanceRate) >= 85 ? '👍 Good' :
+                                parseFloat(report.attendanceRate) >= 70 ? '⚠️ Fair' : '❌ Poor';
+                  return `
+                    <tr>
+                      <td>${report.employee.employeeName}</td>
+                      <td>${report.employee.slot || report.employee.id}</td>
+                      <td>${report.daysWorked}</td>
+                      <td>${report.daysAbsent}</td>
+                      <td>${report.daysLate}</td>
+                      <td>${report.attendanceRate}%</td>
+                      <td>${status}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Hours and Payroll Report -->
+          <div class="report-section">
+            <h4>Hours & Payroll Report</h4>
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Slot</th>
+                  <th>Regular Hours</th>
+                  <th>Overtime Hours</th>
+                  <th>Total Hours</th>
+                  <th>Hourly Rate</th>
+                  <th>Regular Pay</th>
+                  <th>OT Pay (1.5x)</th>
+                  <th>Total Pay</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${employeeReports.map(report => `
+                  <tr>
+                    <td>${report.employee.employeeName}</td>
+                    <td>${report.employee.slot || report.employee.id}</td>
+                    <td>${report.regularHours.toFixed(2)}</td>
+                    <td>${report.totalOvertime.toFixed(2)}</td>
+                    <td><strong>${report.totalHours.toFixed(2)}</strong></td>
+                    <td>R ${report.hourlyRate.toFixed(2)}</td>
+                    <td>R ${report.regularPay.toFixed(2)}</td>
+                    <td>R ${report.overtimePay.toFixed(2)}</td>
+                    <td><strong>R ${report.totalPay.toFixed(2)}</strong></td>
+                  </tr>
+                `).join('')}
+                <tr class="total-row">
+                  <td colspan="2"><strong>TOTALS</strong></td>
+                  <td><strong>${employeeReports.reduce((sum, r) => sum + r.regularHours, 0).toFixed(2)}</strong></td>
+                  <td><strong>${totalOvertimeHours.toFixed(2)}</strong></td>
+                  <td><strong>${totalHoursWorked.toFixed(2)}</strong></td>
+                  <td>-</td>
+                  <td><strong>R ${employeeReports.reduce((sum, r) => sum + r.regularPay, 0).toFixed(2)}</strong></td>
+                  <td><strong>R ${employeeReports.reduce((sum, r) => sum + r.overtimePay, 0).toFixed(2)}</strong></td>
+                  <td><strong>R ${totalPayroll.toFixed(2)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+
+      } catch (error) {
+        console.error("Error loading reports:", error);
+        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #e53e3e;">Error loading reports: ' + error.message + '</div>';
+      }
+    }
+
+    function printReports() {
+      window.print();
+    }
+
+    // Make reports functions globally available
+    window.loadReports = loadReports;
+    window.printReports = printReports;
+    window.initReports = initReports;
 
     // Debug functions for testing
     async function addTestEmployee() {
