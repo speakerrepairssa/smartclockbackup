@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Settings - AI Clock</title>
+  <link rel="stylesheet" href="../styles/main.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      padding: 1.5rem 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+    }
+
+    .btn-back {
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-back:hover {
+      background: #5568d3;
+    }
+
+    .settings-grid {
+      display: grid;
+      gap: 2rem;
+    }
+
+    .settings-card {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .settings-card h2 {
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #667eea;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .form-group small {
+      display: block;
+      margin-top: 0.5rem;
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+
+    .btn-primary {
+      background: #48bb78;
+      color: white;
+      padding: 0.75rem 2rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: #38a169;
+    }
+
+    .btn-secondary {
+      background: #667eea;
+      color: white;
+      padding: 0.75rem 2rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-left: 0.5rem;
+    }
+
+    .btn-secondary:hover {
+      background: #5568d3;
+    }
+
+    .btn-danger {
+      background: #e53e3e;
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-danger:hover {
+      background: #c53030;
+    }
+
+    .template-list {
+      margin-top: 1.5rem;
+    }
+
+    .template-item {
+      background: #f7fafc;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border-left: 4px solid #667eea;
+    }
+
+    .template-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .template-name {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .template-trigger {
+      font-size: 0.875rem;
+      color: #6c757d;
+      background: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+    }
+
+    .template-content {
+      color: #4a5568;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      background: white;
+      border-radius: 4px;
+    }
+
+    .template-actions {
+      margin-top: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .variables-help {
+      background: #eef2ff;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-top: 1rem;
+      border-left: 4px solid #667eea;
+    }
+
+    .variables-help h4 {
+      color: #2c3e50;
+      margin-bottom: 0.5rem;
+    }
+
+    .variables-help code {
+      background: white;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      color: #667eea;
+    }
+
+    .trigger-checkboxes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      cursor: pointer;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .status-active {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .status-inactive {
+      background: #fed7d7;
+      color: #742a2a;
+    }
+
+    .success-message {
+      background: #c6f6d5;
+      color: #22543d;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📱 WhatsApp Integration Settings</h1>
+      <a href="business-dashboard.html" class="btn-back">← Back to Dashboard</a>
+    </div>
+
+    <div id="successMessage" class="success-message"></div>
+
+    <div class="settings-grid">
+      <!-- API Configuration -->
+      <div class="settings-card">
+        <h2>API Configuration</h2>
+        <form id="apiConfigForm">
+          <div class="form-group">
+            <label>WhatsApp API Provider</label>
+            <select id="apiProvider">
+              <option value="">Select Provider</option>
+              <option value="twilio">Twilio</option>
+              <option value="whatsapp-business">WhatsApp Business API</option>
+              <option value="360dialog">360Dialog</option>
+              <option value="wati">Wati.io</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>API Key / Account SID</label>
+            <input type="text" id="apiKey" placeholder="Enter your API key">
+            <small>Your API key or Account SID from your WhatsApp provider</small>
+          </div>
+
+          <div class="form-group">
+            <label>API Secret / Auth Token</label>
+            <input type="password" id="apiSecret" placeholder="Enter your API secret">
+            <small>Keep this secret! It will be stored securely.</small>
+          </div>
+
+          <div class="form-group">
+            <label>From Phone Number</label>
+            <input type="tel" id="fromNumber" placeholder="+1234567890">
+            <small>Your WhatsApp Business number (include country code)</small>
+          </div>
+
+          <div class="form-group">
+            <label>API Endpoint URL (Optional)</label>
+            <input type="url" id="apiEndpoint" placeholder="https://api.example.com/messages">
+            <small>Custom API endpoint if using a specific provider</small>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="enableWhatsApp"> Enable WhatsApp Notifications
+            </label>
+          </div>
+
+          <button type="submit" class="btn-primary">💾 Save API Configuration</button>
+          <button type="button" class="btn-secondary" onclick="testConnection()">🔍 Test Connection</button>
+        </form>
+      </div>
+
+      <!-- Message Templates -->
+      <div class="settings-card">
+        <h2>Message Templates</h2>
+        
+        <form id="templateForm">
+          <div class="form-group">
+            <label>Template Name</label>
+            <input type="text" id="templateName" placeholder="e.g., Clock In Notification" required>
+          </div>
+
+          <div class="form-group">
+            <label>Trigger Event</label>
+            <select id="templateTrigger" required>
+              <option value="">Select Trigger</option>
+              <option value="clock-in">Employee Clock In</option>
+              <option value="clock-out">Employee Clock Out</option>
+              <option value="late-arrival">Late Arrival</option>
+              <option value="forgot-clock-out">Forgot to Clock Out</option>
+              <option value="daily-summary">Daily Summary Report</option>
+              <option value="weekly-summary">Weekly Summary Report</option>
+              <option value="monthly-summary">Monthly Summary Report</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Recipient</label>
+            <select id="templateRecipient" required>
+              <option value="">Select Recipient</option>
+              <option value="employee">Employee (who triggered event)</option>
+              <option value="manager">Business Manager/Owner</option>
+              <option value="both">Both Employee and Manager</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Message Template</label>
+            <textarea id="templateMessage" placeholder="Enter your message template with variables" required></textarea>
+            <small>Use variables like {{employeeName}}, {{time}}, {{date}}, {{businessName}}</small>
+          </div>
+
+          <div class="variables-help">
+            <h4>Available Variables:</h4>
+            <p>
+              <code>{{employeeName}}</code> - Employee name<br>
+              <code>{{employeeId}}</code> - Employee slot number<br>
+              <code>{{time}}</code> - Current time<br>
+              <code>{{date}}</code> - Current date<br>
+              <code>{{businessName}}</code> - Your business name<br>
+              <code>{{status}}</code> - Clock in/out status<br>
+              <code>{{hoursWorked}}</code> - Total hours (for summaries)<br>
+              <code>{{daysWorked}}</code> - Days worked (for summaries)
+            </p>
+          </div>
+
+          <button type="submit" class="btn-primary">➕ Add Template</button>
+        </form>
+
+        <div class="template-list" id="templateList">
+          <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: #2c3e50;">Saved Templates</h3>
+          <div id="templatesContainer">
+            <p style="color: #6c757d; text-align: center; padding: 2rem;">No templates created yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from '../config/firebase.js';
+    import authService from '../modules/auth/auth.service.js';
+
+    let businessId = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
+        window.location.href = '/pages/login.html';
+        return;
+      }
+
+      businessId = authService.getBusinessId();
+      await loadSettings();
+      await loadTemplates();
+    });
+
+    // Load existing settings
+    async function loadSettings() {
+      try {
+        const settingsRef = doc(db, "businesses", businessId, "settings", "whatsapp");
+        const settingsDoc = await getDoc(settingsRef);
+
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          document.getElementById('apiProvider').value = data.apiProvider || '';
+          document.getElementById('apiKey').value = data.apiKey || '';
+          document.getElementById('apiSecret').value = data.apiSecret || '';
+          document.getElementById('fromNumber').value = data.fromNumber || '';
+          document.getElementById('apiEndpoint').value = data.apiEndpoint || '';
+          document.getElementById('enableWhatsApp').checked = data.enabled || false;
+        }
+      } catch (error) {
+        console.error("Error loading settings:", error);
+      }
+    }
+
+    // Save API configuration
+    document.getElementById('apiConfigForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      try {
+        const settingsRef = doc(db, "businesses", businessId, "settings", "whatsapp");
+        await setDoc(settingsRef, {
+          apiProvider: document.getElementById('apiProvider').value,
+          apiKey: document.getElementById('apiKey').value,
+          apiSecret: document.getElementById('apiSecret').value,
+          fromNumber: document.getElementById('fromNumber').value,
+          apiEndpoint: document.getElementById('apiEndpoint').value,
+          enabled: document.getElementById('enableWhatsApp').checked,
+          updatedAt: new Date().toISOString()
+        });
+
+        showSuccess('API configuration saved successfully!');
+      } catch (error) {
+        console.error("Error saving settings:", error);
+        alert('Error saving settings: ' + error.message);
+      }
+    });
+
+    // Save template
+    document.getElementById('templateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      try {
+        const templatesRef = collection(db, "businesses", businessId, "whatsapp_templates");
+        const templateId = Date.now().toString();
+        
+        await setDoc(doc(templatesRef, templateId), {
+          id: templateId,
+          name: document.getElementById('templateName').value,
+          trigger: document.getElementById('templateTrigger').value,
+          recipient: document.getElementById('templateRecipient').value,
+          message: document.getElementById('templateMessage').value,
+          active: true,
+          createdAt: new Date().toISOString()
+        });
+
+        showSuccess('Template created successfully!');
+        document.getElementById('templateForm').reset();
+        await loadTemplates();
+      } catch (error) {
+        console.error("Error saving template:", error);
+        alert('Error saving template: ' + error.message);
+      }
+    });
+
+    // Load templates
+    async function loadTemplates() {
+      try {
+        const templatesRef = collection(db, "businesses", businessId, "whatsapp_templates");
+        const templatesSnap = await getDocs(templatesRef);
+
+        const container = document.getElementById('templatesContainer');
+        
+        if (templatesSnap.empty) {
+          container.innerHTML = '<p style="color: #6c757d; text-align: center; padding: 2rem;">No templates created yet</p>';
+          return;
+        }
+
+        let html = '';
+        templatesSnap.forEach(doc => {
+          const template = doc.data();
+          html += `
+            <div class="template-item">
+              <div class="template-header">
+                <span class="template-name">${template.name}</span>
+                <span class="template-trigger">${formatTrigger(template.trigger)}</span>
+              </div>
+              <div style="margin: 0.5rem 0;">
+                <span class="status-badge ${template.active ? 'status-active' : 'status-inactive'}">
+                  ${template.active ? 'Active' : 'Inactive'}
+                </span>
+                <small style="margin-left: 1rem; color: #6c757d;">To: ${formatRecipient(template.recipient)}</small>
+              </div>
+              <div class="template-content">${template.message}</div>
+              <div class="template-actions">
+                <button class="btn-secondary" onclick="toggleTemplate('${template.id}', ${!template.active})">
+                  ${template.active ? 'Deactivate' : 'Activate'}
+                </button>
+                <button class="btn-danger" onclick="deleteTemplate('${template.id}')">Delete</button>
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      } catch (error) {
+        console.error("Error loading templates:", error);
+      }
+    }
+
+    function formatTrigger(trigger) {
+      const triggers = {
+        'clock-in': 'Clock In',
+        'clock-out': 'Clock Out',
+        'late-arrival': 'Late Arrival',
+        'forgot-clock-out': 'Forgot Clock Out',
+        'daily-summary': 'Daily Summary',
+        'weekly-summary': 'Weekly Summary',
+        'monthly-summary': 'Monthly Summary'
+      };
+      return triggers[trigger] || trigger;
+    }
+
+    function formatRecipient(recipient) {
+      const recipients = {
+        'employee': 'Employee',
+        'manager': 'Manager',
+        'both': 'Employee & Manager'
+      };
+      return recipients[recipient] || recipient;
+    }
+
+    // Toggle template active state
+    window.toggleTemplate = async function(templateId, active) {
+      try {
+        const templateRef = doc(db, "businesses", businessId, "whatsapp_templates", templateId);
+        await setDoc(templateRef, { active }, { merge: true });
+        showSuccess(`Template ${active ? 'activated' : 'deactivated'} successfully!`);
+        await loadTemplates();
+      } catch (error) {
+        console.error("Error toggling template:", error);
+        alert('Error: ' + error.message);
+      }
+    };
+
+    // Delete template
+    window.deleteTemplate = async function(templateId) {
+      if (!confirm('Are you sure you want to delete this template?')) return;
+
+      try {
+        const templateRef = doc(db, "businesses", businessId, "whatsapp_templates", templateId);
+        await deleteDoc(templateRef);
+        showSuccess('Template deleted successfully!');
+        await loadTemplates();
+      } catch (error) {
+        console.error("Error deleting template:", error);
+        alert('Error: ' + error.message);
+      }
+    };
+
+    // Test connection
+    window.testConnection = async function() {
+      const apiKey = document.getElementById('apiKey').value;
+      const fromNumber = document.getElementById('fromNumber').value;
+
+      if (!apiKey || !fromNumber) {
+        alert('Please enter API Key and From Number first');
+        return;
+      }
+
+      alert('Test connection feature will be implemented based on your API provider. For now, please verify your credentials manually.');
+    };
+
+    function showSuccess(message) {
+      const successDiv = document.getElementById('successMessage');
+      successDiv.textContent = message;
+      successDiv.style.display = 'block';
+      setTimeout(() => {
+        successDiv.style.display = 'none';
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

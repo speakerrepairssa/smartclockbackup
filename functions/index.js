@@ -1534,3 +1534,319 @@ exports.setupCorrectFirebaseStructure = setupCorrectFirebaseStructure;
 // Import and export the clean collections function
 const { cleanAndRecreateCollections } = require('./cleanCollections');
 exports.cleanAndRecreateCollections = cleanAndRecreateCollections;
+
+/**
+ * 📱 WHATSAPP MESSAGE SENDER
+ * Send WhatsApp messages based on templates and triggers
+ */
+exports.sendWhatsAppMessage = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, trigger, employeeData } = req.body;
+
+    if (!businessId || !trigger) {
+      throw new Error('Missing required fields: businessId and trigger');
+    }
+
+    logger.info("WhatsApp message request", { businessId, trigger, employeeData });
+
+    // Get WhatsApp settings
+    const settingsRef = db.collection('businesses').doc(businessId).collection('settings').doc('whatsapp');
+    const settingsDoc = await settingsRef.get();
+
+    if (!settingsDoc.exists || !settingsDoc.data().enabled) {
+      logger.info("WhatsApp not enabled for business", { businessId });
+      res.json({ success: true, message: 'WhatsApp not enabled' });
+      return;
+    }
+
+    const settings = settingsDoc.data();
+
+    // Get active templates for this trigger
+    const templatesRef = db.collection('businesses').doc(businessId).collection('whatsapp_templates');
+    const templatesSnap = await templatesRef.where('trigger', '==', trigger).where('active', '==', true).get();
+
+    if (templatesSnap.empty) {
+      logger.info("No active templates for trigger", { businessId, trigger });
+      res.json({ success: true, message: 'No active templates' });
+      return;
+    }
+
+    const messages = [];
+
+    for (const templateDoc of templatesSnap.docs) {
+      const template = templateDoc.data();
+      
+      // Replace variables in message
+      let message = template.message;
+      message = message.replace(/\{\{employeeName\}\}/g, employeeData.employeeName || 'Employee');
+      message = message.replace(/\{\{employeeId\}\}/g, employeeData.employeeId || '');
+      message = message.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
+      message = message.replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
+      message = message.replace(/\{\{businessName\}\}/g, employeeData.businessName || 'Your Business');
+      message = message.replace(/\{\{status\}\}/g, employeeData.status || '');
+      message = message.replace(/\{\{hoursWorked\}\}/g, employeeData.hoursWorked || '');
+      message = message.replace(/\{\{daysWorked\}\}/g, employeeData.daysWorked || '');
+
+      // Determine recipient phone number
+      let toNumbers = [];
+      if (template.recipient === 'employee' || template.recipient === 'both') {
+        if (employeeData.phone) {
+          toNumbers.push(employeeData.phone);
+        }
+      }
+      if (template.recipient === 'manager' || template.recipient === 'both') {
+        // Get business owner/manager phone
+        const businessDoc = await db.collection('businesses').doc(businessId).get();
+        if (businessDoc.exists && businessDoc.data().phone) {
+          toNumbers.push(businessDoc.data().phone);
+        }
+      }
+
+      // Send messages via WhatsApp API
+      for (const toNumber of toNumbers) {
+        try {
+          // Different API implementations based on provider
+          if (settings.apiProvider === 'twilio') {
+            await sendViaTwilio(settings, toNumber, message);
+          } else if (settings.apiProvider === 'whatsapp-business') {
+            await sendViaWhatsAppBusiness(settings, toNumber, message);
+          } else if (settings.apiProvider === '360dialog') {
+            await sendVia360Dialog(settings, toNumber, message);
+          } else if (settings.apiProvider === 'wati') {
+            await sendViaWati(settings, toNumber, message);
+          } else {
+            // Generic HTTP API call
+            await sendViaGenericAPI(settings, toNumber, message);
+          }
+
+          messages.push({ to: toNumber, message, status: 'sent' });
+          logger.info("WhatsApp message sent", { businessId, toNumber, trigger });
+        } catch (error) {
+          logger.error("Error sending WhatsApp message", { error: error.message, toNumber });
+          messages.push({ to: toNumber, message, status: 'failed', error: error.message });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      messagesSent: messages.length,
+      messages
+    });
+
+  } catch (error) {
+    logger.error("Error in sendWhatsAppMessage", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper functions for different WhatsApp API providers
+async function sendViaTwilio(settings, toNumber, message) {
+  const https = require('https');
+  const querystring = require('querystring');
+  
+  const auth = Buffer.from(`${settings.apiKey}:${settings.apiSecret}`).toString('base64');
+  const postData = querystring.stringify({
+    From: `whatsapp:${settings.fromNumber}`,
+    To: `whatsapp:${toNumber}`,
+    Body: message
+  });
+
+  const options = {
+    hostname: 'api.twilio.com',
+    port: 443,
+    path: `/2010-04-01/Accounts/${settings.apiKey}/Messages.json`,
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': postData.length
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          resolve(JSON.parse(data));
+        } else {
+          reject(new Error(`Twilio API error: ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
+async function sendViaWhatsAppBusiness(settings, toNumber, message) {
+  const https = require('https');
+  
+  const postData = JSON.stringify({
+    messaging_product: 'whatsapp',
+    to: toNumber.replace(/\+/g, ''),
+    type: 'text',
+    text: { body: message }
+  });
+
+  const options = {
+    hostname: 'graph.facebook.com',
+    port: 443,
+    path: `/v17.0/${settings.fromNumber}/messages`,
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${settings.apiKey}`,
+      'Content-Type': 'application/json',
+      'Content-Length': postData.length
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          resolve(JSON.parse(data));
+        } else {
+          reject(new Error(`WhatsApp Business API error: ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
+async function sendVia360Dialog(settings, toNumber, message) {
+  const https = require('https');
+  
+  const postData = JSON.stringify({
+    to: toNumber,
+    type: 'text',
+    text: { body: message }
+  });
+
+  const options = {
+    hostname: 'waba.360dialog.io',
+    port: 443,
+    path: '/v1/messages',
+    method: 'POST',
+    headers: {
+      'D360-API-KEY': settings.apiKey,
+      'Content-Type': 'application/json',
+      'Content-Length': postData.length
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          resolve(JSON.parse(data));
+        } else {
+          reject(new Error(`360Dialog API error: ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
+async function sendViaWati(settings, toNumber, message) {
+  const https = require('https');
+  
+  const postData = JSON.stringify({
+    whatsappNumber: toNumber.replace(/\+/g, ''),
+    text: message
+  });
+
+  const endpoint = settings.apiEndpoint || 'live-server-9619.wati.io';
+  const options = {
+    hostname: endpoint.replace('https://', '').replace('http://', ''),
+    port: 443,
+    path: '/api/v1/sendSessionMessage',
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${settings.apiKey}`,
+      'Content-Type': 'application/json',
+      'Content-Length': postData.length
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          resolve(JSON.parse(data));
+        } else {
+          reject(new Error(`Wati API error: ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
+async function sendViaGenericAPI(settings, toNumber, message) {
+  if (!settings.apiEndpoint) {
+    throw new Error('API endpoint required for generic provider');
+  }
+
+  const https = require('https');
+  const url = new URL(settings.apiEndpoint);
+  
+  const postData = JSON.stringify({
+    to: toNumber,
+    message: message,
+    from: settings.fromNumber
+  });
+
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 443,
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${settings.apiKey}`,
+      'Content-Type': 'application/json',
+      'Content-Length': postData.length
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          resolve({ status: 'sent' });
+        } else {
+          reject(new Error(`API error: ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
