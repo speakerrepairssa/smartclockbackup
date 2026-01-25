@@ -254,10 +254,10 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
       attendanceStatus 
     });
 
-    // 🔥 DYNAMIC DEVICE-TO-BUSINESS MAPPING
-    const businessId = await findBusinessByDeviceId(deviceId);
+    // 🔥 DYNAMIC DEVICE-TO-BUSINESS MAPPING - Now supports multiple businesses
+    const businessIds = await findBusinessByDeviceId(deviceId);
     
-    if (!businessId) {
+    if (!businessIds || businessIds.length === 0) {
       logger.error("Device not registered to any business", { 
         deviceId,
         solution: "Admin must register this device in the admin dashboard" 
@@ -271,23 +271,27 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
       return;
     }
 
-    logger.info("Mapped device to business", { deviceId, businessId });
+    logger.info("Mapped device to businesses", { deviceId, businessIds, count: businessIds.length });
 
-    // Process attendance event for the correct business
-    await processAttendanceEvent(businessId, {
-      deviceId,
-      employeeId,
-      employeeName: employeeName || `Employee ${employeeId || verifyNo}`,
-      attendanceStatus: attendanceStatus || 'in',
-      timestamp: timestamp || new Date().toISOString(),
-      verifyNo,
-      serialNo
-    });
+    // Process attendance event for ALL businesses that have this device
+    const processPromises = businessIds.map(businessId => 
+      processAttendanceEvent(businessId, {
+        deviceId,
+        employeeId,
+        employeeName: employeeName || `Employee ${employeeId || verifyNo}`,
+        attendanceStatus: attendanceStatus || 'in',
+        timestamp: timestamp || new Date().toISOString(),
+        verifyNo,
+        serialNo
+      })
+    );
+
+    await Promise.all(processPromises);
 
     res.status(200).json({ 
       success: true, 
-      message: 'Attendance processed successfully',
-      businessId,
+      message: `Attendance processed successfully for ${businessIds.length} business(es)`,
+      businessIds,
       deviceId,
       employeeId,
       verifyNo,
@@ -437,10 +441,11 @@ function parseMultipartData(req) {
  */
 async function findBusinessByDeviceId(deviceId) {
   try {
-    logger.info("Searching for business with deviceId", { deviceId });
+    logger.info("Searching for businesses with deviceId", { deviceId });
 
     // Query all businesses to check their devices subcollection
     const businessesSnapshot = await db.collection('businesses').get();
+    const businessIds = [];
     
     for (const doc of businessesSnapshot.docs) {
       // Check if this business has the device in its devices subcollection
@@ -457,13 +462,17 @@ async function findBusinessByDeviceId(deviceId) {
           businessName: businessData.businessName,
           deviceId 
         });
-        return doc.id;
+        businessIds.push(doc.id);
       }
     }
 
-    // Device not found in any business - return null instead of defaulting
-    logger.warn("No business found for deviceId - device may need to be registered", { deviceId });
-    return null;
+    if (businessIds.length === 0) {
+      logger.warn("No business found for deviceId - device may need to be registered", { deviceId });
+      return null;
+    }
+
+    logger.info(`Found ${businessIds.length} business(es) with device ${deviceId}`, { businessIds });
+    return businessIds;
 
   } catch (error) {
     logger.error("Error finding business by deviceId", error);
