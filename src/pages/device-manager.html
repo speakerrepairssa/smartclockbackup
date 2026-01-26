@@ -528,14 +528,23 @@ Complete Configuration Copy-Paste:
    📋 Protocol: HTTP
    📤 HTTP Method: POST
 
-4. Navigate to: Event → Smart Event → Face Recognition
+4. Navigate to: Network → Advanced → ISUP
+
+5. Set ISUP values:
+   ✅ Enable ISUP: ON
+   📡 Server Address: 69.62.109.168
+   🌐 Port: 7660
+   🔗 Upload Protocol: HTTP
+   📤 Upload to Server: Enable
+
+6. Navigate to: Event → Smart Event → Face Recognition
    ✅ Enable Face Recognition Events
    📤 Upload Center: Enable
    🔗 Upload to HTTP Server: Enable
 
-5. Save and Apply Settings
+7. Save and Apply Settings
 
-6. Test by scanning a face - you should see events in Firebase!
+8. Test by scanning a face - you should see events in Firebase!
         </div>
 
         <button class="copy-btn" onclick="copyToClipboard(document.getElementById('fullConfig').textContent)">📋 Copy All Instructions</button>
@@ -953,7 +962,7 @@ http://69.62.109.168:7660${webhookPath}
         
         // Test via webhook URL instead of direct device connection
         try {
-          const webhookUrl = device.webhookURL;
+          const webhookUrl = device.webhookPath ? `http://69.62.109.168:7660${device.webhookPath}` : null;
           if (!webhookUrl) {
             showMessage("❌ No webhook URL configured for this device", "error");
             return;

@@ -657,28 +657,80 @@ async function processAttendanceEvent(businessId, eventData) {
     const workPeriods = [];
     let totalHours = 0;
     
-    for (let i = 0; i < clockEvents.length; i += 2) {
-      const clockIn = clockEvents[i];
-      const clockOut = clockEvents[i + 1];
+    // Get business schedule settings
+    const businessRef = await db.collection('businesses').doc(businessId).get();
+    const businessData = businessRef.data();
+    const schedule = businessData?.schedule || {};
+    const publicHolidays = businessData?.publicHolidays || [];
+    
+    // Check if this date is a public holiday
+    const isPublicHoliday = publicHolidays.includes(eventDate);
+    
+    if (!isPublicHoliday) {
+      // Get day of week schedule
+      const dayOfWeek = new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const daySchedule = schedule[dayOfWeek];
       
-      if (clockIn && clockOut && clockIn.type === 'clock-in' && clockOut.type === 'clock-out') {
-        const start = new Date(clockIn.timestamp);
-        const end = new Date(clockOut.timestamp);
-        const hours = (end - start) / (1000 * 60 * 60); // Convert to hours
+      for (let i = 0; i < clockEvents.length; i += 2) {
+        const clockIn = clockEvents[i];
+        const clockOut = clockEvents[i + 1];
         
-        workPeriods.push({
-          start: clockIn.time,
-          end: clockOut.time,
-          hours: Math.round(hours * 100) / 100
-        });
-        
-        totalHours += hours;
+        if (clockIn && clockOut && clockIn.type === 'clock-in' && clockOut.type === 'clock-out') {
+          let start = new Date(clockIn.timestamp);
+          let end = new Date(clockOut.timestamp);
+          
+          // If day schedule exists, cap hours to scheduled shift times
+          if (daySchedule && daySchedule.enabled && daySchedule.startTime && daySchedule.endTime) {
+            const scheduledStart = new Date(eventDate + 'T' + daySchedule.startTime);
+            const scheduledEnd = new Date(eventDate + 'T' + daySchedule.endTime);
+            
+            // Use scheduled start if clocked in early
+            if (start < scheduledStart) {
+              start = scheduledStart;
+            }
+            
+            // Use scheduled end if still working after shift
+            if (end > scheduledEnd) {
+              end = scheduledEnd;
+            }
+          }
+          
+          const hours = Math.max(0, (end - start) / (1000 * 60 * 60)); // Convert to hours, min 0
+          
+          if (hours > 0) {
+            workPeriods.push({
+              start: clockIn.time,
+              end: clockOut.time,
+              scheduledStart: daySchedule?.startTime,
+              scheduledEnd: daySchedule?.endTime,
+              hours: Math.round(hours * 100) / 100
+            });
+            
+            totalHours += hours;
+          }
+        }
       }
+      
+      // Deduct break time
+      const breakHours = (businessData?.breakDuration || 0) / 60;
+      totalHours = Math.max(0, totalHours - breakHours);
     }
     
     existingTimesheet.workPeriods = workPeriods;
     existingTimesheet.totalHours = Math.round(totalHours * 100) / 100;
-    existingTimesheet.overtimeHours = Math.max(0, totalHours - 8); // Over 8 hours = overtime
+    existingTimesheet.isPublicHoliday = isPublicHoliday;
+    
+    // Calculate overtime based on day schedule
+    const dayOfWeek = new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const daySchedule = schedule[dayOfWeek];
+    let scheduledHours = 8; // default
+    if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
+      const start = new Date(eventDate + 'T' + daySchedule.startTime);
+      const end = new Date(eventDate + 'T' + daySchedule.endTime);
+      scheduledHours = (end - start) / (1000 * 60 * 60);
+    }
+    existingTimesheet.scheduledHours = scheduledHours;
+    existingTimesheet.overtimeHours = Math.max(0, totalHours - scheduledHours);
     existingTimesheet.lastUpdated = new Date().toISOString();
     
     await timesheetRef.set(existingTimesheet);
@@ -697,6 +749,16 @@ async function processAttendanceEvent(businessId, eventData) {
       attendanceStatus: isClockingIn ? 'in' : 'out',
       updatedAt: new Date().toISOString()
     });
+
+    // 📱 TRIGGER WHATSAPP ON CLOCK-OUT
+    if (!isClockingIn) {
+      try {
+        await sendDailyUpdateWhatsApp(businessId, slotNumber.toString(), employeeName, eventDate);
+      } catch (whatsappError) {
+        logger.error("Failed to send WhatsApp notification", { error: whatsappError.message });
+        // Don't fail the whole operation if WhatsApp fails
+      }
+    }
 
     logger.info("Attendance event processed successfully", { 
       businessId, 
@@ -1536,6 +1598,141 @@ const { cleanAndRecreateCollections } = require('./cleanCollections');
 exports.cleanAndRecreateCollections = cleanAndRecreateCollections;
 
 /**
+ * Send daily update WhatsApp on clock-out
+ */
+async function sendDailyUpdateWhatsApp(businessId, employeeId, employeeName, currentDate) {
+  try {
+    // Get WhatsApp settings
+    const settingsRef = db.collection('businesses').doc(businessId).collection('settings').doc('whatsapp');
+    const settingsDoc = await settingsRef.get();
+
+    if (!settingsDoc.exists || !settingsDoc.data().enabled) {
+      logger.info("WhatsApp not enabled for business", { businessId });
+      return;
+    }
+
+    const settings = settingsDoc.data();
+
+    // Get employee phone number from staff collection
+    const staffRef = db.collection('businesses').doc(businessId).collection('staff').doc(employeeId);
+    const staffDoc = await staffRef.get();
+    
+    if (!staffDoc.exists || !staffDoc.data().phone) {
+      logger.warn("Employee phone number not found", { businessId, employeeId });
+      return;
+    }
+
+    const employeePhone = staffDoc.data().phone;
+    const hourlyRate = staffDoc.data().hourlyRate || 0;
+
+    // Get business settings for required hours
+    const businessRef = db.collection('businesses').doc(businessId);
+    const businessDoc = await businessRef.get();
+    const businessData = businessDoc.data();
+    
+    // Calculate required hours per month (default: 8 hours/day × working days)
+    const workingDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    let daysPerWeek = 0;
+    workingDays.forEach(day => {
+      if (businessData[day] === true) daysPerWeek++;
+    });
+    const weeksInMonth = 4.33; // Average
+    const requiredHoursPerMonth = Math.round(8 * daysPerWeek * weeksInMonth);
+
+    // Calculate past due hours (days passed this month × 8 hours)
+    const today = new Date();
+    const dayOfMonth = today.getDate();
+    const pastDueHours = Math.round(dayOfMonth * 8 * (daysPerWeek / 7));
+
+    // Get all timesheets for current month
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const monthPrefix = `${year}-${month}`;
+
+    const timesheetsRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('employee_timesheets')
+      .doc(employeeId)
+      .collection('daily_sheets');
+    
+    const timesheetsSnap = await timesheetsRef
+      .where('date', '>=', `${monthPrefix}-01`)
+      .where('date', '<=', `${monthPrefix}-31`)
+      .get();
+
+    // Calculate total hours worked this month
+    let totalHoursWorked = 0;
+    timesheetsSnap.forEach(doc => {
+      totalHoursWorked += doc.data().totalHours || 0;
+    });
+    totalHoursWorked = Math.round(totalHoursWorked * 100) / 100;
+
+    // Calculate lost hours
+    const lostHours = Math.max(0, pastDueHours - totalHoursWorked);
+
+    // Calculate earnings
+    const earnings = Math.round(totalHoursWorked * hourlyRate);
+    const currency = businessData.currency || 'R';
+
+    // Generate timecard link (using business dashboard + employee ID)
+    const timecardLink = `https://aiclock-82608.web.app/pages/business-dashboard.html?view=timecard&employee=${employeeId}`;
+
+    // Get template for clock-out trigger
+    const templatesRef = db.collection('businesses').doc(businessId).collection('whatsapp_templates');
+    const templatesSnap = await templatesRef.where('trigger', '==', 'clock-out').where('active', '==', true).get();
+
+    if (templatesSnap.empty) {
+      logger.info("No active clock-out template found", { businessId });
+      return;
+    }
+
+    const template = templatesSnap.docs[0].data();
+    let message = template.message;
+
+    // Replace variables - support both {{name}} and {{1}} formats
+    message = message.replace(/\{\{employeeName\}\}/g, employeeName || 'Employee');
+    message = message.replace(/\{\{1\}\}/g, employeeName || 'Employee');
+    message = message.replace(/\{\{2\}\}/g, requiredHoursPerMonth.toString());
+    message = message.replace(/\{\{3\}\}/g, pastDueHours.toString());
+    message = message.replace(/\{\{4\}\}/g, totalHoursWorked.toString());
+    message = message.replace(/\{\{5\}\}/g, lostHours.toString());
+    message = message.replace(/\{\{6\}\}/g, timecardLink);
+    message = message.replace(/\{\{7\}\}/g, `${currency}${earnings}`);
+    message = message.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
+    message = message.replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
+
+    // Send message based on provider
+    if (settings.apiProvider === 'twilio') {
+      await sendViaTwilio(settings, employeePhone, message);
+    } else if (settings.apiProvider === 'cloud-api') {
+      await sendViaWhatsAppBusiness(settings, employeePhone, message);
+    } else if (settings.apiProvider === '360dialog') {
+      await sendVia360Dialog(settings, employeePhone, message);
+    } else if (settings.apiProvider === 'wati') {
+      await sendViaWati(settings, employeePhone, message);
+    } else {
+      await sendViaGenericAPI(settings, employeePhone, message);
+    }
+
+    logger.info("Daily update WhatsApp sent successfully", { 
+      businessId, 
+      employeeId,
+      employeeName,
+      hoursWorked: totalHoursWorked,
+      earnings 
+    });
+
+  } catch (error) {
+    logger.error("Error sending daily update WhatsApp", { 
+      error: error.message,
+      businessId,
+      employeeId 
+    });
+    throw error;
+  }
+}
+
+/**
  * 📱 WHATSAPP MESSAGE SENDER
  * Send WhatsApp messages based on templates and triggers
  */
@@ -1699,13 +1896,17 @@ async function sendViaWhatsAppBusiness(settings, toNumber, message) {
     text: { body: message }
   });
 
+  // Use Cloud API specific fields
+  const phoneNumberId = settings.cloudPhoneNumberId || settings.fromNumber;
+  const accessToken = settings.cloudAccessToken || settings.apiKey;
+
   const options = {
     hostname: 'graph.facebook.com',
     port: 443,
-    path: `/v17.0/${settings.fromNumber}/messages`,
+    path: `/v18.0/${phoneNumberId}/messages`,
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${settings.apiKey}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
       'Content-Length': postData.length
     }
@@ -1719,7 +1920,7 @@ async function sendViaWhatsAppBusiness(settings, toNumber, message) {
         if (res.statusCode === 200) {
           resolve(JSON.parse(data));
         } else {
-          reject(new Error(`WhatsApp Business API error: ${data}`));
+          reject(new Error(`WhatsApp Cloud API error: ${data}`));
         }
       });
     });

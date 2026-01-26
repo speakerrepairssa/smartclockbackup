@@ -287,38 +287,68 @@
         <form id="apiConfigForm">
           <div class="form-group">
             <label>WhatsApp API Provider</label>
-            <select id="apiProvider">
+            <select id="apiProvider" onchange="toggleProviderFields()">
               <option value="">Select Provider</option>
+              <option value="cloud-api">WhatsApp Cloud API (Meta)</option>
               <option value="twilio">Twilio</option>
-              <option value="whatsapp-business">WhatsApp Business API</option>
               <option value="360dialog">360Dialog</option>
               <option value="wati">Wati.io</option>
               <option value="other">Other</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label>API Key / Account SID</label>
-            <input type="text" id="apiKey" placeholder="Enter your API key">
-            <small>Your API key or Account SID from your WhatsApp provider</small>
+          <!-- Cloud API Specific Fields -->
+          <div id="cloudApiFields" style="display: none;">
+            <div class="form-group">
+              <label>Access Token (Permanent)</label>
+              <input type="password" id="cloudAccessToken" placeholder="Enter your permanent access token">
+              <small>Your WhatsApp Cloud API permanent access token from Meta Business</small>
+            </div>
+
+            <div class="form-group">
+              <label>Phone Number ID</label>
+              <input type="text" id="cloudPhoneNumberId" placeholder="Enter Phone Number ID">
+              <small>The Phone Number ID from your WhatsApp Business Account</small>
+            </div>
+
+            <div class="form-group">
+              <label>Business Account ID</label>
+              <input type="text" id="cloudBusinessAccountId" placeholder="Enter Business Account ID">
+              <small>Your WhatsApp Business Account ID</small>
+            </div>
+
+            <div class="form-group">
+              <label>Connected Phone Number</label>
+              <input type="tel" id="cloudPhoneNumber" placeholder="+1234567890">
+              <small>The actual phone number connected (for display purposes)</small>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label>API Secret / Auth Token</label>
-            <input type="password" id="apiSecret" placeholder="Enter your API secret">
-            <small>Keep this secret! It will be stored securely.</small>
-          </div>
+          <!-- Generic Fields (for other providers) -->
+          <div id="genericFields">
+            <div class="form-group">
+              <label>API Key / Account SID</label>
+              <input type="text" id="apiKey" placeholder="Enter your API key">
+              <small>Your API key or Account SID from your WhatsApp provider</small>
+            </div>
 
-          <div class="form-group">
-            <label>From Phone Number</label>
-            <input type="tel" id="fromNumber" placeholder="+1234567890">
-            <small>Your WhatsApp Business number (include country code)</small>
-          </div>
+            <div class="form-group">
+              <label>API Secret / Auth Token</label>
+              <input type="password" id="apiSecret" placeholder="Enter your API secret">
+              <small>Keep this secret! It will be stored securely.</small>
+            </div>
 
-          <div class="form-group">
-            <label>API Endpoint URL (Optional)</label>
-            <input type="url" id="apiEndpoint" placeholder="https://api.example.com/messages">
-            <small>Custom API endpoint if using a specific provider</small>
+            <div class="form-group">
+              <label>From Phone Number</label>
+              <input type="tel" id="fromNumber" placeholder="+1234567890">
+              <small>Your WhatsApp Business number (include country code)</small>
+            </div>
+
+            <div class="form-group">
+              <label>API Endpoint URL (Optional)</label>
+              <input type="url" id="apiEndpoint" placeholder="https://api.example.com/messages">
+              <small>Custom API endpoint if using a specific provider</small>
+            </div>
           </div>
 
           <div class="form-group">
@@ -369,21 +399,27 @@
           <div class="form-group">
             <label>Message Template</label>
             <textarea id="templateMessage" placeholder="Enter your message template with variables" required></textarea>
-            <small>Use variables like {{employeeName}}, {{time}}, {{date}}, {{businessName}}</small>
+            <small>Use variables like {{employeeName}}, {{1}}, {{2}}, etc. for dynamic data</small>
           </div>
 
           <div class="variables-help">
             <h4>Available Variables:</h4>
-            <p>
-              <code>{{employeeName}}</code> - Employee name<br>
+            <p><strong>Basic Variables:</strong><br>
+              <code>{{employeeName}}</code> or <code>{{1}}</code> - Employee name<br>
               <code>{{employeeId}}</code> - Employee slot number<br>
               <code>{{time}}</code> - Current time<br>
               <code>{{date}}</code> - Current date<br>
-              <code>{{businessName}}</code> - Your business name<br>
-              <code>{{status}}</code> - Clock in/out status<br>
-              <code>{{hoursWorked}}</code> - Total hours (for summaries)<br>
-              <code>{{daysWorked}}</code> - Days worked (for summaries)
+              <code>{{businessName}}</code> - Your business name
             </p>
+            <p><strong>Clock-Out Daily Update Variables:</strong><br>
+              <code>{{2}}</code> - Required hours for the month<br>
+              <code>{{3}}</code> - Past due hours (days passed × daily hours)<br>
+              <code>{{4}}</code> - Hours worked to date<br>
+              <code>{{5}}</code> - Lost hours (shortfall)<br>
+              <code>{{6}}</code> - Timecard link<br>
+              <code>{{7}}</code> - Earnings (hours × rate)
+            </p>
+            <p><em>💡 Tip: For clock-out templates, use numbered variables {{1}} through {{7}} to show daily progress updates</em></p>
           </div>
 
           <button type="submit" class="btn-primary">➕ Add Template</button>
@@ -418,20 +454,81 @@
       await loadTemplates();
     });
 
+    // Toggle provider-specific fields
+    window.toggleProviderFields = function() {
+      const provider = document.getElementById('apiProvider').value;
+      const cloudApiFields = document.getElementById('cloudApiFields');
+      const genericFields = document.getElementById('genericFields');
+
+      if (provider === 'cloud-api') {
+        cloudApiFields.style.display = 'block';
+        genericFields.style.display = 'none';
+        
+        // Set required on Cloud API fields
+        document.getElementById('cloudAccessToken').required = true;
+        document.getElementById('cloudPhoneNumberId').required = true;
+        
+        // Remove required from generic fields
+        document.getElementById('apiKey').required = false;
+        document.getElementById('fromNumber').required = false;
+      } else {
+        cloudApiFields.style.display = 'none';
+        genericFields.style.display = 'block';
+        
+        // Remove required from Cloud API fields
+        document.getElementById('cloudAccessToken').required = false;
+        document.getElementById('cloudPhoneNumberId').required = false;
+        
+        // Set required on generic fields
+        document.getElementById('apiKey').required = true;
+        document.getElementById('fromNumber').required = true;
+      }
+    };
+
     // Load existing settings
     async function loadSettings() {
       try {
+        // Load business data to get phone number
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+        let businessPhone = '';
+        
+        if (businessDoc.exists()) {
+          const businessData = businessDoc.data();
+          businessPhone = businessData.phone || businessData.phoneNumber || businessData.contactPhone || '';
+        }
+
         const settingsRef = doc(db, "businesses", businessId, "settings", "whatsapp");
         const settingsDoc = await getDoc(settingsRef);
 
         if (settingsDoc.exists()) {
           const data = settingsDoc.data();
           document.getElementById('apiProvider').value = data.apiProvider || '';
+          
+          // Load Cloud API fields
+          if (data.cloudAccessToken) {
+            document.getElementById('cloudAccessToken').value = data.cloudAccessToken || '';
+            document.getElementById('cloudPhoneNumberId').value = data.cloudPhoneNumberId || '';
+            document.getElementById('cloudBusinessAccountId').value = data.cloudBusinessAccountId || '';
+            document.getElementById('cloudPhoneNumber').value = data.cloudPhoneNumber || businessPhone;
+          } else if (businessPhone) {
+            // Auto-import phone number if not set
+            document.getElementById('cloudPhoneNumber').value = businessPhone;
+          }
+          
+          // Load generic fields
           document.getElementById('apiKey').value = data.apiKey || '';
           document.getElementById('apiSecret').value = data.apiSecret || '';
-          document.getElementById('fromNumber').value = data.fromNumber || '';
+          document.getElementById('fromNumber').value = data.fromNumber || businessPhone;
           document.getElementById('apiEndpoint').value = data.apiEndpoint || '';
           document.getElementById('enableWhatsApp').checked = data.enabled || false;
+          
+          // Toggle fields based on provider
+          toggleProviderFields();
+        } else if (businessPhone) {
+          // No settings exist yet, auto-import phone number
+          document.getElementById('cloudPhoneNumber').value = businessPhone;
+          document.getElementById('fromNumber').value = businessPhone;
         }
       } catch (error) {
         console.error("Error loading settings:", error);
@@ -443,16 +540,29 @@
       e.preventDefault();
 
       try {
-        const settingsRef = doc(db, "businesses", businessId, "settings", "whatsapp");
-        await setDoc(settingsRef, {
-          apiProvider: document.getElementById('apiProvider').value,
-          apiKey: document.getElementById('apiKey').value,
-          apiSecret: document.getElementById('apiSecret').value,
-          fromNumber: document.getElementById('fromNumber').value,
-          apiEndpoint: document.getElementById('apiEndpoint').value,
+        const provider = document.getElementById('apiProvider').value;
+        const settingsData = {
+          apiProvider: provider,
           enabled: document.getElementById('enableWhatsApp').checked,
           updatedAt: new Date().toISOString()
-        });
+        };
+
+        // Add Cloud API specific fields
+        if (provider === 'cloud-api') {
+          settingsData.cloudAccessToken = document.getElementById('cloudAccessToken').value;
+          settingsData.cloudPhoneNumberId = document.getElementById('cloudPhoneNumberId').value;
+          settingsData.cloudBusinessAccountId = document.getElementById('cloudBusinessAccountId').value;
+          settingsData.cloudPhoneNumber = document.getElementById('cloudPhoneNumber').value;
+        } else {
+          // Add generic fields
+          settingsData.apiKey = document.getElementById('apiKey').value;
+          settingsData.apiSecret = document.getElementById('apiSecret').value;
+          settingsData.fromNumber = document.getElementById('fromNumber').value;
+          settingsData.apiEndpoint = document.getElementById('apiEndpoint').value;
+        }
+
+        const settingsRef = doc(db, "businesses", businessId, "settings", "whatsapp");
+        await setDoc(settingsRef, settingsData);
 
         showSuccess('API configuration saved successfully!');
       } catch (error) {
@@ -585,15 +695,65 @@
 
     // Test connection
     window.testConnection = async function() {
-      const apiKey = document.getElementById('apiKey').value;
-      const fromNumber = document.getElementById('fromNumber').value;
-
-      if (!apiKey || !fromNumber) {
-        alert('Please enter API Key and From Number first');
+      const provider = document.getElementById('apiProvider').value;
+      
+      if (!provider) {
+        alert('Please select an API Provider first');
         return;
       }
 
-      alert('Test connection feature will be implemented based on your API provider. For now, please verify your credentials manually.');
+      const testBtn = document.querySelector('.btn-secondary');
+      const originalText = testBtn.textContent;
+      testBtn.textContent = '🔄 Testing...';
+      testBtn.disabled = true;
+
+      try {
+        // Validate and test based on provider type
+        if (provider === 'cloud-api') {
+          const accessToken = document.getElementById('cloudAccessToken').value;
+          const phoneNumberId = document.getElementById('cloudPhoneNumberId').value;
+          
+          if (!accessToken || !phoneNumberId) {
+            alert('Please enter Access Token and Phone Number ID first');
+            testBtn.textContent = originalText;
+            testBtn.disabled = false;
+            return;
+          }
+
+          // Test Cloud API by fetching phone number details
+          const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            alert(`✅ Connection successful!\n\nPhone: ${data.display_phone_number || 'N/A'}\nVerified: ${data.verified_name || 'N/A'}\nQuality: ${data.quality_rating || 'N/A'}`);
+          } else {
+            const error = await response.json();
+            alert(`❌ Connection failed!\n\nError: ${error.error?.message || 'Invalid credentials'}\nCode: ${error.error?.code || response.status}`);
+          }
+        } else {
+          const apiKey = document.getElementById('apiKey').value;
+          const fromNumber = document.getElementById('fromNumber').value;
+
+          if (!apiKey || !fromNumber) {
+            alert('Please enter API Key and From Number first');
+            testBtn.textContent = originalText;
+            testBtn.disabled = false;
+            return;
+          }
+
+          alert('⚠️ Test connection for this provider needs to be configured. Please save your settings and test by sending a message.');
+        }
+      } catch (error) {
+        alert(`❌ Connection test failed!\n\nError: ${error.message}`);
+      } finally {
+        testBtn.textContent = originalText;
+        testBtn.disabled = false;
+      }
     };
 
     function showSuccess(message) {

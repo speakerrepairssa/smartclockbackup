@@ -334,6 +334,7 @@
         <li><button class="menu-btn" data-module="reports">📈 Reports</button></li>
         <li><button class="menu-btn" data-module="employees">👥 Employees</button></li>
         <li><button class="menu-btn" data-module="timecard">🕐 Timecard</button></li>
+        <li><button class="menu-btn" data-module="downloads">📥 Downloads</button></li>
         <li><a href="whatsapp-settings.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📱 WhatsApp</button></a></li>
         <li><button class="menu-btn" data-module="settings">⚙️ Settings</button></li>
       </ul>
@@ -429,6 +430,12 @@
               <div class="module-icon">👥</div>
               <div class="module-name">Employees</div>
               <div class="module-status">Manage Staff</div>
+            </div>
+
+            <div class="module-card" data-module="downloads">
+              <div class="module-icon">📥</div>
+              <div class="module-name">Downloads</div>
+              <div class="module-status">Apps & Tools</div>
             </div>
 
             <div class="module-card" data-module="settings">
@@ -726,6 +733,115 @@
             padding: 3rem;
             color: #999;
             font-size: 1.1rem;
+          }
+
+          /* Settings Styles */
+          .settings-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+          }
+
+          .settings-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+
+          .settings-card h3 {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: #2c3e50;
+            font-size: 1.2rem;
+          }
+
+          .form-group {
+            margin-bottom: 1.5rem;
+          }
+
+          .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 0.9rem;
+          }
+
+          .form-group input,
+          .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: inherit;
+          }
+
+          .form-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: #6c757d;
+            font-size: 0.85rem;
+          }
+
+          .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+
+          .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+          }
+
+          .checkbox-group input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+          }
+
+          .day-settings {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+          }
+
+          .day-config {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            background: #f8f9fa;
+          }
+
+          .day-header {
+            margin-bottom: 0.75rem;
+          }
+
+          .day-header label {
+            font-size: 1rem;
+            cursor: pointer;
+          }
+
+          .day-checkbox {
+            width: auto !important;
+            margin-right: 0.5rem;
+          }
+
+          .day-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+          }
+
+          .day-details input {
+            padding: 0.5rem;
+            font-size: 0.9rem;
           }
 
           /* Employee Edit Modal */
@@ -1606,10 +1722,170 @@
 
       <!-- Settings View -->
       <div class="view-section" id="settingsView">
-        <h2 class="section-title">Settings</h2>
-        <p class="section-description">Configure your business preferences</p>
-        <div id="settingsContent" style="padding: 2rem; text-align: center; color: #999;">
-          Loading settings...
+        <h2 class="section-title">Business Settings</h2>
+        <p class="section-description">Configure your business preferences and working hours</p>
+        
+        <div class="settings-container">
+          <div class="settings-card">
+            <h3>📋 Business Information</h3>
+            <form id="businessInfoForm">
+              <div class="form-group">
+                <label>Business Name</label>
+                <input type="text" id="businessName" required>
+              </div>
+              
+              <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" id="businessPhone" placeholder="+27...">
+              </div>
+              
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="businessEmail">
+              </div>
+              
+              <div class="form-group">
+                <label>Currency</label>
+                <select id="businessCurrency">
+                  <option value="R">ZAR (R)</option>
+                  <option value="$">USD ($)</option>
+                  <option value="€">EUR (€)</option>
+                  <option value="£">GBP (£)</option>
+                </select>
+              </div>
+              
+              <button type="submit" class="btn-primary">💾 Save Business Info</button>
+            </form>
+          </div>
+          
+          <div class="settings-card">
+            <h3>📅 Working Days & Schedule</h3>
+            <form id="workingDaysForm">
+              <p style="color: #6c757d; margin-bottom: 1rem;">Configure each day's schedule, working hours, and pay rates</p>
+              
+              <div class="day-settings">
+                <div class="day-config">
+                  <div class="day-header">
+                    <label><input type="checkbox" id="monday" class="day-checkbox"> <strong>Monday</strong></label>
+                  </div>
+                  <div class="day-details" id="mondayDetails">
+                    <input type="time" id="mondayStart" value="08:00" placeholder="Start">
+                    <input type="time" id="mondayEnd" value="17:00" placeholder="End">
+                    <input type="number" id="mondayRate" step="0.01" min="0" placeholder="Pay Rate/hr">
+                  </div>
+                </div>
+
+                <div class="day-config">
+                  <div class="day-header">
+                    <label><input type="checkbox" id="tuesday" class="day-checkbox"> <strong>Tuesday</strong></label>
+                  </div>
+                  <div class="day-details" id="tuesdayDetails">
+                    <input type="time" id="tuesdayStart" value="08:00" placeholder="Start">
+                    <input type="time" id="tuesdayEnd" value="17:00" placeholder="End">
+                    <input type="number" id="tuesdayRate" step="0.01" min="0" placeholder="Pay Rate/hr">
+                  </div>
+                </div>
+
+                <div class="day-config">
+                  <div class="day-header">
+                    <label><input type="checkbox" id="wednesday" class="day-checkbox"> <strong>Wednesday</strong></label>
+                  </div>
+                  <div class="day-details" id="wednesdayDetails">
+                    <input type="time" id="wednesdayStart" value="08:00" placeholder="Start">
+                    <input type="time" id="wednesdayEnd" value="17:00" placeholder="End">
+                    <input type="number" id="wednesdayRate" step="0.01" min="0" placeholder="Pay Rate/hr">
+                  </div>
+                </div>
+
+                <div class="day-config">
+                  <div class="day-header">
+                    <label><input type="checkbox" id="thursday" class="day-checkbox"> <strong>Thursday</strong></label>
+                  </div>
+                  <div class="day-details" id="thursdayDetails">
+                    <input type="time" id="thursdayStart" value="08:00" placeholder="Start">
+                    <input type="time" id="thursdayEnd" value="17:00" placeholder="End">
+                    <input type="number" id="thursdayRate" step="0.01" min="0" placeholder="Pay Rate/hr">
+                  </div>
+                </div>
+
+                <div class="day-config">
+                  <div class="day-header">
+                    <label><input type="checkbox" id="friday" class="day-checkbox"> <strong>Friday</strong></label>
+                  </div>
+                  <div class="day-details" id="fridayDetails">
+                    <input type="time" id="fridayStart" value="08:00" placeholder="Start">
+                    <input type="time" id="fridayEnd" value="17:00" placeholder="End">
+                    <input type="number" id="fridayRate" step="0.01" min="0" placeholder="Pay Rate/hr">
+                  </div>
+                </div>
+
+                <div class="day-config">
+                  <div class="day-header">
+                    <label><input type="checkbox" id="saturday" class="day-checkbox"> <strong>Saturday</strong></label>
+                  </div>
+                  <div class="day-details" id="saturdayDetails">
+                    <input type="time" id="saturdayStart" value="08:00" placeholder="Start">
+                    <input type="time" id="saturdayEnd" value="14:30" placeholder="End">
+                    <input type="number" id="saturdayRate" step="0.01" min="0" placeholder="Pay Rate/hr">
+                  </div>
+                </div>
+
+                <div class="day-config">
+                  <div class="day-header">
+                    <label><input type="checkbox" id="sunday" class="day-checkbox"> <strong>Sunday</strong></label>
+                  </div>
+                  <div class="day-details" id="sundayDetails">
+                    <input type="time" id="sundayStart" value="08:00" placeholder="Start">
+                    <input type="time" id="sundayEnd" value="17:00" placeholder="End">
+                    <input type="number" id="sundayRate" step="0.01" min="0" placeholder="Pay Rate/hr">
+                  </div>
+                </div>
+              </div>
+              
+              <button type="submit" class="btn-primary">💾 Save Working Schedule</button>
+            </form>
+          </div>
+          
+          <div class="settings-card">
+            <h3>🎉 Public Holidays</h3>
+            <form id="publicHolidaysForm">
+              <div class="form-group">
+                <label>Public Holidays (YYYY-MM-DD, one per line)</label>
+                <textarea id="publicHolidays" rows="6" placeholder="2026-01-01&#10;2026-03-21&#10;2026-04-18&#10;2026-04-19&#10;2026-04-27"></textarea>
+                <small>Add dates when business is closed (no work, no pay calculations)</small>
+              </div>
+              
+              <button type="submit" class="btn-primary">💾 Save Holidays</button>
+            </form>
+          </div>
+          
+          <div class="settings-card">
+            <h3>⏰ Default Working Hours</h3>
+            <form id="workingHoursForm">
+              <div class="form-group">
+                <label>Break Duration (minutes)</label>
+                <input type="number" id="breakDuration" value="60" min="0">
+                <small>Unpaid break time deducted from daily hours</small>
+              </div>
+              
+              <div class="form-group">
+                <label>Overtime Calculation</label>
+                <select id="overtimeRule">
+                  <option value="none">No Overtime</option>
+                  <option value="daily">Daily (over scheduled hours)</option>
+                  <option value="weekly">Weekly (over 40 hours)</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label>Overtime Rate Multiplier</label>
+                <input type="number" id="overtimeMultiplier" value="1.5" step="0.1" min="1">
+                <small>e.g., 1.5 = time and a half</small>
+              </div>
+              
+              <button type="submit" class="btn-primary">💾 Save Working Hours</button>
+            </form>
+          </div>
         </div>
       </div>
     </main>
@@ -1711,6 +1987,11 @@
       let viewId = module + 'View';
       if (module === 'dashboard') viewId = 'dashboardView';
       if (module === 'monitor') viewId = 'monitorView';
+      // Modules that use dashboardView container
+      if (module === 'downloads' || module === 'attendance' || module === 'reports' || 
+          module === 'employees' || module === 'timecard' || module === 'settings') {
+        viewId = 'dashboardView';
+      }
       
       const view = document.getElementById(viewId);
       if (view) {
@@ -1863,10 +2144,19 @@
         await initReports();
         return;
       }
+
+      if (module === 'downloads') {
+        await loadDownloads();
+        return;
+      }
+      
+      if (module === 'settings') {
+        await loadSettings();
+        return;
+      }
       
       const contentIds = {
-        'attendance': 'attendanceContent',
-        'settings': 'settingsContent'
+        'attendance': 'attendanceContent'
       };
 
       const contentId = contentIds[module];
@@ -2232,78 +2522,76 @@
         const daysInMonth = new Date(year, monthNum, 0).getDate();
         const dailyRecords = [];
 
-        // Get working hours from settings (default 8 hours)
-        const workingHours = 8; // TODO: Load from settings
+        // Get business schedule and settings
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+        const businessData = businessDoc.data();
+        const schedule = businessData?.schedule || {};
+        const publicHolidays = businessData?.publicHolidays || [];
 
-        // Fetch attendance events for each day
+        // ⚡ OPTIMIZED: Use pre-calculated timesheets instead of raw events
+        const timesheetsRef = collection(db, "businesses", businessId, "employee_timesheets", employeeId, "daily_sheets");
+        const timesheetsSnap = await getDocs(timesheetsRef);
+        
+        // Create a map of date -> timesheet data
+        const timesheetMap = new Map();
+        timesheetsSnap.forEach(doc => {
+          const data = doc.data();
+          if (data.date && data.date.startsWith(`${year}-${String(monthNum).padStart(2, '0')}`)) {
+            timesheetMap.set(data.date, data);
+          }
+        });
+
+        // Build daily records array for all days in month
         for (let day = 1; day <= daysInMonth; day++) {
-          // Create date at noon to avoid timezone issues
           const date = new Date(year, monthNum - 1, day, 12, 0, 0);
           const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-          const isWeekend = dayName === 'Sat' || dayName === 'Sun';
+          const fullDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+          
+          // Check if this day is configured as a working day
+          const daySchedule = schedule[fullDayName];
+          const isWorkingDay = daySchedule?.enabled || false;
+          const isPublicHoliday = publicHolidays.includes(dateStr);
 
-          try {
-            // Query attendance events for this day and employee
-            const eventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
-            const eventsSnap = await getDocs(eventsRef);
+          const timesheet = timesheetMap.get(dateStr);
+          
+          if (timesheet && timesheet.clockEvents && timesheet.clockEvents.length > 0) {
+            // Use pre-calculated data from timesheets
+            const clockIns = timesheet.clockEvents
+              .filter(e => e.type === 'clock-in')
+              .map(e => new Date(e.timestamp));
+            
+            const clockOuts = timesheet.clockEvents
+              .filter(e => e.type === 'clock-out')
+              .map(e => new Date(e.timestamp));
 
-            const events = [];
-            eventsSnap.forEach(doc => {
-              events.push(doc.data());
-            });
-
-            // Sort by timestamp
-            events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-            // Calculate hours for this day
-            let clockIns = [];
-            let clockOuts = [];
-            let totalHours = 0;
-
-            events.forEach(event => {
-              if (event.type === 'clock-in') {
-                clockIns.push(new Date(event.timestamp));
-              } else if (event.type === 'clock-out') {
-                clockOuts.push(new Date(event.timestamp));
-              }
-            });
-
-            // Calculate work periods - pair each clock-in with next clock-out
-            for (let i = 0; i < clockIns.length; i++) {
-              // Find the next clock-out after this clock-in
-              const nextClockOut = clockOuts.find(cout => cout > clockIns[i]);
-              
-              if (nextClockOut) {
-                const hours = (nextClockOut - clockIns[i]) / (1000 * 60 * 60);
-                // Only add positive hours
-                if (hours > 0) {
-                  totalHours += hours;
-                }
-              }
-            }
-
-            const overtime = Math.max(0, totalHours - workingHours);
+            const overtime = Math.max(0, (timesheet.totalHours || 0) - (daySchedule?.scheduledHours || 8));
 
             dailyRecords.push({
               date: dateStr,
               day: day,
               dayName: dayName,
-              isWeekend: isWeekend,
+              fullDayName: fullDayName,
+              isWorkingDay: isWorkingDay,
+              isPublicHoliday: isPublicHoliday,
+              daySchedule: daySchedule,
               clockIns: clockIns,
               clockOuts: clockOuts,
-              totalHours: totalHours,
+              totalHours: timesheet.totalHours || 0,
               overtime: overtime,
-              hasData: events.length > 0
+              hasData: true
             });
-
-          } catch (error) {
-            console.error(`Error fetching events for ${dateStr}:`, error);
+          } else {
+            // No data for this day - determine status
             dailyRecords.push({
               date: dateStr,
               day: day,
               dayName: dayName,
-              isWeekend: isWeekend,
+              fullDayName: fullDayName,
+              isWorkingDay: isWorkingDay,
+              isPublicHoliday: isPublicHoliday,
+              daySchedule: daySchedule,
               clockIns: [],
               clockOuts: [],
               totalHours: 0,
@@ -2352,11 +2640,30 @@
                     ? record.clockOuts[record.clockOuts.length - 1].toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
                     : '00:00';
                   const hours = record.totalHours > 0 ? record.totalHours.toFixed(2) : '00:00';
-                  const shift = record.hasData ? (record.isWeekend ? 'Sat' : 'Mon-Fri 08:30-17:30') : '-';
-                  const description = record.hasData ? (record.isWeekend ? 'DAY OFF' : 'NORMAL TIME') : 'DAY OFF';
+                  
+                  // Determine shift and description based on schedule
+                  let shift = '-';
+                  let description = 'DAY OFF';
+                  
+                  if (record.isPublicHoliday) {
+                    description = 'PUBLIC HOLIDAY';
+                    shift = '-';
+                  } else if (record.isWorkingDay && record.daySchedule) {
+                    shift = `${record.daySchedule.startTime || '08:00'}-${record.daySchedule.endTime || '17:00'}`;
+                    if (record.hasData) {
+                      description = 'NORMAL TIME';
+                    } else {
+                      description = 'ABSENT';
+                    }
+                  } else if (!record.isWorkingDay) {
+                    description = 'DAY OFF';
+                    shift = '-';
+                  }
+                  
+                  const rowClass = !record.isWorkingDay || record.isPublicHoliday ? 'weekend' : '';
 
                   return `
-                    <tr class="${record.isWeekend ? 'weekend' : ''}">
+                    <tr class="${rowClass}">
                       <td>${year}-${String(monthNum).padStart(2, '0')}-${String(record.day).padStart(2, '0')}</td>
                       <td>${record.dayName}</td>
                       <td>${clockInTime}</td>
@@ -2516,7 +2823,14 @@
           return;
         }
 
-        // Calculate attendance and hours for each employee
+        // Get business schedule settings
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+        const businessData = businessDoc.data();
+        const schedule = businessData?.schedule || {};
+        const publicHolidays = businessData?.publicHolidays || [];
+
+        // Calculate attendance and hours for each employee using pre-calculated timesheets
         const employeeReports = [];
         
         for (const employee of employees) {
@@ -2525,78 +2839,54 @@
           let daysWorked = 0;
           let daysAbsent = 0;
           let daysLate = 0;
-          let workingHours = 8;
 
-          // Get attendance for each day
-          for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            
-            try {
-              const eventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employee.id);
-              const eventsSnap = await getDocs(eventsRef);
-
-              if (eventsSnap.size > 0) {
-                const events = [];
-                eventsSnap.forEach(doc => {
-                  events.push(doc.data());
-                });
-
-                // Sort by timestamp
-                events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-                let clockIns = [];
-                let clockOuts = [];
-
-                events.forEach(event => {
-                  if (event.type === 'clock-in') {
-                    clockIns.push(new Date(event.timestamp));
-                  } else if (event.type === 'clock-out') {
-                    clockOuts.push(new Date(event.timestamp));
-                  }
-                });
-
-                // Calculate hours for this day
-                let dailyHours = 0;
-                for (let i = 0; i < clockIns.length; i++) {
-                  const nextClockOut = clockOuts.find(cout => cout > clockIns[i]);
-                  if (nextClockOut) {
-                    const hours = (nextClockOut - clockIns[i]) / (1000 * 60 * 60);
-                    if (hours > 0) {
-                      dailyHours += hours;
-                    }
-                  }
-                }
-
-                if (dailyHours > 0) {
-                  daysWorked++;
-                  totalHours += dailyHours;
+          // ⚡ OPTIMIZED: Load all timesheets for this employee in one query
+          const timesheetsRef = collection(db, "businesses", businessId, "employee_timesheets", employee.id, "daily_sheets");
+          const timesheetsSnap = await getDocs(timesheetsRef);
+          
+          // Filter timesheets for current month
+          const monthPrefix = `${year}-${String(monthNum).padStart(2, '0')}`;
+          timesheetsSnap.forEach(doc => {
+            const data = doc.data();
+            if (data.date && data.date.startsWith(monthPrefix)) {
+              // Use pre-calculated hours
+              totalHours += data.totalHours || 0;
+              totalOvertime += data.overtimeHours || 0;
+              
+              if (data.totalHours > 0) {
+                daysWorked++;
+              }
+              
+              // Check if late (first clock-in after scheduled start)
+              if (data.clockEvents && data.clockEvents.length > 0) {
+                const firstClockIn = data.clockEvents.find(e => e.type === 'clock-in');
+                if (firstClockIn) {
+                  const clockInTime = new Date(firstClockIn.timestamp);
+                  const date = new Date(data.date);
+                  const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                  const daySchedule = schedule[dayOfWeek];
                   
-                  // Calculate overtime
-                  const overtime = Math.max(0, dailyHours - workingHours);
-                  totalOvertime += overtime;
-
-                  // Check if late (after 8:30 AM)
-                  if (clockIns.length > 0) {
-                    const firstClockIn = clockIns[0];
-                    const hours = firstClockIn.getHours();
-                    const minutes = firstClockIn.getMinutes();
-                    if (hours > 8 || (hours === 8 && minutes > 30)) {
+                  if (daySchedule && daySchedule.startTime) {
+                    const scheduledStart = new Date(data.date + 'T' + daySchedule.startTime);
+                    if (clockInTime > scheduledStart) {
                       daysLate++;
                     }
                   }
                 }
               }
-            } catch (error) {
-              console.error(`Error fetching events for ${dateStr}:`, error);
             }
-          }
+          });
 
-          // Calculate expected workdays (weekdays in month)
+          // Calculate expected workdays from schedule
           let expectedWorkdays = 0;
           for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(year, monthNum - 1, day);
-            const dayOfWeek = date.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday or Saturday
+            const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+            const daySchedule = schedule[dayOfWeek];
+            const isPublicHoliday = publicHolidays.includes(dateStr);
+            
+            if (daySchedule && daySchedule.enabled && !isPublicHoliday) {
               expectedWorkdays++;
             }
           }
@@ -2621,7 +2911,8 @@
             hourlyRate,
             regularPay,
             overtimePay,
-            totalPay
+            totalPay,
+            expectedWorkdays
           });
         }
 
@@ -2747,6 +3038,105 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Payrun Summary Section -->
+          <div style="margin-top: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            ${(() => {
+              // Calculate potential payrun first for saved revenue calculation
+              let potentialHours = 0;
+              let potentialPay = 0;
+              let totalExpectedDays = 0;
+
+              employeeReports.forEach(emp => {
+                const expectedWorkdays = emp.expectedWorkdays || 0;
+                totalExpectedDays += expectedWorkdays;
+                
+                let totalScheduledHours = 0;
+                for (let day = 1; day <= daysInMonth; day++) {
+                  const date = new Date(year, monthNum - 1, day);
+                  const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                  const daySchedule = schedule[dayOfWeek];
+                  const isPublicHoliday = publicHolidays.includes(dateStr);
+                  
+                  if (daySchedule && daySchedule.enabled && !isPublicHoliday) {
+                    const start = daySchedule.startTime || '08:00';
+                    const end = daySchedule.endTime || '17:00';
+                    const [startH, startM] = start.split(':').map(Number);
+                    const [endH, endM] = end.split(':').map(Number);
+                    const dayHours = (endH + endM/60) - (startH + startM/60);
+                    totalScheduledHours += dayHours;
+                  }
+                }
+                
+                potentialHours += totalScheduledHours;
+                const hourlyRate = emp.hourlyRate || 0;
+                potentialPay += totalScheduledHours * hourlyRate;
+              });
+
+              const savedRevenue = potentialPay - totalPayroll;
+
+              return `
+            <div style="background: #fff3cd; padding: 2rem; border-radius: 12px; border: 2px solid #ffc107;">
+              <h3 style="margin: 0 0 1rem 0; color: #856404; font-size: 1.3rem;">💰 Current Payrun (Actual)</h3>
+              <div style="display: grid; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #ffeaa7;">
+                  <span style="color: #856404; font-weight: 600;">Total Employees:</span>
+                  <span style="font-size: 1.2rem; font-weight: bold; color: #856404;">${employees.length}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #ffeaa7;">
+                  <span style="color: #856404; font-weight: 600;">Total Hours Worked:</span>
+                  <span style="font-size: 1.2rem; font-weight: bold; color: #856404;">${totalHoursWorked.toFixed(2)} hrs</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #ffeaa7;">
+                  <span style="color: #856404; font-weight: 600;">Days Worked:</span>
+                  <span style="font-size: 1.2rem; font-weight: bold; color: #856404;">${employeeReports.reduce((sum, r) => sum + r.daysWorked, 0)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #ffeaa7;">
+                  <span style="color: #856404; font-weight: 600;">Revenue Saved (Absences):</span>
+                  <span style="font-size: 1.2rem; font-weight: bold; color: #28a745;">R ${savedRevenue.toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; margin-top: 0.5rem; border-top: 2px solid #ffc107;">
+                  <span style="color: #856404; font-weight: 700; font-size: 1.1rem;">TOTAL PAYRUN:</span>
+                  <span style="font-size: 1.5rem; font-weight: bold; color: #856404;">R ${totalPayroll.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="background: #d4edda; padding: 2rem; border-radius: 12px; border: 2px solid #28a745;">
+              <h3 style="margin: 0 0 1rem 0; color: #155724; font-size: 1.3rem;">🎯 Potential Payrun (100% Attendance)</h3>
+              <div style="display: grid; gap: 1rem;">
+                ${(() => {
+                  const missedOpportunity = potentialPay - totalPayroll;
+
+                  return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #b7e4c7;">
+                      <span style="color: #155724; font-weight: 600;">Potential Hours:</span>
+                      <span style="font-size: 1.2rem; font-weight: bold; color: #155724;">${potentialHours.toFixed(2)} hrs</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #b7e4c7;">
+                      <span style="color: #155724; font-weight: 600;">Expected Days:</span>
+                      <span style="font-size: 1.2rem; font-weight: bold; color: #155724;">${totalExpectedDays}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid #b7e4c7;">
+                      <span style="color: #155724; font-weight: 600;">Hours Lost to Absence:</span>
+                      <span style="font-size: 1.2rem; font-weight: bold; color: #d9534f;">${(potentialHours - totalHoursWorked).toFixed(2)} hrs</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; margin-top: 0.5rem; border-top: 2px solid #28a745;">
+                      <span style="color: #155724; font-weight: 700; font-size: 1.1rem;">POTENTIAL PAYRUN:</span>
+                      <span style="font-size: 1.5rem; font-weight: bold; color: #155724;">R ${potentialPay.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; background: #f8d7da; padding: 0.75rem; border-radius: 6px; margin-top: 1rem;">
+                      <span style="color: #721c24; font-weight: 600;">Lost Revenue:</span>
+                      <span style="font-size: 1.3rem; font-weight: bold; color: #721c24;">R ${missedOpportunity.toFixed(2)}</span>
+                    </div>
+                  `;
+                })()}
+              </div>
+            </div>
+            `;
+            })()}
+          </div>
         `;
 
       } catch (error) {
@@ -2763,6 +3153,276 @@
     window.loadReports = loadReports;
     window.printReports = printReports;
     window.initReports = initReports;
+
+    // ============================================
+    // DOWNLOADS MODULE FUNCTIONS
+    // ============================================
+    
+    async function loadDownloads() {
+      const monitorUrl = `${window.location.origin}/pages/monitor-app.html?businessId=${businessId}`;
+      
+      const downloadsHTML = `
+        <div style="max-width: 900px; margin: 0 auto; padding: 2rem;">
+          <h2 style="margin-bottom: 2rem; font-size: 1.8rem; color: #333;">📥 Downloads & Apps</h2>
+          
+          <!-- Monitor App Card -->
+          <div style="background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: start; gap: 1.5rem;">
+              <div style="font-size: 4rem;">📱</div>
+              <div style="flex: 1;">
+                <h3 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; color: #667eea;">Monitor Mode App</h3>
+                <p style="margin: 0 0 1rem 0; color: #666; line-height: 1.6;">
+                  Dedicated app for Android tablets/phones that displays live employee attendance status. 
+                  Perfect for mounting on office walls or reception desks.
+                </p>
+                
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                  <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem;">Features:</h4>
+                  <ul style="margin: 0.5rem 0 0 1.5rem; color: #666;">
+                    <li>Real-time attendance updates</li>
+                    <li>Large, easy-to-read employee cards</li>
+                    <li>Shows IN/OUT status with timestamps</li>
+                    <li>Auto-refresh every 30 seconds</li>
+                    <li>Works offline (cached data)</li>
+                    <li>Full-screen mode support</li>
+                  </ul>
+                </div>
+
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 4px; margin: 1rem 0;">
+                  <h4 style="margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #92400e;">📱 Installation Instructions for Android:</h4>
+                  <ol style="margin: 0.5rem 0 0 1.2rem; font-size: 0.9rem; line-height: 1.8; color: #78350f;">
+                    <li><strong>Scan QR Code below</strong> or click "Open Monitor App" button</li>
+                    <li>On your Android device, tap the <strong>menu (⋮)</strong> in browser</li>
+                    <li>Select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></li>
+                    <li>Name it "Attendance Monitor" and tap Add</li>
+                    <li>App icon will appear on your home screen - tap to open</li>
+                    <li>Enable full-screen mode from app settings</li>
+                  </ol>
+                </div>
+
+                <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem;">
+                  <button onclick="window.open('${monitorUrl}', '_blank')" 
+                          style="padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
+                    🚀 Open Monitor App
+                  </button>
+                  
+                  <button onclick="copyMonitorUrl()" 
+                          style="padding: 0.75rem 1.5rem; background: white; color: #667eea; border: 2px solid #667eea; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1rem;">
+                    📋 Copy Link
+                  </button>
+                </div>
+
+                <!-- QR Code -->
+                <div style="margin-top: 1.5rem;">
+                  <p style="font-weight: 600; margin-bottom: 0.5rem;">📸 Scan with phone camera:</p>
+                  <div id="qrcode" style="background: white; padding: 1rem; display: inline-block; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                </div>
+
+                <!-- Share Link -->
+                <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                  <p style="font-weight: 600; margin: 0 0 0.5rem 0; font-size: 0.9rem;">Monitor App Link:</p>
+                  <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" id="monitorUrlInput" value="${monitorUrl}" readonly
+                           style="flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.85rem;">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coming Soon Card -->
+          <div style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); opacity: 0.7;">
+            <div style="display: flex; align-items: start; gap: 1.5rem;">
+              <div style="font-size: 4rem;">🚧</div>
+              <div style="flex: 1;">
+                <h3 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; color: #666;">More Apps Coming Soon</h3>
+                <p style="margin: 0; color: #666; line-height: 1.6;">
+                  We're working on additional apps including:
+                </p>
+                <ul style="margin: 0.5rem 0 0 1.5rem; color: #666;">
+                  <li>Employee Self-Service Mobile App</li>
+                  <li>Manager Dashboard App</li>
+                  <li>Desktop Time Clock App</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Insert HTML into dashboard view (replace the modules grid)
+      const dashboardView = document.getElementById('dashboardView');
+      if (dashboardView) {
+        dashboardView.innerHTML = downloadsHTML;
+
+        // Generate QR Code
+        loadQRCodeLibrary().then(() => {
+          new QRCode(document.getElementById('qrcode'), {
+            text: monitorUrl,
+            width: 200,
+            height: 200,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+          });
+        });
+      }
+    }
+
+    function loadQRCodeLibrary() {
+      return new Promise((resolve) => {
+        if (window.QRCode) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.onload = resolve;
+        document.head.appendChild(script);
+      });
+    }
+
+    window.copyMonitorUrl = function() {
+      const input = document.getElementById('monitorUrlInput');
+      input.select();
+      document.execCommand('copy');
+      alert('✅ Monitor app link copied to clipboard!');
+    };
+
+    window.loadDownloads = loadDownloads;
+
+    // ============================================
+    // SETTINGS MODULE FUNCTIONS
+    // ============================================
+    
+    async function loadSettings() {
+      try {
+        // Load business data
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+        
+        if (businessDoc.exists()) {
+          const data = businessDoc.data();
+          
+          // Business Info
+          document.getElementById('businessName').value = data.businessName || '';
+          document.getElementById('businessPhone').value = data.phone || data.phoneNumber || '';
+          document.getElementById('businessEmail').value = data.adminEmail || '';
+          document.getElementById('businessCurrency').value = data.currency || 'R';
+          
+          // Working Days with Schedule
+          const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          days.forEach(day => {
+            const dayData = data.schedule?.[day] || {};
+            document.getElementById(day).checked = dayData.enabled || data[day] || false;
+            document.getElementById(day + 'Start').value = dayData.startTime || '08:00';
+            document.getElementById(day + 'End').value = dayData.endTime || (day === 'saturday' ? '14:30' : '17:00');
+            document.getElementById(day + 'Rate').value = dayData.payRate || '';
+          });
+          
+          // Public Holidays
+          document.getElementById('publicHolidays').value = (data.publicHolidays || []).join('\n');
+          
+          // Working Hours
+          document.getElementById('breakDuration').value = data.breakDuration || 60;
+          document.getElementById('overtimeRule').value = data.overtimeRule || 'none';
+          document.getElementById('overtimeMultiplier').value = data.overtimeMultiplier || 1.5;
+        }
+        
+        // Setup form handlers
+        document.getElementById('businessInfoForm').addEventListener('submit', saveBusinessInfo);
+        document.getElementById('workingDaysForm').addEventListener('submit', saveWorkingDays);
+        document.getElementById('publicHolidaysForm').addEventListener('submit', savePublicHolidays);
+        document.getElementById('workingHoursForm').addEventListener('submit', saveWorkingHours);
+        
+      } catch (error) {
+        console.error("Error loading settings:", error);
+        alert('Error loading settings: ' + error.message);
+      }
+    }
+    
+    async function saveBusinessInfo(e) {
+      e.preventDefault();
+      try {
+        const businessRef = doc(db, "businesses", businessId);
+        await setDoc(businessRef, {
+          businessName: document.getElementById('businessName').value,
+          phone: document.getElementById('businessPhone').value,
+          adminEmail: document.getElementById('businessEmail').value,
+          currency: document.getElementById('businessCurrency').value,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        alert('✅ Business information saved successfully!');
+      } catch (error) {
+        console.error("Error saving business info:", error);
+        alert('Error saving: ' + error.message);
+      }
+    }
+    
+    async function saveWorkingDays(e) {
+      e.preventDefault();
+      try {
+        const businessRef = doc(db, "businesses", businessId);
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        const schedule = {};
+        
+        days.forEach(day => {
+          schedule[day] = {
+            enabled: document.getElementById(day).checked,
+            startTime: document.getElementById(day + 'Start').value,
+            endTime: document.getElementById(day + 'End').value,
+            payRate: parseFloat(document.getElementById(day + 'Rate').value) || 0
+          };
+        });
+        
+        await setDoc(businessRef, {
+          schedule: schedule,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        alert('✅ Working schedule saved successfully!');
+      } catch (error) {
+        console.error("Error saving working days:", error);
+        alert('Error saving: ' + error.message);
+      }
+    }
+    
+    async function savePublicHolidays(e) {
+      e.preventDefault();
+      try {
+        const businessRef = doc(db, "businesses", businessId);
+        const holidaysText = document.getElementById('publicHolidays').value;
+        const holidays = holidaysText.split('\n').map(h => h.trim()).filter(h => h.length > 0);
+        
+        await setDoc(businessRef, {
+          publicHolidays: holidays,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        alert('✅ Public holidays saved successfully!');
+      } catch (error) {
+        console.error("Error saving holidays:", error);
+        alert('Error saving: ' + error.message);
+      }
+    }
+    
+    async function saveWorkingHours(e) {
+      e.preventDefault();
+      try {
+        const businessRef = doc(db, "businesses", businessId);
+        await setDoc(businessRef, {
+          breakDuration: parseInt(document.getElementById('breakDuration').value),
+          overtimeRule: document.getElementById('overtimeRule').value,
+          overtimeMultiplier: parseFloat(document.getElementById('overtimeMultiplier').value),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        alert('✅ Working hours rules saved successfully!');
+      } catch (error) {
+        console.error("Error saving working hours:", error);
+        alert('Error saving: ' + error.message);
+      }
+    }
 
     // Debug functions for testing
     async function addTestEmployee() {

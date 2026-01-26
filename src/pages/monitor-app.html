@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#667eea">
+  <title>AiClock Monitor</title>
+  <link rel="manifest" href="/manifest.json">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .header {
+      padding: 1.5rem;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .header .status {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .action-buttons {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      display: flex;
+      gap: 1rem;
+      z-index: 1000;
+    }
+
+    .action-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: white;
+      color: #667eea;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .action-btn:active {
+      transform: scale(0.95);
+    }
+
+    .fullscreen-btn {
+      background: #667eea;
+      color: white;
+    }
+
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      padding: 1.5rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .column-header {
+      font-size: 1.5rem;
+      font-weight: bold;
+      padding: 1rem;
+      text-align: center;
+      border-radius: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .column-header.in {
+      background: rgba(16, 185, 129, 0.2);
+      border: 2px solid #10b981;
+    }
+
+    .column-header.out {
+      background: rgba(239, 68, 68, 0.2);
+      border: 2px solid #ef4444;
+    }
+
+    .employees-column {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .employee-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .employee-card.in {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.2);
+    }
+
+    .employee-card.out {
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .slot-number {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .employee-name {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .clock-time {
+      font-size: 1rem;
+      opacity: 0.9;
+      margin-top: 0.5rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      font-size: 1.2rem;
+    }
+
+    @media (max-width: 768px) {
+      .monitor-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        padding: 1rem;
+      }
+
+      .employee-card {
+        padding: 1rem;
+      }
+
+      .slot-number {
+        font-size: 1.5rem;
+      }
+
+      .employee-name {
+        font-size: 1rem;
+      }
+
+      .column-header {
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔴 Live Monitor</h1>
+    <div class="status" id="headerStatus">Loading...</div>
+  </div>
+
+  <div id="monitorGrid" class="monitor-grid">
+    <div class="loading">Loading employees...</div>
+  </div>
+
+  <div class="action-buttons">
+    <button class="action-btn" onclick="loadMonitorData()" title="Refresh">↻</button>
+    <button class="action-btn fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen" id="fullscreenBtn">⛶</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAmKmv9cmWEhTGpuxWxVu3vOKvpJLVUXx0",
+      authDomain: "aiclock-82608.firebaseapp.com",
+      projectId: "aiclock-82608",
+      storageBucket: "aiclock-82608.firebasestorage.app",
+      messagingSenderId: "434208200088",
+      appId: "1:434208200088:web:1ef0ac8a89a3e2cdd94a50"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let businessId = null;
+    let unsubscribe = null;
+
+    // Get businessId from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    businessId = urlParams.get('businessId') || localStorage.getItem('monitorBusinessId');
+
+    if (businessId) {
+      localStorage.setItem('monitorBusinessId', businessId);
+      console.log('Starting monitor for business:', businessId);
+      startMonitoring();
+    } else {
+      document.getElementById('monitorGrid').innerHTML = '<div class="empty-state">⚠️ No business ID provided. Please scan QR code or use provided link.</div>';
+    }
+
+    function startMonitoring() {
+      try {
+        console.log('Setting up listener for business:', businessId);
+        const statusRef = collection(db, "businesses", businessId, "status");
+        
+        unsubscribe = onSnapshot(statusRef, 
+          (snapshot) => {
+            console.log('Snapshot received, docs:', snapshot.size);
+            const employees = [];
+            
+            snapshot.forEach(doc => {
+              const data = doc.data();
+              console.log('Employee data:', data);
+              if (data.lastClockTime) {
+                employees.push({
+                  id: doc.id,
+                  ...data
+                });
+              }
+            });
+
+            displayEmployees(employees);
+            updateHeader(employees);
+          },
+          (error) => {
+            console.error('Firestore error:', error);
+            document.getElementById('monitorGrid').innerHTML = `
+              <div class="empty-state">
+                <p style="font-size: 2rem; margin-bottom: 1rem;">⚠️</p>
+                <p>Error loading data: ${error.message}</p>
+                <p style="margin-top: 1rem; font-size: 0.9rem;">Please check Firestore security rules</p>
+              </div>
+            `;
+          }
+        );
+      } catch (error) {
+        console.error('Setup error:', error);
+        document.getElementById('monitorGrid').innerHTML = `
+          <div class="empty-state">
+            <p style="font-size: 2rem; margin-bottom: 1rem;">❌</p>
+            <p>Failed to initialize: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function displayEmployees(employees) {
+      const grid = document.getElementById('monitorGrid');
+      
+      if (employees.length === 0) {
+        grid.innerHTML = '<div class="empty-state">👤 No employees clocked in yet</div>';
+        return;
+      }
+
+      // Sort by slot number
+      employees.sort((a, b) => {
+        const slotA = a.slot || a.slotNumber || a.employeeId || '999';
+        const slotB = b.slot || b.slotNumber || b.employeeId || '999';
+        return String(slotA).localeCompare(String(slotB));
+      });
+
+      // Separate IN and OUT employees
+      const inEmployees = employees.filter(e => e.attendanceStatus === 'in');
+      const outEmployees = employees.filter(e => e.attendanceStatus === 'out');
+
+      let html = `
+        <div class="employees-column">
+          <div class="column-header in">✅ CLOCKED IN (${inEmployees.length})</div>
+          ${inEmployees.length === 0 ? '<div style="text-align: center; padding: 2rem; opacity: 0.7;">No employees clocked in</div>' : ''}
+          ${inEmployees.map(emp => {
+            const slot = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
+            const name = emp.employeeName || 'Unknown';
+            const time = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+
+            return `
+              <div class="employee-card in">
+                <div class="slot-number">SLOT ${slot}</div>
+                <div class="employee-name">${name}</div>
+                ${time ? `<div class="clock-time">⏰ ${time}</div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+        
+        <div class="employees-column">
+          <div class="column-header out">❌ CLOCKED OUT (${outEmployees.length})</div>
+          ${outEmployees.length === 0 ? '<div style="text-align: center; padding: 2rem; opacity: 0.7;">No employees clocked out</div>' : ''}
+          ${outEmployees.map(emp => {
+            const slot = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
+            const name = emp.employeeName || 'Unknown';
+            const time = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+
+            return `
+              <div class="employee-card out">
+                <div class="slot-number">SLOT ${slot}</div>
+                <div class="employee-name">${name}</div>
+                ${time ? `<div class="clock-time">⏰ ${time}</div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      grid.innerHTML = html;
+    }
+
+    function updateHeader(employees) {
+      const inCount = employees.filter(e => e.attendanceStatus === 'in').length;
+      const outCount = employees.filter(e => e.attendanceStatus === 'out').length;
+      const total = employees.length;
+      
+      document.getElementById('headerStatus').textContent = `${inCount} IN • ${outCount} OUT • ${total} Total | Last update: ${new Date().toLocaleTimeString()}`;
+    }
+
+    window.loadMonitorData = function() {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      startMonitoring();
+    };
+
+    window.toggleFullscreen = function() {
+      const elem = document.documentElement;
+      const btn = document.getElementById('fullscreenBtn');
+      
+      if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        } else if (elem.mozRequestFullScreen) {
+          elem.mozRequestFullScreen();
+        } else if (elem.msRequestFullscreen) {
+          elem.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+    document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+    document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+
+    function updateFullscreenButton() {
+      const btn = document.getElementById('fullscreenBtn');
+      if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement) {
+        btn.innerHTML = '✕';
+        btn.title = 'Exit Fullscreen';
+      } else {
+        btn.innerHTML = '⛶';
+        btn.title = 'Fullscreen';
+      }
+    }
+
+    setInterval(() => {
+      if (businessId && unsubscribe) {
+        const inCount = document.querySelectorAll('.employee-card.in').length;
+        const outCount = document.querySelectorAll('.employee-card.out').length;
+        const total = inCount + outCount;
+        document.getElementById('headerStatus').textContent = `${inCount} IN • ${outCount} OUT • ${total} Total | Last update: ${new Date().toLocaleTimeString()}`;
+      }
+    }, 30000);
+  </script>
+</body>
+</html>
