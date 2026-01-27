@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Business maxEmployees</title>
+</head>
+<body>
+  <h2>Fix maxEmployees for Businesses</h2>
+  <button id="fixBtn">Fix All Businesses</button>
+  <pre id="output"></pre>
+
+  <script type="module">
+    import { collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from './src/config/firebase.js';
+
+    document.getElementById('fixBtn').addEventListener('click', async () => {
+      const output = document.getElementById('output');
+      output.textContent = 'Starting...\n\n';
+
+      try {
+        const businessesSnapshot = await getDocs(collection(db, 'businesses'));
+        output.textContent += `Found ${businessesSnapshot.size} businesses\n\n`;
+
+        const planLimits = {
+          'Basic': 5,
+          'Standard': 10,
+          'Premium': 20,
+          'Enterprise': 50
+        };
+
+        let updat<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Business maxEmployees</title>
+</head>
+<body>
+  <h2>Fix max  <html>
+<head>
+ d<headps  <tiat</head>
+<body>
+  <h2>Fix maxEmployees forsh<body>
+
+  <h2    <button id="fixBtn">Fix All Businesses<co  <pre id="output"></pre>
+
+  <script type="modults
+  <script type="module"      
+            output.te    import { db } from './src/config/firebase.js';
+
+    document.getElementById('fixBtn').addEventListener('click', async o
+    document.getElementById('fixBtn').addEventLiic'      const output = document.getElementById('output');
+      output.textConee      output.textContent = 'Starting.(doc(db, 'businesse
+      try {
+        const businessesSnapshos:         coes        output.textContent += `Found ${businessesSnapshot.size} businesses\n\n.t
+        const planLimits = {
+          'Basic': 5,
+  ${data.maxEmployees}\n`;
+             'Basic': 5,
+                 'Standard'            'Premium': 20,n=          'Enterprise': o        };
+
+        let uat
+        ate<html>
+<head>
+  <title>Fix Busint += `Sk  <ti: </head>
+<}\n`;
+
+      } catch (error) {
+   <body>ut  <h2ex<head>
+ d<headps  <t:  d<rror<body>
+  <h2>Fix maxEmco  <h2.e
+ror(error);
+      }
+    });
+  </script>
+</body>
+</html>

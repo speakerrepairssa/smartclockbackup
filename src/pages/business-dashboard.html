@@ -363,7 +363,7 @@
           <div>
             <div class="stat-label">Active Employees</div>
             <div class="stat-value" id="activeEmployees">0</div>
-            <div class="stat-subtext">Out of 5 slots</div>
+            <div class="stat-subtext" id="slotsText">Out of 0 slots</div>
           </div>
         </div>
 
@@ -443,6 +443,21 @@
               <div class="module-name">Settings</div>
               <div class="module-status">Configuration</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attendance View -->
+      <div class="view-section" id="attendanceView">
+        <h2 class="section-title">Attendance History</h2>
+        <p class="section-description">View and manage employee attendance records</p>
+        
+        <div id="attendanceContent" style="padding: 2rem;">
+          <div style="text-align: center; color: #999;">
+            <p style="font-size: 3rem; margin-bottom: 1rem;">📋</p>
+            <p style="font-size: 1.2rem; margin-bottom: 0.5rem;">Attendance Module</p>
+            <p>Detailed attendance tracking and history will be available here</p>
+            <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">Use Timecard for monthly summaries or Monitor for real-time status</p>
           </div>
         </div>
       </div>
@@ -1987,9 +2002,13 @@
       let viewId = module + 'View';
       if (module === 'dashboard') viewId = 'dashboardView';
       if (module === 'monitor') viewId = 'monitorView';
+      if (module === 'settings') viewId = 'settingsView';
+      if (module === 'employees') viewId = 'employeesView';
+      if (module === 'timecard') viewId = 'timecardView';
+      if (module === 'reports') viewId = 'reportsView';
+      if (module === 'attendance') viewId = 'attendanceView';
       // Modules that use dashboardView container
-      if (module === 'downloads' || module === 'attendance' || module === 'reports' || 
-          module === 'employees' || module === 'timecard' || module === 'settings') {
+      if (module === 'downloads') {
         viewId = 'dashboardView';
       }
       
@@ -2012,16 +2031,38 @@
 
         if (businessDoc.exists()) {
           const data = businessDoc.data();
-          document.getElementById('planStatus').textContent = data.plan || 'Basic';
+          const planName = data.plan || 'Basic';
+          document.getElementById('planStatus').textContent = planName;
+          
+          // Get plan limits
+          const planLimits = {
+            'Basic': 5,
+            'Standard': 10,
+            'Premium': 20,
+            'Enterprise': 50
+          };
+          const maxSlots = data.maxEmployees || planLimits[planName] || 5;
           
           // Load staff to count active employees
           const staffRef = collection(db, "businesses", businessId, "staff");
           const staffSnap = await getDocs(staffRef);
           const activeCount = Array.from(staffSnap.docs).filter(doc => doc.data().active).length;
           
+          // Load status to count present today (clocked in)
+          const statusRef = collection(db, "businesses", businessId, "status");
+          const statusSnap = await getDocs(statusRef);
+          const presentCount = Array.from(statusSnap.docs).filter(doc => {
+            const status = doc.data();
+            return status.attendanceStatus === 'in' && status.lastClockTime;
+          }).length;
+          
           document.getElementById('activeEmployees').textContent = activeCount;
-          document.getElementById('presentToday').textContent = activeCount;
-          document.getElementById('attendanceRate').textContent = '95%';
+          document.getElementById('presentToday').textContent = presentCount;
+          document.getElementById('slotsText').textContent = `Out of ${maxSlots} slots`;
+          
+          // Calculate attendance rate
+          const attendanceRate = activeCount > 0 ? Math.round((presentCount / activeCount) * 100) : 0;
+          document.getElementById('attendanceRate').textContent = attendanceRate + '%';
         }
       } catch (error) {
         console.error("Error loading dashboard data:", error);
@@ -2529,16 +2570,32 @@
         const schedule = businessData?.schedule || {};
         const publicHolidays = businessData?.publicHolidays || [];
 
-        // ⚡ OPTIMIZED: Use pre-calculated timesheets instead of raw events
-        const timesheetsRef = collection(db, "businesses", businessId, "employee_timesheets", employeeId, "daily_sheets");
-        const timesheetsSnap = await getDocs(timesheetsRef);
+        // ⚡ Get attendance events for this employee and month
+        const attendanceRef = collection(db, "businesses", businessId, "attendance_events");
+        const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+        const endDate = `${year}-${String(monthNum).padStart(2, '0')}-${daysInMonth}`;
         
-        // Create a map of date -> timesheet data
-        const timesheetMap = new Map();
-        timesheetsSnap.forEach(doc => {
-          const data = doc.data();
-          if (data.date && data.date.startsWith(`${year}-${String(monthNum).padStart(2, '0')}`)) {
-            timesheetMap.set(data.date, data);
+        const attendanceSnap = await getDocs(attendanceRef);
+        
+        // Filter and group events by date
+        const eventsByDate = new Map();
+        attendanceSnap.forEach(doc => {
+          const event = doc.data();
+          if (event.employeeId === employeeId && event.timestamp) {
+            const eventDate = new Date(event.timestamp);
+            const dateStr = eventDate.toISOString().split('T')[0];
+            
+            // Only include events in this month
+            if (dateStr >= startDate && dateStr <= endDate) {
+              if (!eventsByDate.has(dateStr)) {
+                eventsByDate.set(dateStr, []);
+              }
+              eventsByDate.get(dateStr).push({
+                type: event.eventType || event.type,
+                timestamp: event.timestamp,
+                time: eventDate
+              });
+            }
           }
         });
 
@@ -2554,19 +2611,25 @@
           const isWorkingDay = daySchedule?.enabled || false;
           const isPublicHoliday = publicHolidays.includes(dateStr);
 
-          const timesheet = timesheetMap.get(dateStr);
+          const events = eventsByDate.get(dateStr) || [];
           
-          if (timesheet && timesheet.clockEvents && timesheet.clockEvents.length > 0) {
-            // Use pre-calculated data from timesheets
-            const clockIns = timesheet.clockEvents
-              .filter(e => e.type === 'clock-in')
-              .map(e => new Date(e.timestamp));
+          if (events.length > 0) {
+            // Sort events by time
+            events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
             
-            const clockOuts = timesheet.clockEvents
-              .filter(e => e.type === 'clock-out')
-              .map(e => new Date(e.timestamp));
+            // Separate clock-ins and clock-outs
+            const clockIns = events.filter(e => e.type === 'clock-in' || e.type === 'in').map(e => e.time);
+            const clockOuts = events.filter(e => e.type === 'clock-out' || e.type === 'out').map(e => e.time);
 
-            const overtime = Math.max(0, (timesheet.totalHours || 0) - (daySchedule?.scheduledHours || 8));
+            // Calculate total hours worked
+            let totalMinutes = 0;
+            for (let i = 0; i < Math.min(clockIns.length, clockOuts.length); i++) {
+              const diff = clockOuts[i] - clockIns[i];
+              totalMinutes += diff / (1000 * 60);
+            }
+            const totalHours = totalMinutes / 60;
+            const scheduledHours = daySchedule?.scheduledHours || 8;
+            const overtime = Math.max(0, totalHours - scheduledHours);
 
             dailyRecords.push({
               date: dateStr,
@@ -2578,7 +2641,7 @@
               daySchedule: daySchedule,
               clockIns: clockIns,
               clockOuts: clockOuts,
-              totalHours: timesheet.totalHours || 0,
+              totalHours: totalHours,
               overtime: overtime,
               hasData: true
             });

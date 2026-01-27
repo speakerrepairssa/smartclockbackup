@@ -159,6 +159,7 @@ class AuthService {
         deviceId: deviceId || "",
         plan: "Basic",
         slotsAllowed: 6,
+        maxEmployees: 6,
         monthlyFee: 29.99,
         status: "active",
         approved: false,
