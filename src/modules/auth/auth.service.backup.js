@@ -217,26 +217,30 @@ class AuthService {
           isActive: false,
           slotNumber: i,
           deviceId: "" // Blank - admin will set manually
-        });
-      }
-      
-      // 3. Create Employee Last Attendance Collection with numbered slots
-      const lastAttendanceRef = collection(db, "businesses", businessId, "employee_last_attendance");
+      // 2. Create Status Collection with numbered slots (real-time monitoring)
+      const statusRef = collection(db, "businesses", businessId, "status");
       for (let i = 1; i <= slotsAllowed; i++) {
-        const lastAttendanceSlotRef = doc(lastAttendanceRef, i.toString());
-        await setDoc(lastAttendanceSlotRef, {
+        const statusSlotRef = doc(statusRef, i.toString());
+        await setDoc(statusSlotRef, {
           employeeId: i.toString(),
           employeeName: `Employee ${i}`,
-          lastClockIn: null,
-          lastClockOut: null,
-          currentStatus: "out",
-          lastUpdate: new Date().toISOString(),
-          deviceId: "" // Blank - admin will set manually
+          badgeNumber: i.toString(),
+          attendanceStatus: 'out',
+          lastClockStatus: 'out',
+          lastClockTime: new Date().toISOString(),
+          lastEventType: 'checkout',
+          isActive: false,
+          slotNumber: i,
+          updatedAt: new Date().toISOString(),
+          deviceId: ""
         });
       }
       
-      console.log(`✅ Created complete collection structure for ${businessId} with ${slotsAllowed} slots`);
-      console.log("📋 Collections created: staff, status, employee_last_attendance");
+      // 3. Create attendance_events collection (unified data storage)
+      // This collection will be populated by attendance events - no initial documents needed
+      
+      console.log(`✅ Created unified collection structure for ${businessId} with ${slotsAllowed} slots`);
+      console.log("📋 Collections created: staff, status, attendance_events (unified architecture)");
       console.log("🔧 Device fields left blank for manual admin assignment");
       
     } catch (error) {

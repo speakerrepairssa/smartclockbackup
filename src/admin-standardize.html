@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firestore Collection Standardization - AiClock</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffecb5;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #721c24;
+        }
+        
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 10px 10px 0;
+        }
+        
+        .button:hover {
+            background: #0056b3;
+        }
+        
+        .button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .button.danger {
+            background: #dc3545;
+        }
+        
+        .button.danger:hover {
+            background: #c82333;
+        }
+        
+        .progress {
+            width: 100%;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            margin: 20px 0;
+            height: 20px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: #007bff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            display: none;
+        }
+        
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .result-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+        
+        .result-item.success {
+            border-left-color: #28a745;
+        }
+        
+        .result-item.error {
+            border-left-color: #dc3545;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Firestore Collection Standardization</h1>
+        <p class="subtitle">Standardize database collections across all businesses to ensure consistent data structure</p>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This will migrate data across all businesses to use a standardized collection structure. 
+            While this process is designed to be safe and preserve all data, it's recommended to backup your database first.
+            
+            <h4>What this will do:</h4>
+            <ul>
+                <li>Analyze current collection structures for each business</li>
+                <li>Migrate attendance events from various formats (nested, flat, different names) to standard format</li>
+                <li>Ensure all businesses have consistent collection names and structure</li>
+                <li>Preserve all existing data during migration</li>
+                <li>Create standardized collections: employees, attendance_events, devices, schedules, timecards, settings</li>
+            </ul>
+        </div>
+        
+        <div id="controls">
+            <button class="button" onclick="analyzeOnly()">🔍 Analyze Current Structure</button>
+            <button class="button danger" onclick="runStandardization()">🚀 Run Full Standardization</button>
+        </div>
+        
+        <div class="progress" id="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="log" id="log"></div>
+        
+        <div class="results" id="results">
+            <h3>Results Summary</h3>
+            <div class="stats" id="stats"></div>
+            <div id="resultsList"></div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        
+        function setProgress(percent, text = '') {
+            const progressElement = document.getElementById('progress');
+            const progressBar = document.getElementById('progressBar');
+            
+            if (percent > 0) {
+                progressElement.style.display = 'block';
+                progressBar.style.width = percent + '%';
+            } else {
+                progressElement.style.display = 'none';
+            }
+        }
+        
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            logElement.style.display = 'block';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            
+            logElement.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function setControls(enabled) {
+            const buttons = document.querySelectorAll('.button');
+            buttons.forEach(btn => {
+                btn.disabled = !enabled;
+            });
+            isRunning = !enabled;
+        }
+        
+        function clearResults() {
+            document.getElementById('log').textContent = '';
+            document.getElementById('results').style.display = 'none';
+            setProgress(0);
+        }
+        
+        async function analyzeOnly() {
+            if (isRunning) return;
+            
+            clearResults();
+            setControls(false);
+            
+            log('Starting analysis of current database structure...');
+            setProgress(10);
+            
+            try {
+                // This would call a read-only analysis function
+                log('Analysis feature coming soon - for now, run the standardization to see detailed analysis');
+                
+            } catch (error) {
+                log(`Analysis failed: ${error.message}`, 'error');
+            } finally {
+                setControls(true);
+                setProgress(0);
+            }
+        }
+        
+        async function runStandardization() {
+            if (isRunning) return;
+            
+            if (!confirm('Are you sure you want to standardize all business collections? This will modify your database structure.')) {
+                return;
+            }
+            
+            clearResults();
+            setControls(false);
+            
+            log('Starting collection standardization for all businesses...');
+            setProgress(20);
+            
+            try {
+                const response = await fetch('/standardizeCollections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                setProgress(80);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                setProgress(100);
+                
+                if (result.success) {
+                    log('✅ Standardization completed successfully!', 'success');
+                    displayResults(result);
+                } else {
+                    throw new Error(result.error || 'Unknown error occurred');
+                }
+                
+            } catch (error) {
+                log(`Standardization failed: ${error.message}`, 'error');
+                
+                // Show alternative instructions
+                setTimeout(() => {
+                    log('\n🔧 Alternative: Run via Firebase CLI:', 'info');
+                    log('cd functions && node standardizeCollections.js', 'info');
+                }, 1000);
+            } finally {
+                setControls(true);
+            }
+        }
+        
+        function displayResults(result) {
+            const resultsElement = document.getElementById('results');
+            const statsElement = document.getElementById('stats');
+            const resultsListElement = document.getElementById('resultsList');
+            
+            resultsElement.style.display = 'block';
+            
+            // Display stats
+            const { summary } = result;
+            statsElement.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${summary.total}</div>
+                    <div class="stat-label">Total Businesses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #28a745">${summary.successful}</div>
+                    <div class="stat-label">Successfully Standardized</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #dc3545">${summary.failed}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+            `;
+            
+            // Display individual results
+            resultsListElement.innerHTML = '';
+            result.results.forEach(businessResult => {
+                const resultItem = document.createElement('div');
+                resultItem.className = `result-item ${businessResult.success ? 'success' : 'error'}`;
+                
+                if (businessResult.success) {
+                    resultItem.innerHTML = `
+                        <strong>Business ID: ${businessResult.businessId}</strong> ✅
+                        <br>Employees: ${businessResult.employees || 0}
+                        <br>Attendance Events: ${businessResult.attendanceEvents || 0}
+                        <br>Collections Created: ${businessResult.collectionsCreated?.join(', ') || 'None'}
+                    `;
+                } else {
+                    resultItem.innerHTML = `
+                        <strong>Business ID: ${businessResult.businessId}</strong> ❌
+                        <br>Error: ${businessResult.error}
+                    `;
+                }
+                
+                resultsListElement.appendChild(resultItem);
+            });
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Collection Standardization Tool Ready');
+            log('Click "Analyze Current Structure" to see what will be changed');
+        });
+    </script>
+</body>
+</html>

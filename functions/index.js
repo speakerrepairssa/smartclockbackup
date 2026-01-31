@@ -562,7 +562,7 @@ async function processAttendanceEvent(businessId, eventData) {
       .doc(slotNumber.toString());
     
     const currentStatusSnap = await statusRef.get();
-    const currentStatus = currentStatusSnap.exists() ? currentStatusSnap.data() : null;
+    const currentStatus = currentStatusSnap.exists ? currentStatusSnap.data() : null;
     const lastClockStatus = currentStatus?.attendanceStatus || 'out'; // Default to 'out' if no history
     
     logger.info("🔍 Duplicate detection check", { 
@@ -3141,6 +3141,207 @@ exports.hardResetBusinessData = onRequest(async (req, res) => {
       success: false, 
       error: error.message,
       message: 'Hard reset operation failed'
+    });
+  }
+});
+
+/**
+ * Restore Point Function - Reset All Businesses to Clean State
+ * Creates blank employee slots for all businesses based on their slotsAllowed setting
+ */
+exports.restoreCleanDatabase = onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ success: false, error: 'Only POST method allowed' });
+    return;
+  }
+
+  const { adminKey } = req.body;
+
+  // Admin authentication
+  if (adminKey !== 'Azam198419880001#') {
+    logger.warn("❌ Unauthorized restore attempt");
+    res.status(403).json({ success: false, error: 'Unauthorized access' });
+    return;
+  }
+
+  try {
+    logger.info('🔄 Starting database restore to clean state');
+    
+    // Get all businesses
+    const businessesRef = db.collection('businesses');
+    const businessesSnap = await businessesRef.get();
+    
+    const results = [];
+    
+    for (const businessDoc of businessesSnap.docs) {
+      const businessId = businessDoc.id;
+      const businessData = businessDoc.data();
+      const slotsAllowed = businessData.slotsAllowed || 10;
+      
+      logger.info(`🧹 Cleaning business: ${businessId} (${slotsAllowed} slots)`);
+      
+      // Delete all subcollections
+      const collectionsToClean = ['staff', 'status', 'attendance_events', 'employees', 'timecards', 'timecard_data', 'employee_status'];
+      let deletedCount = 0;
+
+      for (const collectionName of collectionsToClean) {
+        const collectionRef = businessDoc.ref.collection(collectionName);
+        const snapshot = await collectionRef.get();
+        
+        for (const doc of snapshot.docs) {
+          await doc.ref.delete();
+          deletedCount++;
+        }
+      }
+
+      // Create clean blank slots
+      const staffBatch = db.batch();
+      const statusBatch = db.batch();
+      
+      for (let slot = 1; slot <= slotsAllowed; slot++) {
+        // Create blank staff record
+        const staffRef = businessDoc.ref.collection('staff').doc(slot.toString());
+        staffBatch.set(staffRef, {
+          slot: slot,
+          employeeId: slot,
+          employeeName: `Employee ${slot}`,
+          badgeNumber: slot.toString(),
+          active: true,
+          phone: null,
+          email: null,
+          position: null,
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        });
+
+        // Create blank status record
+        const statusRef = businessDoc.ref.collection('status').doc(slot.toString());
+        statusBatch.set(statusRef, {
+          employeeId: slot,
+          attendanceStatus: 'unknown',
+          lastClockTime: null,
+          lastClockType: null,
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        });
+      }
+
+      await staffBatch.commit();
+      await statusBatch.commit();
+
+      // Update business document
+      await businessDoc.ref.update({
+        lastRestorePoint: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      });
+
+      results.push({
+        businessId,
+        slotsCreated: slotsAllowed,
+        documentsDeleted: deletedCount
+      });
+    }
+
+    const summary = {
+      businessesProcessed: results.length,
+      totalSlotsCreated: results.reduce((sum, r) => sum + r.slotsCreated, 0),
+      totalDocumentsDeleted: results.reduce((sum, r) => sum + r.documentsDeleted, 0),
+      restoreTimestamp: new Date().toISOString()
+    };
+
+    logger.info("✅ Database restore completed successfully", summary);
+    
+    res.json({
+      success: true,
+      message: 'Database restored to clean state with blank slots',
+      summary,
+      businessResults: results
+    });
+
+  } catch (error) {
+    logger.error("❌ Database restore failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Database restore operation failed'
+    });
+  }
+});
+
+/**
+ * Check what device IDs are actually being received by webhooks
+ */
+exports.inspectWebhookData = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    logger.info("📊 WEBHOOK INSPECTION", { 
+      method: req.method, 
+      headers: req.headers,
+      contentType: req.get('content-type'),
+      query: req.query,
+      body: req.body
+    });
+
+    // Check recent attendance webhook logs for device data
+    const businessesSnapshot = await db.collection('businesses').get();
+    const deviceInfo = [];
+
+    for (const doc of businessesSnapshot.docs) {
+      const businessData = doc.data();
+      
+      // Check devices subcollection
+      const devicesSnapshot = await db.collection('businesses')
+        .doc(doc.id)
+        .collection('devices')
+        .get();
+      
+      devicesSnapshot.forEach(deviceDoc => {
+        deviceInfo.push({
+          businessId: doc.id,
+          businessName: businessData.businessName,
+          registeredDeviceId: deviceDoc.id,
+          deviceData: deviceDoc.data()
+        });
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Webhook inspection completed",
+      registeredDevices: deviceInfo,
+      requestInfo: {
+        method: req.method,
+        headers: req.headers,
+        contentType: req.get('content-type'),
+        hasBody: !!req.body,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error("❌ Inspection failed", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Inspection failed'
     });
   }
 });

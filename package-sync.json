@@ -1,0 +1,19 @@
+{
+  "name": "aiclock-hikvision-sync",
+  "version": "1.0.0", 
+  "description": "Direct Hikvision device event synchronization",
+  "main": "hikvision-event-sync.js",
+  "scripts": {
+    "sync": "node hikvision-event-sync.js",
+    "sync-today": "node -e \"const {CONFIG} = require('./hikvision-event-sync.js'); CONFIG.dateRange.startDate = CONFIG.dateRange.endDate = new Date().toISOString().split('T')[0]; require('./hikvision-event-sync.js').main()\"",
+    "sync-week": "node -e \"const {CONFIG} = require('./hikvision-event-sync.js'); const end = new Date(); const start = new Date(end.getTime() - 7*24*60*60*1000); CONFIG.dateRange.startDate = start.toISOString().split('T')[0]; CONFIG.dateRange.endDate = end.toISOString().split('T')[0]; require('./hikvision-event-sync.js').main()\"",
+    "sync-month": "node -e \"const {CONFIG} = require('./hikvision-event-sync.js'); const end = new Date(); const start = new Date(end.getTime() - 30*24*60*60*1000); CONFIG.dateRange.startDate = start.toISOString().split('T')[0]; CONFIG.dateRange.endDate = end.toISOString().split('T')[0]; require('./hikvision-event-sync.js').main()\""
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "xml2js": "^0.6.0"
+  },
+  "keywords": ["hikvision", "attendance", "sync", "events", "firebase"],
+  "author": "AiClock System",
+  "license": "MIT"
+}

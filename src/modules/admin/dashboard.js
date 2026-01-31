@@ -55,6 +55,18 @@ class AdminDashboardController {
       createBusinessBtn.addEventListener("click", () => this.showCreateBusinessModal());
     }
 
+    // Hard reset button
+    const hardResetBtn = document.getElementById("hardResetBtn");
+    if (hardResetBtn) {
+      console.log('Hard reset button found, attaching event listener');
+      hardResetBtn.addEventListener("click", () => {
+        console.log('Hard reset button clicked');
+        this.showHardResetModal();
+      });
+    } else {
+      console.log('Hard reset button not found');
+    }
+
     // Refresh button
     const refreshBtn = document.getElementById("refreshBtn");
     if (refreshBtn) {
@@ -191,9 +203,7 @@ class AdminDashboardController {
           <button class="btn btn-small btn-secondary" onclick="adminDashboard.editBusiness('${business.id}')">
             Edit
           </button>
-          <button class="btn btn-small btn-warning" onclick="adminDashboard.manageDevices('${business.id}')">
-            🖥️ Devices
-          </button>
+
           <button class="btn btn-small btn-danger" onclick="adminDashboard.deleteBusiness('${business.id}')">
             Delete
           </button>
@@ -802,7 +812,122 @@ class AdminDashboardController {
       return null;
     }
   }
-}
+  /**
+   * Show hard reset business modal
+   */
+  showHardResetModal() {
+    if (this.businesses.length === 0) {
+      showNotification('No businesses found. Load businesses first.', 'error');
+      return;
+    }
+
+    const businessOptions = this.businesses.map(business => 
+      `<option value="${business.id}">${business.businessName} (${business.id})</option>`
+    ).join('');
+
+    const modalHTML = `
+      <div class="modal-overlay" id="hardResetModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>🔄 Hard Reset Business Data</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+          </div>
+          <div class="modal-body" style="padding: 1.5rem;">
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 1rem; margin-bottom: 1rem;">
+              <h4 style="color: #856404; margin: 0 0 0.5rem 0;">⚠️ Warning</h4>
+              <p style="color: #856404; margin: 0; font-size: 0.9rem;">
+                This will completely delete ALL business data including employees, attendance records, and timecards. 
+                It will then recreate clean slot structure. This action cannot be undone!
+              </p>
+            </div>
+            
+            <div class="form-group">
+              <label for="resetBusinessId">Select Business to Reset:</label>
+              <select id="resetBusinessId" class="form-control" required>
+                <option value="">Choose a business...</option>
+                ${businessOptions}
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="resetAdminKey">Admin Reset Key:</label>
+              <input type="password" id="resetAdminKey" class="form-control" 
+                     placeholder="Enter admin reset key" required>
+              <small style="color: #666; font-size: 0.8rem;">Contact admin for the reset key</small>
+            </div>
+            
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="resetConfirmation" required>
+                I understand this will permanently delete all business data
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 1px solid #e5e7eb; display: flex; gap: 1rem; justify-content: flex-end;">
+            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
+              Cancel
+            </button>
+            <button class="btn" style="background: #dc3545; color: white;" onclick="adminDashboard.executeHardReset()">
+              🔄 Execute Hard Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+  }
+
+  /**
+   * Execute hard reset of business data
+   */
+  async executeHardReset() {
+    const businessId = document.getElementById('resetBusinessId')?.value;
+    const adminKey = document.getElementById('resetAdminKey')?.value;
+    const confirmed = document.getElementById('resetConfirmation')?.checked;
+
+    if (!businessId || !adminKey || !confirmed) {
+      showNotification('Please fill all fields and confirm the action', 'error');
+      return;
+    }
+
+    try {
+      showLoader('Executing hard reset... This may take a moment');
+
+      const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/hardResetBusinessData', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessId,
+          adminKey
+        })
+      });
+
+      const result = await response.json();
+      hideLoader();
+
+      if (result.success) {
+        showNotification(`Hard reset completed successfully for ${businessId}! 
+                         ${result.summary.slotsRecreated} slots recreated, 
+                         ${result.summary.documentsDeleted} documents deleted.`, 'success');
+        
+        // Close modal
+        document.getElementById('hardResetModal')?.remove();
+        
+        // Refresh the businesses list
+        await this.loadBusinesses();
+      } else {
+        showNotification(`Hard reset failed: ${result.error || result.message}`, 'error');
+      }
+
+    } catch (error) {
+      hideLoader();
+      console.error('Hard reset error:', error);
+      showNotification(`Hard reset failed: ${error.message}`, 'error');
+    }
+  }}
 
 // Initialize and export
 let adminDashboard;

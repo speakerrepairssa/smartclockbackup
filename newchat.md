@@ -1,9 +1,87 @@
-# AiClock Development Log - January 24, 2026
+# AiClock Development Log - January 30, 2026
 
 ## Session Summary
-This document tracks the development session where we implemented major features for the AiClock attendance management system.
+This document tracks the development sessions where we implemented major features and unified architecture for the AiClock attendance management system.
 
-## Completed Features
+## ✅ LATEST SESSION - January 30, 2026
+
+### 🏗️ UNIFIED ARCHITECTURE IMPLEMENTATION
+**Problem**: Multiple confusing collections causing data inconsistency and complexity.
+
+**Solution**: Implemented clean unified architecture with single source of truth:
+
+**Old Structure (Problematic)**:
+```
+- employee_timesheets/{employeeId}/daily_sheets/{date}
+- employee_last_attendance/{employeeId}
+- device_{deviceId}_events/{date}/{slotId}
+- attendance_events/{date}/{slotId}/{eventId} (nested)
+```
+
+**New Structure (Unified)**:
+```
+✅ staff/{slotId} (employee management)
+✅ status/{slotId} (real-time monitoring with duplicate detection)  
+✅ attendance_events/{eventId} (flat, single source of truth)
+```
+
+### 🔄 DATA MIGRATION & CLEANUP
+**Actions Taken**:
+1. **Nuclear Cleanup**: Deleted all collections from all businesses
+2. **Unified Recreation**: Created clean structure with correct slot counts
+3. **Slot Count Fix**: Synced with actual admin settings (not plan defaults)
+4. **Duplicate Detection**: Added lastClockStatus tracking to prevent duplicate punches
+
+**Functions Created**:
+- `nuclearCleanup` - Delete all collections from all businesses
+- `setupUnifiedStructure` - Create correct structure for all businesses  
+- `checkBusinessSettings` - Verify admin settings vs actual slots
+- `fixSlotCount` - Sync slot count with admin settings
+- `migrateToUnifiedCollections` - Move old data to new structure
+
+### 🚫 DUPLICATE PREVENTION SYSTEM
+**Problem**: Devices could send duplicate consecutive clock-ins or clock-outs.
+
+**Solution**: Enhanced webhook with duplicate detection:
+```javascript
+// Check last clock status before allowing new punch
+const lastClockStatus = currentStatus?.attendanceStatus || 'out';
+const currentPunch = attendanceStatus; // 'in' or 'out'
+
+// Prevent duplicates
+if (lastClockStatus === currentPunch) {
+  // Store as mispunch for admin review
+  await attendanceRef.add({
+    // ... mispunch data
+    type: `duplicate_${attendanceStatus}`,
+    source: 'duplicate_detection'
+  });
+}
+```
+
+### 📊 WEBHOOK OPTIMIZATION
+**Changes Made**:
+1. **Removed redundant writes** to employee_timesheets, employee_last_attendance
+2. **Single source storage** - only write to attendance_events
+3. **Enhanced status tracking** - lastClockStatus for duplicate prevention
+4. **Cleaner logging** - unified architecture messaging
+
+**Before**: Writing to 5+ collections per punch
+**After**: Writing to 2 essential collections (attendance_events + status)
+
+### 🔧 BUSINESS REGISTRATION FIX
+**Problem**: New businesses getting old collection structure.
+
+**Solution**: Updated auth service to create only unified collections:
+- Staff collection (employee management)
+- Status collection (real-time monitoring)
+- Attendance_events collection (data storage)
+
+**Files Modified**:
+- `src/modules/auth/auth.service.backup.js`
+- `functions/index.js` (slot management functions)
+
+## ✅ PREVIOUS SESSION - January 24, 2026
 
 ### 1. Real-Time Status Monitoring
 **Problem**: Business dashboard was polling every 30 seconds, causing delays in status updates.
@@ -97,33 +175,98 @@ const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
 - Check status collection before removing
 - Delete related documents (staff, status, employee_last_attendance)
 
-## Database Structure Enhancements
+## Database Structure - UNIFIED ARCHITECTURE
 
-### Collections Updated:
+### ✅ Current Collections (Clean):
+```javascript
+/businesses/{businessId}/
+  ├── staff/{slotId}                    // Employee Management
+  │   ├── employeeId: string
+  │   ├── employeeName: string
+  │   ├── active: boolean
+  │   ├── slotNumber: number
+  │   ├── badgeNumber: string
+  │   ├── phone: string
+  │   ├── email: string
+  │   ├── deviceId: string
+  │   └── ...HR fields
+  │
+  ├── status/{slotId}                   // Real-time Monitoring
+  │   ├── attendanceStatus: 'in'|'out'
+  │   ├── lastClockStatus: 'in'|'out'   // For duplicate detection
+  │   ├── lastClockTime: ISO timestamp
+  │   ├── lastEventType: 'checkin'|'checkout'
+  │   └── employeeName: string
+  │
+  └── attendance_events/{eventId}       // Unified Data Storage (FLAT)
+      ├── businessId: string
+      ├── slotNumber: number
+      ├── employeeId: string
+      ├── employeeName: string
+      ├── timestamp: ISO timestamp
+      ├── attendanceStatus: 'in'|'out'
+      ├── eventDate: YYYY-MM-DD
+      ├── eventTime: HH:MM:SS
+      ├── deviceId: string
+      ├── verifyNo: string
+      ├── source: 'webhook'|'sync'|'manual'
+      └── type: 'normal'|'duplicate_clock_in'|'duplicate_clock_out'
 ```
-/businesses/{businessId}/staff/{slotId}
-  + phone
-  + email
-  + position
-  + department
-  + idNumber
-  + address
-  + hireDate
-  + hourlyRate
-  + notes
 
-/businesses/{businessId}/status/{slotId}
-  - Used for real-time monitoring
-  - attendanceStatus: 'in' | 'out'
-  - lastClockTime: ISO timestamp
+### ❌ Removed Collections (Old):
+- `employee_timesheets` - Complex nested structure
+- `employee_last_attendance` - Redundant with status  
+- `device_{deviceId}_events` - Device-specific silos
+- `timecards` - Structure placeholders
+- `employees` - Duplicate of staff
 
-/businesses/{businessId}/attendance_events/{YYYY-MM-DD}/{slotId}/{eventId}
-  - Organized by date and slot
-  - type: 'clock-in' | 'clock-out'
-  - timestamp: ISO format
-```
+## Technical Architecture Decisions
 
-## Technical Decisions
+### 1. Unified vs Nested Collections
+- **Chose**: Flat attendance_events with metadata
+- **Reason**: Easier queries, better performance, simpler maintenance
+- **Benefit**: Single source of truth eliminates data inconsistency
+
+### 2. Duplicate Detection Strategy
+- **Chose**: lastClockStatus comparison in webhook
+- **Reason**: Prevent device double-taps and network retries
+- **Implementation**: Store duplicates as mispunches for admin review
+
+### 3. Slot Count Management
+- **Chose**: Use actual admin settings (slotsAllowed) over plan defaults
+- **Reason**: Businesses can customize slot count within plan limits
+- **Validation**: Functions now check businessData.slotsAllowed first
+
+### 4. Collection Cleanup Strategy
+- **Chose**: Nuclear cleanup + recreation vs gradual migration
+- **Reason**: Cleaner slate, easier than complex migration logic
+- **Risk Mitigation**: Backed up data before cleanup
+
+## Performance Improvements (Latest Session)
+
+1. **Reduced Database Writes**: From 5+ collections to 2 per punch
+2. **Eliminated Redundant Storage**: Single source of truth
+3. **Optimized Queries**: Flat structure easier to query and index
+4. **Removed Structure Docs**: No more placeholder documents
+
+## Deployment Status
+
+### Current Production State
+- **Architecture**: ✅ Unified (attendance_events as single source)
+- **Duplicate Detection**: ✅ Active (lastClockStatus tracking)
+- **Slot Counts**: ✅ Fixed (matches admin settings)
+- **Old Collections**: ✅ Cleaned (removed completely)
+- **Webhook**: ✅ Optimized (minimal writes, unified structure)
+
+### Functions Deployed
+- `attendanceWebhook` - Enhanced with duplicate detection
+- `setupUnifiedStructure` - Create clean architecture
+- `checkBusinessSettings` - Verify slot configurations  
+- `fixSlotCount` - Sync slots with admin settings
+- `nuclearCleanup` - Remove old collections
+- `migrateToUnifiedCollections` - Data migration tool
+
+## Code Quality Improvements
 
 ### 1. Real-Time vs Polling
 - **Chose**: Firestore `onSnapshot` listeners
@@ -150,9 +293,27 @@ const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
 - **Reason**: Avoids UTC midnight crossing causing wrong day names
 - **Format**: Manual YYYY-MM-DD string formatting
 
-## Git Commits
+## Git Commits & Version History
 
-1. **"Update slot management and Firebase hosting deployment"**
+### January 30, 2026 - Unified Architecture
+1. **"Implement unified architecture with duplicate detection"**
+   - Nuclear cleanup of all old collections
+   - Unified attendance_events as single source of truth
+   - Added duplicate punch prevention with lastClockStatus
+   - Fixed slot count discrepancies
+
+2. **"Remove redundant collection writes from webhook"**
+   - Eliminated employee_timesheets processing
+   - Removed employee_last_attendance writes
+   - Optimized to write only essential collections
+
+3. **"Create setup and cleanup functions for architecture management"**
+   - setupUnifiedStructure for all businesses
+   - checkBusinessSettings verification
+   - fixSlotCount sync with admin
+   - nuclearCleanup for fresh starts
+
+### January 24, 2026 - Feature Development
    - Fixed slot removal logic
    - Updated hosting cache
 
@@ -196,27 +357,40 @@ const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
 
 ## Future Recommendations
 
+### Immediate Priority (Next Session)
+1. **Test Unified Architecture**: Verify device punches work with new structure
+2. **Dashboard Updates**: Ensure timecard and punch management read from attendance_events
+3. **Mispunch Management**: Build UI to review and fix duplicate punches
+4. **Performance Testing**: Monitor query performance with flat structure
+
 ### High Priority
-1. **Settings Module**: Configure working hours, overtime rules, business hours
-2. **Attendance History**: Detailed view in employee modal (replace placeholder)
-3. **Export Functions**: CSV/Excel export for timecards and payroll
-4. **Email Reports**: Automated monthly timecard emails
+1. **Settings Module**: Configure working hours, overtime rules, business hours  
+2. **Enhanced Duplicate Detection**: Handle edge cases and network retries
+3. **Attendance History**: Detailed view in employee modal with unified data
+4. **Export Functions**: CSV/Excel export from unified attendance_events
 
 ### Medium Priority
 1. **Break Tracking**: Distinguish between work and break periods
-2. **Shift Management**: Define shifts and calculate shift differentials
+2. **Shift Management**: Define shifts and calculate shift differentials  
 3. **Leave Management**: Integrate vacation, sick days, holidays
-4. **Notifications**: Alert for late clock-ins, missing clock-outs
+4. **Real-time Notifications**: Alert for late clock-ins, missing clock-outs
 
 ### Low Priority
-1. **Charts & Graphs**: Visual analytics for attendance trends
+1. **Analytics Dashboard**: Visual trends from unified data
 2. **Bulk Operations**: Mass edit, bulk import/export
-3. **Templates**: Timecard report templates
+3. **Advanced Reporting**: Custom report builder
 4. **API Integration**: Sync with external HR/payroll systems
 
 ## Testing Notes
 
-### Tested Scenarios
+### Tested Scenarios (Latest Session)
+- ✅ Nuclear cleanup and recreation
+- ✅ Slot count verification and fixes  
+- ✅ Unified structure deployment
+- ✅ Old collection removal
+- ✅ Admin settings sync
+
+### Tested Scenarios (Previous Session)
 - ✅ Employee clocking in/out
 - ✅ Real-time status updates
 - ✅ Multiple employees same day

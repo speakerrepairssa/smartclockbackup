@@ -338,7 +338,6 @@
               <option value="UTC">UTC (UTC+0)</option>
               <option value="America/New_York">America/New_York (UTC-5)</option>
               <option value="Europe/London">Europe/London (UTC+0)</option>
-              <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
             </select>
           </div>
         </div>
@@ -425,7 +424,9 @@
         }
 
         const business = businessSnap.data();
+        console.log('📦 Loading business data:', business);
         document.getElementById('businessName').value = business.businessName || '';
+        console.log('📝 Business name set to:', document.getElementById('businessName').value);
         document.getElementById('businessEmail').value = business.email || '';
         document.getElementById('businessPlan').value = business.plan || '';
         document.getElementById('slotsAllowed').value = business.slotsAllowed || 50;
@@ -460,19 +461,25 @@
 
     async function loadDevices(linkedDevices) {
       try {
+        console.log('🔄 Loading devices...', linkedDevices);
         const devicesContainer = document.getElementById('devicesContainer');
         const allDevices = [];
 
         // Get ALL devices from global devices collection
         const devicesRef = collection(db, "devices");
         const devicesSnap = await getDocs(devicesRef);
+        
+        console.log('📦 Devices snapshot size:', devicesSnap.size);
 
         devicesSnap.forEach((deviceDoc) => {
+          console.log('📱 Found device:', deviceDoc.id, deviceDoc.data());
           allDevices.push({
             id: deviceDoc.id,
             ...deviceDoc.data()
           });
         });
+
+        console.log('📊 Total devices loaded:', allDevices.length);
 
         if (allDevices.length === 0) {
           devicesContainer.innerHTML = `
@@ -603,32 +610,50 @@
           });
         });
 
-        // Populate selector
+        // Populate selector with enhanced device data
         allDevices.forEach(device => {
           const option = document.createElement('option');
           option.value = JSON.stringify({
             deviceId: device.deviceId || device.id,
             deviceName: device.deviceName || '',
-            ipAddress: device.ipAddress || ''
+            ipAddress: device.ipAddress || '',
+            username: device.username || '',
+            deviceType: device.deviceType || ''
           });
-          option.textContent = `${device.deviceId || device.id} - ${device.deviceName || 'Unnamed'}`;
+          option.textContent = `${device.deviceId || device.id} - ${device.deviceName || 'Unnamed'} (${device.deviceType || 'Unknown Type'})`;
           deviceSelector.appendChild(option);
         });
 
-        // Handle device selection
+        // Handle device selection from dropdown
         deviceSelector.addEventListener('change', function() {
-          if (this.value) {
+          if (this.value && this.value !== "-- Select a device to auto-fill fields --") {
             const deviceData = JSON.parse(this.value);
+            
+            // Auto-fill all device fields
             document.getElementById('deviceId').value = deviceData.deviceId;
             document.getElementById('deviceName').value = deviceData.deviceName;
             document.getElementById('deviceIp').value = deviceData.ipAddress;
+            document.getElementById('deviceUsername').value = deviceData.username || '';
             
             // Show success message
             const info = document.createElement('div');
             info.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 1rem 1.5rem; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.2);';
-            info.textContent = '✅ Device fields populated!';
+            info.textContent = '✅ Device fields auto-filled from selection!';
             document.body.appendChild(info);
-            setTimeout(() => info.remove(), 2000);
+            setTimeout(() => info.remove(), 2500);
+            
+            // Auto-select the radio button for the same device (if it exists)
+            const correspondingRadio = document.querySelector(`.device-selector[value="${deviceData.deviceId}"]`);
+            if (correspondingRadio) {
+              correspondingRadio.checked = true;
+              // Update radio button visual styling
+              document.querySelectorAll('.device-checkbox').forEach(box => {
+                box.style.borderColor = '#e5e7eb';
+                box.style.background = 'white';
+              });
+              correspondingRadio.closest('.device-checkbox').style.borderColor = '#3b82f6';
+              correspondingRadio.closest('.device-checkbox').style.background = '#eff6ff';
+            }
           }
         });
 
@@ -642,9 +667,23 @@
       try {
         document.getElementById('loading').style.display = 'block';
 
-        // Get selected device (only one radio button)
+        // Get selected device from dropdown (primary) or radio buttons (fallback)
+        const deviceSelector = document.getElementById('deviceSelector');
+        const selectedDeviceDropdown = deviceSelector.value;
         const selectedDeviceRadio = document.querySelector('.device-selector:checked');
-        const selectedDevice = selectedDeviceRadio ? selectedDeviceRadio.value : null;
+        
+        let selectedDevice = null;
+        
+        // Priority 1: Use dropdown selection
+        if (selectedDeviceDropdown && selectedDeviceDropdown !== "-- Select a device to auto-fill fields --") {
+          const deviceData = JSON.parse(selectedDeviceDropdown);
+          selectedDevice = deviceData.deviceId;
+        } 
+        // Priority 2: Fallback to radio button selection
+        else if (selectedDeviceRadio) {
+          selectedDevice = selectedDeviceRadio.value;
+        }
+        
         const linkedDevices = selectedDevice ? [selectedDevice] : [];
 
         const updates = {
@@ -788,6 +827,11 @@
       msgEl.textContent = msg;
       msgEl.className = `message ${type}`;
     }
+
+    // Navigation function
+    window.goBack = function() {
+      window.location.href = "/pages/admin-dashboard.html";
+    };
 
     // Load business on page load
     loadBusiness();
