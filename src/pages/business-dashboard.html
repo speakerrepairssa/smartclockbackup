@@ -336,6 +336,7 @@
         <li><button class="menu-btn" data-module="timecard" onclick="switchModule('timecard')">🕐 Timecard</button></li>
         <li><button class="menu-btn" data-module="punches" onclick="switchModule('punches')">👊 Punches</button></li>
         <li><button class="menu-btn" data-module="sync" onclick="switchModule('sync')">🔄 Device Sync</button></li>
+        <li><button class="menu-btn" data-module="sql-integration" onclick="switchModule('sql-integration')">🗄️ SQL Integration</button></li>
         <li><button class="menu-btn" data-module="downloads" onclick="switchModule('downloads')">📥 Downloads</button></li>
         <li><a href="whatsapp-settings.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📱 WhatsApp</button></a></li>
         <li><button class="menu-btn" data-module="settings" onclick="switchModule('settings')">⚙️ Settings</button></li>
@@ -2206,6 +2207,7 @@
             <button class="btn-refresh-timecard" onclick="loadTimecard()">🔄 Refresh</button>
             <button class="btn-print-timecard" onclick="printTimecard()">🖨️ Print</button>
             <button class="btn-refresh-timecard" onclick="cleanupAttendanceEvents()" style="background: #dc3545;">🧹 Clean Data</button>
+            <button class="btn-refresh-timecard" onclick="checkForDuplicates()" style="background: #28a745;">🔍 Check Issues</button>
           </div>
           
           <!-- Timecard Display -->
@@ -2417,6 +2419,209 @@
             <h3>📊 Event Comparison</h3>
             <div id="eventsComparisonTable">
               <p>Select a device and date to compare raw device events vs processed events</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SQL Integration View -->
+      <div class="view-section" id="sqlIntegrationView">
+        <h2 class="section-title">🗄️ SQL Database Integration</h2>
+        <p class="section-description">Manage optional SQL database integration for enhanced device sync</p>
+        
+        <div class="sql-integration-container">
+          <!-- SQL Status Card -->
+          <div class="sql-status-card" style="background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+              <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🗄️</div>
+              <div>
+                <h3 style="margin: 0; color: #333;">SQL Service Status</h3>
+                <p id="sqlStatusText" style="margin: 5px 0 0 0; color: #666;">Checking connection...</p>
+              </div>
+            </div>
+            
+            <div id="sqlStatusDetails" style="background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div>
+                  <strong>Service Endpoint:</strong><br>
+                  <span id="sqlEndpoint">http://localhost:3001</span>
+                </div>
+                <div>
+                  <strong>Connection Status:</strong><br>
+                  <span id="sqlConnectionStatus">Disconnected</span>
+                </div>
+                <div>
+                  <strong>Database:</strong><br>
+                  <span id="sqlDatabaseStatus">Not connected</span>
+                </div>
+                <div>
+                  <strong>Device Count:</strong><br>
+                  <span id="sqlDeviceCount">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+              <button id="sqlTestConnectionBtn" class="btn btn-secondary">🔍 Test Connection</button>
+              <button id="sqlInitializeBtn" class="btn btn-primary" style="display: none;">🚀 Initialize SQL</button>
+              <button id="sqlStartServiceBtn" class="btn btn-success">🔧 Start SQL Service</button>
+            </div>
+          </div>
+
+          <!-- Firebase Data Connect Section -->
+          <div class="dataconnect-card" style="background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+              <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #4285f4, #34a853); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🔥</div>
+              <div>
+                <h3 style="margin: 0; color: #333;">Firebase Data Connect</h3>
+                <p id="dataConnectStatusText" style="margin: 5px 0 0 0; color: #666;">Google's managed PostgreSQL</p>
+              </div>
+            </div>
+            
+            <div id="dataConnectStatusDetails" style="background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div>
+                  <strong>Service:</strong><br>
+                  <span id="dataConnectService">device-events (us-central1)</span>
+                </div>
+                <div>
+                  <strong>Status:</strong><br>
+                  <span id="dataConnectConnectionStatus">Ready to connect</span>
+                </div>
+                <div>
+                  <strong>Database:</strong><br>
+                  <span id="dataConnectDatabaseStatus">Cloud SQL PostgreSQL</span>
+                </div>
+                <div>
+                  <strong>Events Stored:</strong><br>
+                  <span id="dataConnectEventCount">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+              <button id="dataConnectInitBtn" class="btn btn-primary">🚀 Initialize Data Connect</button>
+              <button id="dataConnectTestBtn" class="btn btn-secondary" style="display: none;">📊 Test Query</button>
+              <button id="addHikvisionDeviceBtn" class="btn btn-success" style="display: none;">📱 Add Hikvision Device</button>
+            </div>
+          </div>
+
+          <!-- SQL Service Setup -->
+          <div class="sql-setup-card" style="background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 1rem 0; color: #333;">📋 Setup Instructions</h3>
+            
+            <div class="setup-steps" style="display: grid; gap: 1rem;">
+              <div class="setup-step" style="display: flex; align-items: flex-start; gap: 1rem;">
+                <div style="width: 30px; height: 30px; background: #667eea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">1</div>
+                <div>
+                  <strong>Start SQL Service</strong>
+                  <p style="margin: 5px 0; color: #666;">Open terminal and run: <code>cd sql-service && npm start</code></p>
+                </div>
+              </div>
+              
+              <div class="setup-step" style="display: flex; align-items: flex-start; gap: 1rem;">
+                <div style="width: 30px; height: 30px; background: #667eea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">2</div>
+                <div>
+                  <strong>Setup PostgreSQL Database</strong>
+                  <p style="margin: 5px 0; color: #666;">Configure your PostgreSQL connection string</p>
+                </div>
+              </div>
+              
+              <div class="setup-step" style="display: flex; align-items: flex-start; gap: 1rem;">
+                <div style="width: 30px; height: 30px; background: #667eea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">3</div>
+                <div>
+                  <strong>Test Connection</strong>
+                  <p style="margin: 5px 0; color: #666;">Click "Test Connection" to verify the service is running</p>
+                </div>
+              </div>
+            </div>
+
+            <div style="background: #e3f2fd; border-radius: 8px; padding: 1rem; margin-top: 1rem; border-left: 4px solid #2196f3;">
+              <strong>💡 Pro Tip:</strong> SQL integration is completely optional. Your system works perfectly with Firestore only.
+            </div>
+          </div>
+
+          <!-- Device Integration Controls -->
+          <div class="sql-devices-card" style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 1rem 0; color: #333;">📱 Real Device Sync</h3>
+            
+            <div id="hikvisionDeviceSection" style="margin-top: 1rem;">
+              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #28a745, #20c997); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">📹</div>
+                <div>
+                  <h4 style="margin: 0; color: #333;">Hikvision Camera Sync</h4>
+                  <p style="margin: 5px 0 0 0; color: #666;">Connect to your Hikvision camera at 192.168.0.114</p>
+                </div>
+                <div id="deviceStatus" style="margin-left: auto; padding: 0.5rem 1rem; border-radius: 20px; background: #dc3545; color: white; font-weight: 500; font-size: 14px;">
+                  Device Offline
+                </div>
+              </div>
+              
+              <form id="deviceConnectForm" style="margin-bottom: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                  <div class="form-group">
+                    <label for="deviceIp" style="font-weight: 600;">Device IP:</label>
+                    <input type="text" id="deviceIp" value="192.168.0.114" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                  </div>
+                  <div class="form-group">
+                    <label for="deviceUsername" style="font-weight: 600;">Username:</label>
+                    <input type="text" id="deviceUsername" value="admin" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                  </div>
+                  <div class="form-group">
+                    <label for="devicePassword" style="font-weight: 600;">Password:</label>
+                    <input type="password" id="devicePassword" value="Azam198419880001" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                  </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                  <button type="submit" class="btn" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 500;">🔗 Connect Device</button>
+                  <button type="button" id="startSyncBtn" class="btn" disabled style="background: #28a745; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 500; opacity: 0.5;">▶️ Start Live Sync</button>
+                  <button type="button" id="stopSyncBtn" class="btn" disabled style="background: #dc3545; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 500; opacity: 0.5;">⏸️ Stop Sync</button>
+                  <button type="button" id="credentialHelperBtn" class="btn" style="background: #6c757d; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 500;">🔑 Credential Helper</button>
+                </div>
+              </form>
+              
+              <div id="credentialHelper" style="display: none; margin: 1rem 0; padding: 1rem; background: #e9ecef; border-radius: 8px;">
+                <h5 style="margin: 0 0 1rem 0; color: #333;">🔑 Common Hikvision Default Credentials</h5>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                  <button type="button" class="credential-btn" onclick="useCredentials('admin', 'password')" style="padding: 0.5rem; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; text-align: left;">
+                    <strong>admin</strong> / password
+                  </button>
+                  <button type="button" class="credential-btn" onclick="useCredentials('admin', '12345')" style="padding: 0.5rem; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; text-align: left;">
+                    <strong>admin</strong> / 12345
+                  </button>
+                  <button type="button" class="credential-btn" onclick="useCredentials('admin', 'admin')" style="padding: 0.5rem; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; text-align: left;">
+                    <strong>admin</strong> / admin
+                  </button>
+                  <button type="button" class="credential-btn" onclick="useCredentials('admin', '123456')" style="padding: 0.5rem; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; text-align: left;">
+                    <strong>admin</strong> / 123456
+                  </button>
+                  <button type="button" class="credential-btn" onclick="useCredentials('admin', '')" style="padding: 0.5rem; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; text-align: left;">
+                    <strong>admin</strong> / [blank]
+                  </button>
+                  <button type="button" class="credential-btn" onclick="useCredentials('root', 'password')" style="padding: 0.5rem; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; text-align: left;">
+                    <strong>root</strong> / password
+                  </button>
+                </div>
+                <p style="margin: 1rem 0 0 0; font-size: 14px; color: #666;">
+                  <strong>💡 Tip:</strong> Many cameras require setting a password on first setup. Check your camera's label or manual for defaults.
+                </p>
+              </div>
+              
+              <div id="deviceResults" style="margin-bottom: 1rem;"></div>
+              
+              <div id="liveEvents" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
+                <div style="padding: 1rem; border-bottom: 1px solid #ddd; background: white; border-radius: 8px 8px 0 0;">
+                  <h4 style="margin: 0; color: #333;">📡 Live Events Stream</h4>
+                  <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Real-time events from your Hikvision camera</p>
+                </div>
+                <div id="eventsList" style="padding: 1rem;">
+                  <div style="text-align: center; color: #888; padding: 2rem;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏳</div>
+                    Connect to device to see live events
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2844,6 +3049,7 @@
         'employees': 'employeesView',
         'punches': 'punchesView',
         'sync': 'syncView',
+        'sql-integration': 'sqlIntegrationView',
         'settings': 'settingsView',
         'downloads': 'syncView'  // Use sync view for downloads until we have a dedicated view
       };
@@ -3892,6 +4098,13 @@
     }
 
     async function loadTimecard() {
+      // Helper function to format decimal hours to hours:minutes
+      function formatHours(decimalHours) {
+        const hrs = Math.floor(decimalHours);
+        const mins = Math.round((decimalHours - hrs) * 60);
+        return decimalHours > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`) : '0h';
+      }
+      
       const employeeId = document.getElementById('employeeSelect').value;
       const month = document.getElementById('monthSelect').value;
       const display = document.getElementById('timecardDisplay');
@@ -3971,14 +4184,26 @@
                     eventsByDate.set(dateStr, []);
                   }
                   
-                  eventsByDate.get(dateStr).push({
-                    type: eventType,
-                    timestamp: event.timestamp,
-                    time: eventDate,
-                    source: event.source || 'nested'
+                  // Check for duplicates in nested events too
+                  const existing = eventsByDate.get(dateStr);
+                  const isDuplicate = existing.some(e => {
+                    const timeDiff = Math.abs(new Date(e.timestamp).getTime() - new Date(event.timestamp).getTime());
+                    return timeDiff < 30000 && e.type === eventType; // Within 30 seconds and same type
                   });
                   
-                  console.log('Added nested event:', { date: dateStr, type: eventType, time: eventDate });
+                  if (!isDuplicate) {
+                    existing.push({
+                      type: eventType,
+                      timestamp: event.timestamp,
+                      time: eventDate,
+                      source: event.source || 'nested',
+                      eventId: doc.id
+                    });
+                    
+                    console.log('Added nested event:', { date: dateStr, type: eventType, time: eventDate });
+                  } else {
+                    console.log('Skipped duplicate nested event:', { date: dateStr, type: eventType, time: eventDate });
+                  }
                 }
               }
             });
@@ -4027,21 +4252,25 @@
                     eventsByDate.set(dateStr, []);
                   }
                   
-                  // Check if we already have this exact event (avoid duplicates)
+                  // Enhanced duplicate detection (check timestamp within 30 seconds)
                   const existing = eventsByDate.get(dateStr);
-                  const isDuplicate = existing.some(e => 
-                    e.timestamp === event.timestamp && e.type === eventType
-                  );
+                  const isDuplicate = existing.some(e => {
+                    const timeDiff = Math.abs(new Date(e.timestamp).getTime() - new Date(event.timestamp).getTime());
+                    return timeDiff < 30000 && e.type === eventType; // Within 30 seconds and same type
+                  });
                   
                   if (!isDuplicate) {
                     existing.push({
                       type: eventType,
                       timestamp: event.timestamp,
                       time: eventDate,
-                      source: event.source || 'flat'
+                      source: event.source || 'flat',
+                      eventId: doc.id
                     });
                     
                     console.log('Added flat event:', { date: dateStr, type: eventType, time: eventDate });
+                  } else {
+                    console.log('Skipped duplicate event:', { date: dateStr, type: eventType, time: eventDate });
                   }
                 }
               }
@@ -4126,13 +4355,87 @@
               console.log('⚠️ Day ended with clock-in (no clock-out) - not counting incomplete period');
             }
             
-            const finalHours = Math.round((totalMinutes / 60) * 100) / 100;
-            console.log('=== FINAL CALCULATION ===');
-            console.log('Total minutes worked:', totalMinutes);
-            console.log('Total hours worked:', finalHours);
+            const actualHours = Math.round((totalMinutes / 60) * 100) / 100;
+            console.log('=== PAYROLL CALCULATION ===');
+            console.log('Raw time worked:', actualHours, 'hours');
             
-            const scheduledHours = daySchedule?.scheduledHours || 8;
-            const overtime = Math.max(0, finalHours - scheduledHours);
+            // Get business settings
+            const businessData = await getDoc(doc(db, "businesses", businessId));
+            const breakMinutes = businessData.exists() ? (businessData.data().breakDuration || 60) : 60;
+            const businessInfo = businessData.exists() ? businessData.data() : {};
+            
+            // Calculate scheduled work hours (shift duration minus lunch)
+            let scheduledWorkHours = 8; // Default 8 hours
+            let scheduledStartTime = '08:30';
+            let scheduledEndTime = '17:30';
+            
+            // Check business-level work times first (from edit business page)
+            if (businessInfo.workStartTime && businessInfo.workEndTime) {
+              scheduledStartTime = businessInfo.workStartTime;
+              scheduledEndTime = businessInfo.workEndTime;
+              const [startH, startM] = scheduledStartTime.split(':').map(Number);
+              const [endH, endM] = scheduledEndTime.split(':').map(Number);
+              const shiftDuration = (endH + endM/60) - (startH + startM/60);
+              scheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
+            }
+            // Fallback to day-specific schedule
+            else if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
+              scheduledStartTime = daySchedule.startTime;
+              scheduledEndTime = daySchedule.endTime;
+              const [startH, startM] = scheduledStartTime.split(':').map(Number);
+              const [endH, endM] = scheduledEndTime.split(':').map(Number);
+              const shiftDuration = (endH + endM/60) - (startH + startM/60);
+              scheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
+            }
+            
+            console.log('📅 Scheduled shift:', scheduledStartTime, '-', scheduledEndTime);
+            console.log('🍽️ Lunch break:', breakMinutes, 'minutes');
+            console.log('💼 Scheduled work hours:', scheduledWorkHours);
+            
+            // Get actual first clock-in and last clock-out for the day
+            const firstClockIn = allEvents.find(e => e.type === 'clock-in');
+            const lastClockOut = allEvents.filter(e => e.type === 'clock-out').pop();
+            
+            let payableHours = 0;
+            
+            if (firstClockIn && lastClockOut) {
+              const actualStart = new Date(firstClockIn.timestamp);
+              const actualEnd = new Date(lastClockOut.timestamp);
+              
+              // Create scheduled start/end times for comparison
+              const [schedStartH, schedStartM] = scheduledStartTime.split(':').map(Number);
+              const [schedEndH, schedEndM] = scheduledEndTime.split(':').map(Number);
+              
+              const schedStart = new Date(actualStart);
+              schedStart.setHours(schedStartH, schedStartM, 0, 0);
+              
+              const schedEnd = new Date(actualStart);
+              schedEnd.setHours(schedEndH, schedEndM, 0, 0);
+              
+              // Calculate payable start (later of actual start or scheduled start)
+              const payableStart = new Date(Math.max(actualStart.getTime(), schedStart.getTime()));
+              
+              // Calculate payable end (earlier of actual end or scheduled end)
+              const payableEnd = new Date(Math.min(actualEnd.getTime(), schedEnd.getTime()));
+              
+              // Calculate hours between payable start and end
+              const payableDuration = Math.max(0, (payableEnd.getTime() - payableStart.getTime()) / (1000 * 60 * 60));
+              
+              // Subtract lunch break
+              payableHours = Math.max(0, payableDuration - (breakMinutes / 60));
+              
+              // Cap at scheduled work hours
+              payableHours = Math.min(payableHours, scheduledWorkHours);
+              
+              console.log('⏰ Actual: ', actualStart.toLocaleTimeString(), '-', actualEnd.toLocaleTimeString());
+              console.log('📋 Payable:', payableStart.toLocaleTimeString(), '-', payableEnd.toLocaleTimeString());
+              console.log('💰 Payable hours (after lunch & caps):', payableHours);
+            } else {
+              console.log('⚠️ Incomplete day - no matching clock-in/out pair');
+            }
+            
+            const finalHours = Math.round(payableHours * 100) / 100;
+            const overtime = Math.max(0, finalHours - scheduledWorkHours);
 
             dailyRecords.push({
               date: dateStr,
@@ -4328,7 +4631,7 @@
                         <td><strong>${event.type.toUpperCase().replace('-', ' ')}</strong></td>
                         <td class="${status.toLowerCase().replace(' ', '-')}">${status}</td>
                         <td>${showDayInfo ? shift : ''}</td>
-                        <td>${showDayInfo ? record.totalHours.toFixed(2) : ''}</td>
+                        <td>${showDayInfo ? formatHours(record.totalHours) : ''}</td>
                         <td style="font-size: 0.85rem; color: #666;">${notes}</td>
                       </tr>
                     `);
@@ -4381,11 +4684,11 @@
               <div class="summary-section">
                 <div class="summary-item">
                   <span class="summary-label">Normal</span>
-                  <span class="summary-value">${(totalHours - totalOvertime).toFixed(2)}</span>
+                  <span class="summary-value">${formatHours(totalHours - totalOvertime)}</span>
                 </div>
                 <div class="summary-item">
                   <span class="summary-label">OT 1.25</span>
-                  <span class="summary-value">${totalOvertime.toFixed(2)}</span>
+                  <span class="summary-value">${formatHours(totalOvertime)}</span>
                 </div>
               </div>
               
@@ -4487,7 +4790,9 @@
                 event.testMode === true ||
                 !event.employeeId ||
                 !event.timestamp ||
-                (!event.type && !event.eventType && !event.action && !event.attendanceStatus)
+                (!event.type && !event.eventType && !event.action && !event.attendanceStatus) ||
+                event.source === 'demo' || // Remove demo events
+                event.timestamp === 'demo' // Remove demo timestamps
               );
               
               if (shouldDelete) {
@@ -4496,29 +4801,53 @@
               }
             });
             
-            // STEP 2: Remove duplicates (events within 30 seconds of same type)
-            const validEvents = events.filter(e => !toDelete.some(d => d.event.id === e.id));
-            
-            for (let i = 0; i < validEvents.length; i++) {
-              const currentEvent = validEvents[i];
-              const currentTime = new Date(currentEvent.timestamp);
+            // STEP 2: Remove duplicate events (events within 30 seconds of each other with same type)
+            const duplicateMap = new Map();
+            events.forEach((event, index) => {
+              if (toDelete.some(d => d.event.id === event.id)) return; // Skip if already marked for deletion
               
-              // Check for duplicates with next events
-              for (let j = i + 1; j < validEvents.length; j++) {
-                const nextEvent = validEvents[j];
-                const nextTime = new Date(nextEvent.timestamp);
-                const timeDiff = Math.abs(nextTime - currentTime);
+              const eventTime = new Date(event.timestamp).getTime();
+              const eventType = event.type || event.eventType || event.action || 
+                              (event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out');
+              
+              const key = `${eventType}_${Math.floor(eventTime / 30000)}`; // 30-second buckets
+              
+              if (duplicateMap.has(key)) {
+                // This is a potential duplicate
+                const existing = duplicateMap.get(key);
+                const timeDiff = Math.abs(eventTime - new Date(existing.timestamp).getTime());
                 
-                // If same type within 30 seconds, mark as duplicate
-                if (timeDiff < 30000 && currentEvent.type === nextEvent.type) {
-                  toDelete.push({ event: nextEvent, reason: 'Duplicate within 30s' });
+                if (timeDiff < 30000) { // Within 30 seconds
+                  toDelete.push({ event, reason: 'Duplicate event (within 30s)' });
                   duplicatesDeleted++;
-                  console.log(`🚫 Duplicate detected: ${nextEvent.type} at ${nextTime.toLocaleTimeString()}`);
+                  console.log(`Marking duplicate: ${event.timestamp} vs ${existing.timestamp}`);
                 }
+              } else {
+                duplicateMap.set(key, event);
+              }
+            });
+            
+            // STEP 3: Remove sequential same-type events (CLOCK OUT -> CLOCK OUT)
+            const validEvents = events.filter(event => !toDelete.some(d => d.event.id === event.id));
+            validEvents.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            for (let i = 1; i < validEvents.length; i++) {
+              const prevEvent = validEvents[i - 1];
+              const currEvent = validEvents[i];
+              
+              const prevType = prevEvent.type || prevEvent.eventType || prevEvent.action ||
+                             (prevEvent.attendanceStatus === 'in' ? 'clock-in' : 'clock-out');
+              const currType = currEvent.type || currEvent.eventType || currEvent.action ||
+                             (currEvent.attendanceStatus === 'in' ? 'clock-in' : 'clock-out');
+              
+              if (prevType === currType && !toDelete.some(d => d.event.id === currEvent.id)) {
+                toDelete.push({ event: currEvent, reason: `Sequential ${currType} events` });
+                duplicatesDeleted++;
+                console.log(`Marking sequential duplicate: ${currType} at ${currEvent.timestamp}`);
               }
             }
             
-            // STEP 3: Delete marked events
+            // Delete marked events
             for (const deletion of toDelete) {
               await deleteDoc(deletion.event.docRef);
               totalDeleted++;
@@ -4528,6 +4857,12 @@
         }
         
         console.log(`✅ Cleanup complete: ${totalDeleted} events deleted (${invalidDeleted} invalid, ${duplicatesDeleted} duplicates)`);
+        
+        // Show success message
+        showNotification(`🧹 Cleanup completed! Deleted ${totalDeleted} duplicate/invalid events.`, 'success');
+        
+        // Reload the timecard to show clean data
+        await loadTimecard();
         alert(`✅ Cleanup complete!\n\n` +
               `Total deleted: ${totalDeleted} events\n` +
               `Invalid events: ${invalidDeleted}\n` +
@@ -4540,9 +4875,116 @@
       }
     }
 
+    // Check for duplicate issues without deleting
+    async function checkForDuplicates() {
+      try {
+        console.log('🔍 Checking for duplicate issues...');
+        
+        let totalIssues = 0;
+        let duplicateIssues = 0;
+        let mispunchIssues = 0;
+        
+        const attendanceRef = collection(db, "businesses", businessId, "attendance_events");
+        const datesSnap = await getDocs(attendanceRef);
+        
+        const issueReport = [];
+        
+        for (const dateDoc of datesSnap.docs) {
+          const dateStr = dateDoc.id;
+          
+          const employeesRef = collection(db, "businesses", businessId, "attendance_events", dateStr);
+          const employeesSnap = await getDocs(employeesRef);
+          
+          for (const empDoc of employeesSnap.docs) {
+            const employeeId = empDoc.id;
+            
+            const eventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
+            const eventsSnap = await getDocs(eventsRef);
+            
+            const events = [];
+            eventsSnap.forEach(doc => {
+              events.push({ id: doc.id, ...doc.data() });
+            });
+            
+            if (events.length > 0) {
+              events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+              
+              // Check for duplicate times (within 30 seconds)
+              for (let i = 0; i < events.length - 1; i++) {
+                for (let j = i + 1; j < events.length; j++) {
+                  const event1 = events[i];
+                  const event2 = events[j];
+                  const timeDiff = Math.abs(new Date(event1.timestamp) - new Date(event2.timestamp));
+                  
+                  if (timeDiff < 30000) {
+                    issueReport.push({
+                      type: 'duplicate',
+                      date: dateStr,
+                      employee: employeeId,
+                      issue: `Duplicate events within 30s: ${new Date(event1.timestamp).toLocaleTimeString()} and ${new Date(event2.timestamp).toLocaleTimeString()}`
+                    });
+                    duplicateIssues++;
+                  }
+                }
+              }
+              
+              // Check for mispunch patterns (sequential same-type events)
+              for (let i = 0; i < events.length - 1; i++) {
+                const current = events[i];
+                const next = events[i + 1];
+                const currentType = current.type || current.eventType || (current.attendanceStatus === 'in' ? 'clock-in' : 'clock-out');
+                const nextType = next.type || next.eventType || (next.attendanceStatus === 'in' ? 'clock-in' : 'clock-out');
+                
+                if (currentType === nextType) {
+                  issueReport.push({
+                    type: 'mispunch',
+                    date: dateStr,
+                    employee: employeeId,
+                    issue: `Sequential ${currentType} events: ${new Date(current.timestamp).toLocaleTimeString()} → ${new Date(next.timestamp).toLocaleTimeString()}`
+                  });
+                  mispunchIssues++;
+                }
+              }
+            }
+          }
+        }
+        
+        // Show report
+        totalIssues = duplicateIssues + mispunchIssues;
+        
+        if (totalIssues === 0) {
+          alert('🎉 No duplicate or mispunch issues found!');
+        } else {
+          let reportText = `📊 Found ${totalIssues} issues:\n`;
+          reportText += `• ${duplicateIssues} duplicate events\n`;
+          reportText += `• ${mispunchIssues} mispunch patterns\n\n`;
+          
+          if (issueReport.length > 0) {
+            reportText += 'Sample issues:\n';
+            issueReport.slice(0, 5).forEach(issue => {
+              reportText += `- ${issue.date} ${issue.employee}: ${issue.issue}\n`;
+            });
+            
+            if (issueReport.length > 5) {
+              reportText += `... and ${issueReport.length - 5} more`;
+            }
+          }
+          
+          reportText += '\n\nUse "Clean Data" button to fix these issues.';
+          console.log('Issue report:', issueReport);
+          alert(reportText);
+        }
+        
+      } catch (error) {
+        console.error('Check failed:', error);
+        alert('Check failed: ' + error.message);
+      }
+    }
+
     window.loadTimecard = loadTimecard;
     window.printTimecard = printTimecard;
     window.cleanupAttendanceEvents = cleanupAttendanceEvents;
+    window.checkForDuplicates = checkForDuplicates;
     window.initTimecard = initTimecard;
 
     // ============================================
@@ -6853,6 +7295,616 @@
         console.error('Failsafe setup error:', error);
       }
     }, 2000);
+  </script>
+
+  <!-- Optional SQL Device Integration Module -->
+  <script src="../modules/sql-device-integration.js"></script>
+  
+  <!-- Firebase Data Connect Integration Module -->
+  <script type="module" src="../modules/firebase-dataconnect-integration.js"></script>
+  
+  <script>
+    // Optional SQL Integration Setup (non-breaking)
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // Initialize SQL integration if available
+        if (window.sqlDeviceIntegration) {
+          console.log('🔌 SQL Device Integration available');
+          
+          // Try to initialize (will fallback gracefully if SQL service isn't running)
+          const result = await window.sqlDeviceIntegration.initialize({
+            sqlEndpoint: 'http://localhost:3001',
+            syncInterval: 30000
+          });
+          
+          if (result.success) {
+            console.log('✅ SQL integration enabled - dual storage active');
+            
+            // Add SQL status indicator to dashboard
+            if (document.getElementById('dashboard')) {
+              const statusDiv = document.createElement('div');
+              statusDiv.id = 'sql-status';
+              statusDiv.innerHTML = `
+                <div style="position: fixed; top: 10px; right: 10px; background: #4CAF50; color: white; padding: 8px 12px; border-radius: 5px; font-size: 12px; z-index: 1000;">
+                  📊 SQL Integration: Active
+                </div>
+              `;
+              document.body.appendChild(statusDiv);
+            }
+          } else {
+            console.log('ℹ️ SQL integration unavailable - using Firestore only');
+          }
+        }
+      } catch (error) {
+        console.log('ℹ️ SQL integration not loaded - continuing with standard functionality');
+      }
+
+      // Setup SQL Integration Tab functionality
+      setupSQLIntegrationTab();
+      
+      // Setup Firebase Data Connect functionality
+      setupDataConnectTab();
+    });
+
+    // SQL Integration Tab Functions
+    function setupSQLIntegrationTab() {
+      const testConnectionBtn = document.getElementById('sqlTestConnectionBtn');
+      const startServiceBtn = document.getElementById('sqlStartServiceBtn');
+      
+      if (testConnectionBtn) {
+        testConnectionBtn.addEventListener('click', testSQLConnection);
+      }
+      
+      if (startServiceBtn) {
+        startServiceBtn.addEventListener('click', showStartInstructions);
+      }
+      
+      // Update status when tab is opened
+      const sqlTab = document.querySelector('[data-module="sql-integration"]');
+      if (sqlTab) {
+        sqlTab.addEventListener('click', updateSQLStatus);
+      }
+    }
+
+    // Firebase Data Connect Tab Functions
+    function setupDataConnectTab() {
+      const initBtn = document.getElementById('dataConnectInitBtn');
+      const testBtn = document.getElementById('dataConnectTestBtn');
+      const addDeviceBtn = document.getElementById('addHikvisionDeviceBtn');
+      
+      if (initBtn) {
+        initBtn.addEventListener('click', initializeDataConnect);
+      }
+      
+      if (testBtn) {
+        testBtn.addEventListener('click', testDataConnect);
+      }
+      
+      if (addDeviceBtn) {
+        addDeviceBtn.addEventListener('click', showAddDeviceModal);
+      }
+    }
+
+    // Firebase Data Connect Functions
+    async function initializeDataConnect() {
+      const statusText = document.getElementById('dataConnectStatusText');
+      const connectionStatus = document.getElementById('dataConnectConnectionStatus');
+      const initBtn = document.getElementById('dataConnectInitBtn');
+      
+      statusText.textContent = 'Connecting to device sync service...';
+      connectionStatus.textContent = 'Connecting...';
+      initBtn.disabled = true;
+      
+      try {
+        // Test connection to Hikvision sync service
+        const response = await fetch('http://localhost:3002/health');
+        
+        if (response.ok) {
+          const data = await response.json();
+          statusText.textContent = 'Connected to device sync service!';
+          connectionStatus.textContent = 'Connected';
+          
+          // Show additional buttons
+          document.getElementById('dataConnectTestBtn').style.display = 'inline-block';
+          document.getElementById('addHikvisionDeviceBtn').style.display = 'inline-block';
+          
+          initBtn.textContent = '✅ Device Sync Active';
+          initBtn.style.background = '#4CAF50';
+          
+          console.log('✅ Hikvision sync service connected:', data);
+        } else {
+          throw new Error('Service not available');
+        }
+      } catch (error) {
+        statusText.textContent = 'Device sync service not running';
+        connectionStatus.textContent = 'Error';
+        initBtn.disabled = false;
+        alert(`Device sync service not running. Please start the service first.`);
+      }
+    }
+
+    async function testDataConnect() {
+      try {
+        const response = await fetch('http://localhost:3002/devices');
+        const data = await response.json();
+        alert(`Device sync test successful! Found ${data.count} devices.`);
+      } catch (error) {
+        alert(`Device sync test failed: ${error.message}`);
+      }
+    }
+
+    function showAddDeviceModal() {
+      const deviceIP = prompt('Enter Hikvision device IP address:', '192.168.0.114');
+      if (!deviceIP) return;
+      
+      const deviceName = prompt('Enter device name (optional):', 'Main Entrance Camera');
+      const username = prompt('Enter device username:', 'admin');
+      const password = prompt('Enter device password:');
+      
+      if (password) {
+        addHikvisionDevice(deviceIP, deviceName, username, password);
+      }
+    }
+
+    async function addHikvisionDevice(ip, name, username, password) {
+      try {
+        // Test device connection first
+        const testResponse = await fetch('http://localhost:3002/device/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, username, password })
+        });
+        
+        const testResult = await testResponse.json();
+        
+        if (!testResult.connected) {
+          alert(`❌ Failed to connect to device at ${ip}:
+          
+Error: ${testResult.error}
+Suggestion: ${testResult.suggestion}
+
+Please check:
+• Device IP address: ${ip}
+• Username: ${username}
+• Password: [verify password]
+• Network connectivity`);
+          return;
+        }
+        
+        // Add device to sync service
+        const addResponse = await fetch('http://localhost:3002/device/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, ip, username, password })
+        });
+        
+        const addResult = await addResponse.json();
+        
+        if (addResult.success) {
+          // Start device sync
+          const startResponse = await fetch(`http://localhost:3002/device/${addResult.device.id}/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ interval: 30000 })
+          });
+          
+          const startResult = await startResponse.json();
+          
+          if (startResult.success) {
+            // Update UI
+            updateDataConnectStatus();
+            
+            alert(`✅ Success!
+
+Device: ${addResult.device.name}
+Model: ${testResult.model}
+Serial: ${testResult.serialNumber}
+Firmware: ${testResult.firmwareVersion}
+
+✅ Device connected and sync started!
+🔄 Syncing every 30 seconds
+📊 Real events will be captured from your Hikvision device
+
+Check browser console for real-time sync logs.`);
+          } else {
+            throw new Error('Failed to start sync');
+          }
+        } else {
+          throw new Error('Failed to add device');
+        }
+        
+      } catch (error) {
+        alert(`Failed to add device: ${error.message}`);
+      }
+    }
+
+    async function updateDataConnectStatus() {
+      try {
+        const response = await fetch('http://localhost:3002/devices');
+        const data = await response.json();
+        
+        let totalEvents = 0;
+        data.devices.forEach(device => {
+          totalEvents += device.eventCount || 0;
+        });
+        
+        document.getElementById('dataConnectEventCount').textContent = totalEvents;
+        document.getElementById('dataConnectDatabaseStatus').textContent = 
+          `${data.count} device(s) connected`;
+      } catch (error) {
+        console.error('Failed to update status:', error);
+      }
+    }
+
+    async function testSQLConnection() {
+      const statusText = document.getElementById('sqlStatusText');
+      const connectionStatus = document.getElementById('sqlConnectionStatus');
+      const devicesContent = document.getElementById('sqlDevicesContent');
+      
+      statusText.textContent = 'Testing connection...';
+      connectionStatus.textContent = 'Testing...';
+      
+      try {
+        const response = await fetch('http://localhost:3001/health', { 
+          method: 'GET',
+          timeout: 3000 
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          statusText.textContent = 'Connected to SQL service!';
+          connectionStatus.textContent = 'Connected';
+          document.getElementById('sqlDatabaseStatus').textContent = data.database || 'Connected';
+          
+          if (devicesContent) {
+            devicesContent.innerHTML = `
+              <div style="text-align: center; color: #4CAF50; padding: 2rem;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                <p><strong>SQL Service Connected!</strong></p>
+                <p>Ready for enhanced device integration</p>
+              </div>
+            `;
+          }
+        } else {
+          throw new Error('Service unavailable');
+        }
+      } catch (error) {
+        if (statusText) statusText.textContent = 'SQL service not running';
+        if (connectionStatus) connectionStatus.textContent = 'Disconnected';
+        const dbStatus = document.getElementById('sqlDatabaseStatus');
+        if (dbStatus) dbStatus.textContent = 'Not connected';
+        
+        if (devicesContent) {
+          devicesContent.innerHTML = `
+            <div style="text-align: center; color: #f44336; padding: 2rem;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+              <p><strong>SQL Service Offline</strong></p>
+              <p>Please start the SQL service first</p>
+            </div>
+          `;
+        }
+      }
+    }
+
+    function showStartInstructions() {
+      alert(`To start the SQL service:
+
+1. Open Terminal
+2. Navigate to your project: cd "path/to/aiclock"
+3. Go to SQL service: cd sql-service
+4. Install dependencies: npm install (if not already done)
+5. Start service: npm start
+
+The service will run on http://localhost:3001
+
+Click "Test Connection" after starting the service.`);
+    }
+
+    async function updateSQLStatus() {
+      // Auto-update status when SQL tab is opened
+      setTimeout(testSQLConnection, 500);
+    }
+
+    // REAL DEVICE SYNC FUNCTIONS
+    let deviceSyncInterval = null;
+
+    document.getElementById('deviceConnectForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await connectToDevice();
+    });
+
+    document.getElementById('startSyncBtn').addEventListener('click', startLiveSync);
+    document.getElementById('stopSyncBtn').addEventListener('click', stopLiveSync);
+    document.getElementById('credentialHelperBtn').addEventListener('click', toggleCredentialHelper);
+
+    function toggleCredentialHelper() {
+      const helper = document.getElementById('credentialHelper');
+      if (helper.style.display === 'none' || !helper.style.display) {
+        helper.style.display = 'block';
+      } else {
+        helper.style.display = 'none';
+      }
+    }
+
+    function useCredentials(username, password) {
+      document.getElementById('deviceUsername').value = username;
+      document.getElementById('devicePassword').value = password;
+      document.getElementById('credentialHelper').style.display = 'none';
+      
+      // Automatically test connection
+      setTimeout(() => {
+        document.getElementById('deviceConnectForm').dispatchEvent(new Event('submit'));
+      }, 500);
+    }
+
+    // Make functions globally available
+    window.useCredentials = useCredentials;
+
+    async function connectToDevice() {
+      const ip = document.getElementById('deviceIp').value;
+      const username = document.getElementById('deviceUsername').value;
+      const password = document.getElementById('devicePassword').value;
+      const deviceStatus = document.getElementById('deviceStatus');
+      const deviceResults = document.getElementById('deviceResults');
+
+      deviceStatus.textContent = 'Connecting...';
+      deviceStatus.style.background = '#ffc107';
+
+      try {
+        const response = await fetch('http://localhost:3002/device/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, username, password })
+        });
+
+        const result = await response.json();
+
+        if (result.connected) {
+          deviceStatus.textContent = 'Device Online';
+          deviceStatus.style.background = '#28a745';
+          
+          document.getElementById('startSyncBtn').disabled = false;
+          document.getElementById('startSyncBtn').style.opacity = '1';
+          
+          deviceResults.innerHTML = `
+            <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+              <h4 style="margin: 0 0 0.5rem 0; color: #155724;">✅ Device Connected Successfully!</h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem; font-size: 14px;">
+                <div><strong>Device Model:</strong> ${result.model || 'N/A'}</div>
+                <div><strong>Firmware:</strong> ${result.firmwareVersion || 'N/A'}</div>
+                <div><strong>Serial Number:</strong> ${result.serialNumber || 'N/A'}</div>
+                <div><strong>Connection Status:</strong> <span style="color: #28a745; font-weight: bold;">Online</span></div>
+              </div>
+            </div>
+          `;
+        } else {
+          throw new Error(result.error || 'Failed to connect to device');
+        }
+      } catch (error) {
+        deviceStatus.textContent = 'Connection Failed';
+        deviceStatus.style.background = '#dc3545';
+        
+        // Enhanced error display with suggestions
+        let errorMessage = error.message;
+        let suggestions = '';
+        
+        // If it's from our sync service, it might have detailed suggestions
+        if (error.message.includes('Authentication failed') || error.message.includes('401')) {
+          errorMessage = 'Authentication Failed (401)';
+          suggestions = `
+            <div style="margin-top: 1rem;">
+              <strong>🔑 Try these common Hikvision credentials:</strong>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem; margin: 0.5rem 0; font-family: monospace; background: #f8f9fa; padding: 1rem; border-radius: 4px;">
+                <div>admin / password</div>
+                <div>admin / 12345</div>
+                <div>admin / admin</div>
+                <div>admin / 123456</div>
+                <div>admin / [blank]</div>
+                <div>root / password</div>
+              </div>
+              <p style="font-size: 14px; color: #666; margin: 0.5rem 0;">
+                <strong>Tip:</strong> Check your camera's label or manual for default credentials.
+                Some cameras require you to set a password on first use.
+              </p>
+            </div>
+          `;
+        }
+        
+        deviceResults.innerHTML = `
+          <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #721c24;">❌ ${errorMessage}</h4>
+            <div style="margin-top: 1rem; font-size: 14px;">
+              <strong>Device Details:</strong>
+              <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>IP Address: ${ip}</li>
+                <li>Username: ${username}</li>
+                <li>Password: ${'*'.repeat(password.length)} (${password.length} characters)</li>
+              </ul>
+            </div>
+            ${suggestions}
+            <div style="margin-top: 1rem; font-size: 14px;">
+              <strong>Troubleshooting Steps:</strong>
+              <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                <li>Verify device IP: ${ip} (device is reachable ✅)</li>
+                <li>Check username and password above</li>
+                <li>Access camera web interface at <a href="http://${ip}" target="_blank">http://${ip}</a></li>
+                <li>Ensure ISAPI is enabled in camera settings</li>
+              </ol>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    async function loadHistoricalEvents(ip) {
+      const eventsList = document.getElementById('eventsList');
+      
+      try {
+        console.log('Loading historical events for:', ip);
+        const response = await fetch(`http://localhost:3002/device/events?ip=${ip}&limit=20`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const events = await response.json();
+        console.log('Loaded events:', events.length);
+        
+        if (events && events.length > 0) {
+          // Clear placeholder
+          eventsList.innerHTML = '';
+          
+          // Display events
+          events.forEach(event => {
+            displayEvent(event);
+          });
+          
+          // Add status header
+          const headerDiv = document.createElement('div');
+          headerDiv.style.cssText = `
+            text-align: center; 
+            color: #28a745; 
+            padding: 1rem; 
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+            font-weight: bold;
+          `;
+          headerDiv.innerHTML = `📡 Showing ${events.length} recent events - Live sync active`;
+          eventsList.prepend(headerDiv);
+        } else {
+          eventsList.innerHTML = `
+            <div style="text-align: center; color: #ffc107; padding: 2rem;">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚠️</div>
+              No events found for device ${ip}
+              <div style="font-size: 12px; margin-top: 10px;">Import events first or wait for new events</div>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Error loading historical events:', error);
+        eventsList.innerHTML = `
+          <div style="text-align: center; color: #dc3545; padding: 2rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">❌</div>
+            Failed to load events: ${error.message}
+            <div style="font-size: 12px; margin-top: 10px;">Check if sync service is running</div>
+          </div>
+        `;
+      }
+    }
+
+    function displayEvent(event) {
+      const eventsList = document.getElementById('eventsList');
+      const eventDiv = document.createElement('div');
+      
+      // Determine event source and styling
+      let isDemo = false;
+      let isHistorical = false;
+      let borderColor = '#28a745';
+      let bgColor = '#d4edda';
+      let icon = '📹';
+      let badge = '';
+      
+      if (event.source === 'DEMO' || event.source === 'SIMULATED_DEMO') {
+        isDemo = true;
+        borderColor = '#ffc107';
+        bgColor = '#fff3cd';
+        icon = '🎭';
+        badge = '<span style="background: #ffc107; color: #856404; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: bold;">DEMO</span>';
+      } else if (event.source === 'HISTORICAL_SAMPLE') {
+        isHistorical = true;
+        borderColor = '#6c757d';
+        bgColor = '#f8f9fa';
+        icon = '📂';
+        badge = '<span style="background: #6c757d; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: bold;">HISTORICAL</span>';
+      }
+      
+      eventDiv.style.cssText = `
+        padding: 0.75rem; 
+        margin: 0.5rem 0; 
+        border-left: 4px solid ${borderColor}; 
+        background: ${bgColor}; 
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      `;
+      
+      const timeFormatted = new Date(event.timestamp).toLocaleString();
+      const eventType = event.type || event.eventType || 'Unknown Event';
+      const personName = event.data?.personName || event.personName || 'Unknown Person';
+      const result = event.data?.result || event.result || '';
+      
+      eventDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <strong style="color: ${isDemo ? '#856404' : isHistorical ? '#6c757d' : '#155724'};">
+                ${icon} ${eventType}
+              </strong>
+              ${badge}
+            </div>
+            <div style="font-size: 12px; color: #666; margin-bottom: 2px;">${timeFormatted}</div>
+            <div style="font-size: 11px; color: #666;">
+              👤 ${personName} ${result ? `• ${result}` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      eventsList.appendChild(eventDiv);
+    }
+
+    async function startLiveSync() {
+      const ip = document.getElementById('deviceIp').value;
+      const startBtn = document.getElementById('startSyncBtn');
+      const stopBtn = document.getElementById('stopSyncBtn');
+      const eventsList = document.getElementById('eventsList');
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      stopBtn.style.opacity = '1';
+
+      // Load initial historical events
+      await loadHistoricalEvents(ip);
+
+      // Start periodic event fetching
+      deviceSyncInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`http://localhost:3002/device/events?ip=${ip}&limit=10`);
+          const events = await response.json();
+
+          if (events.length > 0) {
+            // Add new events to the list
+            events.forEach(event => {
+              displayEvent(event);
+            });
+            
+            // Keep only last 20 events (plus header)
+            while (eventsList.children.length > 21) {
+              eventsList.removeChild(eventsList.lastChild);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching events:', error);
+        }
+      }, 5000); // Check every 5 seconds
+    }
+
+    function stopLiveSync() {
+      if (deviceSyncInterval) {
+        clearInterval(deviceSyncInterval);
+        deviceSyncInterval = null;
+      }
+
+      document.getElementById('startSyncBtn').disabled = false;
+      document.getElementById('stopSyncBtn').disabled = true;
+      document.getElementById('stopSyncBtn').style.opacity = '0.5';
+
+      const eventsList = document.getElementById('eventsList');
+      eventsList.innerHTML = `
+        <div style="text-align: center; color: #888; padding: 2rem;">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏸️</div>
+          Sync stopped - Click "Start Live Sync" to resume
+        </div>
+      `;
+    }
   </script>
 </body>
 </html>

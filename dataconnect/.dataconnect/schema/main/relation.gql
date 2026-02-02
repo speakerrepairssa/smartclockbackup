@@ -1,0 +1,146 @@
+extend type DeviceEvent {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "DeviceEvent", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table.
+  """
+  _count: Int! @fdc_generated(from: "DeviceEvent.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `confidence` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  confidence_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.confidence", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  createdAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `deviceId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  deviceId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.deviceId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `deviceIp` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  deviceIp_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.deviceIp", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `deviceName` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  deviceName_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.deviceName", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `employeeId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  employeeId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.employeeId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `eventType` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  eventType_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.eventType", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `metadata` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  metadata_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.metadata", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `DeviceEvent` table where the `timestamp` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  timestamp_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "DeviceEvent.timestamp", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `confidence` field in the `DeviceEvent` table.
+  """
+  confidence_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "DeviceEvent.confidence", purpose: QUERY_SUM)
+  """
+  ✨ Average the `confidence` field in the `DeviceEvent` table.
+  """
+  confidence_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "DeviceEvent.confidence", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `confidence` field in the `DeviceEvent` table.
+  """
+  confidence_min: Float @fdc_generated(from: "DeviceEvent.confidence", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `createdAt` field in the `DeviceEvent` table.
+  """
+  createdAt_min: Timestamp @fdc_generated(from: "DeviceEvent.createdAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `timestamp` field in the `DeviceEvent` table.
+  """
+  timestamp_min: Timestamp @fdc_generated(from: "DeviceEvent.timestamp", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `confidence` field in the `DeviceEvent` table.
+  """
+  confidence_max: Float @fdc_generated(from: "DeviceEvent.confidence", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `createdAt` field in the `DeviceEvent` table.
+  """
+  createdAt_max: Timestamp @fdc_generated(from: "DeviceEvent.createdAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `timestamp` field in the `DeviceEvent` table.
+  """
+  timestamp_max: Timestamp @fdc_generated(from: "DeviceEvent.timestamp", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "DeviceEvent.id", purpose: GLOBAL_ID)
+}

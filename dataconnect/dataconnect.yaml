@@ -1,0 +1,11 @@
+specVersion: "v1alpha"
+serviceId: "device-events"
+location: "us-central1"
+connectorDirs: ["device-connector"]
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "device_events_db"
+      cloudSql:
+        instanceId: "aiclock-device-events"

@@ -1,0 +1,55 @@
+extend type Query {
+  """
+  ✨ Look up a single `DeviceEvent` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  deviceEvent(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: DeviceEvent_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: DeviceEvent_FirstRow
+  ): DeviceEvent @fdc_generated(from: "DeviceEvent", purpose: QUERY_SINGLE)
+  """
+  ✨ List `DeviceEvent` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  deviceEvents(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: DeviceEvent_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [DeviceEvent_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: DeviceEvent_Having
+  ): [DeviceEvent!]! @fdc_generated(from: "DeviceEvent", purpose: QUERY_MULTIPLE)
+}

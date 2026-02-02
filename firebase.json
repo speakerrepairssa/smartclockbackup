@@ -35,5 +35,9 @@
         "firebase-debug.*.log"
       ]
     }
-  ]
+  ],
+  "dataconnect": {
+    "source": "dataconnect",
+    "serviceId": "device-events"
+  }
 }

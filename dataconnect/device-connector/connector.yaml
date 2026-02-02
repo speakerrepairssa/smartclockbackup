@@ -1,0 +1,5 @@
+connectorId: "device-connector"
+generate:
+  javascriptSdk:
+    outputDir: "../generated"
+    package: "@aiclock/device-events"

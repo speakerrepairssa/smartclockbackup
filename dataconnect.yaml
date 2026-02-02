@@ -1,0 +1,24 @@
+# Firebase Data Connect Configuration
+schema_source: "dataconnect"
+connector_source: "dataconnect"
+service_id: "aiclock-service"
+location: "us-central1"
+
+# PostgreSQL Database Configuration  
+database:
+  database_id: "aiclock-postgres-db"
+  
+# Connector Configuration
+connectors:
+  - id: "aiclock-web-connector"
+    source: "dataconnect"
+    
+  - id: "aiclock-admin-connector" 
+    source: "dataconnect"
+
+# Schema Configuration
+schema:
+  source: "dataconnect/schema.gql"
+  
+# Security Rules
+# (Will be configured in Firebase Console)

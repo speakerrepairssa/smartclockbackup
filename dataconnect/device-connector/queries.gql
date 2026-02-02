@@ -1,0 +1,36 @@
+mutation CreateDeviceEvent(
+  $deviceId: String!,
+  $deviceName: String!,
+  $deviceIp: String!,
+  $eventType: String!,
+  $timestamp: Timestamp!,
+  $employeeId: String,
+  $confidence: Float,
+  $metadata: String
+) @auth(level: PUBLIC) {
+  deviceEvent_insert(data: {
+    deviceId: $deviceId,
+    deviceName: $deviceName,
+    deviceIp: $deviceIp,
+    eventType: $eventType,
+    timestamp: $timestamp,
+    employeeId: $employeeId,
+    confidence: $confidence,
+    metadata: $metadata
+  })
+}
+
+query GetDeviceEvents($deviceId: String) @auth(level: PUBLIC) {
+  deviceEvents(where: {deviceId: {eq: $deviceId}}) {
+    id
+    deviceId
+    deviceName
+    deviceIp
+    eventType
+    timestamp
+    employeeId
+    confidence
+    metadata
+    createdAt
+  }
+}

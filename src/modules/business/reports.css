@@ -1,0 +1,125 @@
+/* Business Reports Module Styles */
+.report-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #007bff;
+}
+
+.report-header h3 {
+  margin: 0 0 0.5rem 0;
+  color: #007bff;
+  font-size: 1.8rem;
+}
+
+.report-header p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.report-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.stat-card.highlight {
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: white;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.stat-card.highlight .stat-label {
+  color: rgba(255,255,255,0.9);
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #007bff;
+}
+
+.stat-card.highlight .stat-value {
+  color: white;
+}
+
+.report-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.report-section h4 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 1.3rem;
+  border-bottom: 2px solid #f8f9fa;
+  padding-bottom: 0.5rem;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.report-table th {
+  background: #f8f9fa;
+  padding: 0.75rem;
+  text-align: left;
+  border: 1px solid #dee2e6;
+  font-weight: 600;
+  color: #495057;
+}
+
+.report-table td {
+  padding: 0.75rem;
+  border: 1px solid #dee2e6;
+  vertical-align: top;
+}
+
+.report-table tr:nth-child(even) {
+  background: #f8f9fa;
+}
+
+.report-table tr.total-row {
+  background: #e3f2fd !important;
+  font-weight: bold;
+}
+
+.report-table tr.total-row td {
+  border-top: 2px solid #007bff;
+}
+
+/* Print styles for reports */
+@media print {
+  .report-header,
+  .report-stats,
+  .report-section,
+  .report-table {
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  
+  .stat-card.highlight {
+    background: #007bff !important;
+    color: white !important;
+  }
+}

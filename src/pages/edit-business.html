@@ -362,7 +362,8 @@
 
           <div class="form-group">
             <label>Late Grace Period (minutes)</label>
-            <input type="number" id="lateGracePeriod" placeholder="e.g., 15">
+            <input type="number" id="lateGracePeriod" placeholder="e.g., 15" oninput="previewLateGracePeriod()">
+            <small id="lateGracePreview">Leave empty for no grace period</small>
           </div>
         </div>
       </div>
@@ -438,6 +439,8 @@
         document.getElementById('workEndTime').value = business.workEndTime || '';
         document.getElementById('breakDuration').value = business.breakDuration || '';
         document.getElementById('lateGracePeriod').value = business.lateGracePeriod || '';
+        
+        console.log('📝 Late grace period loaded:', business.lateGracePeriod, 'set to field:', document.getElementById('lateGracePeriod').value);
 
         // Clear device fields initially - they will be populated if a device is selected
         document.getElementById('deviceId').value = '';
@@ -696,9 +699,15 @@
           timezone: document.getElementById('timezone').value,
           workStartTime: document.getElementById('workStartTime').value,
           workEndTime: document.getElementById('workEndTime').value,
-          breakDuration: parseInt(document.getElementById('breakDuration').value) || 60,
-          lateGracePeriod: parseInt(document.getElementById('lateGracePeriod').value) || 15
+          breakDuration: parseInt(document.getElementById('breakDuration').value) || null,
+          lateGracePeriod: parseInt(document.getElementById('lateGracePeriod').value) || null
         };
+        
+        // Debug log for late grace period specifically
+        console.log('🔍 Late Grace Period Debug:');
+        console.log('  Field value:', document.getElementById('lateGracePeriod').value);
+        console.log('  Parsed value:', parseInt(document.getElementById('lateGracePeriod').value));
+        console.log('  Final value:', updates.lateGracePeriod);
 
         // Handle device selection - use deleteField to remove if no device selected
         if (selectedDevice) {
@@ -773,6 +782,11 @@
           }
         }
         
+        console.log('💾 Saving business with updates:', updates);
+        
+        // Show loading state
+        document.getElementById('loading').style.display = 'flex';
+        
         // Update business document
         await updateDoc(businessRef, updates);
 
@@ -831,6 +845,20 @@
     // Navigation function
     window.goBack = function() {
       window.location.href = "/pages/admin-dashboard.html";
+    };
+
+    // Preview function for late grace period
+    window.previewLateGracePeriod = function() {
+      const value = document.getElementById('lateGracePeriod').value;
+      const preview = document.getElementById('lateGracePreview');
+      
+      if (value && parseInt(value) > 0) {
+        preview.textContent = `Employees can be ${value} minutes late without penalty`;
+        preview.style.color = '#10b981';
+      } else {
+        preview.textContent = 'Leave empty for no grace period';
+        preview.style.color = '#666';
+      }
     };
 
     // Load business on page load

@@ -1,0 +1,12 @@
+type DeviceEvent @table {
+  id: UUID! @default(expr: "uuidV4()")
+  deviceId: String!
+  deviceName: String!
+  deviceIp: String!
+  eventType: String!
+  timestamp: Timestamp!
+  employeeId: String
+  confidence: Float
+  metadata: String
+  createdAt: Timestamp! @default(expr: "request.time")
+}
