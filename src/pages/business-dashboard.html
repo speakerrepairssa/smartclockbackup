@@ -7939,7 +7939,9 @@ Click "Test Connection" after starting the service.`);
       `;
     }
 
-    // ASSESSMENT MODULE FUNCTIONS - SIMPLE DUMMY DATA VERSION
+    // ASSESSMENT MODULE FUNCTIONS - WITH FIRESTORE COLLECTION SUPPORT
+    // Import Firebase functions for the assessment module
+    const { collection, query, where, getDocs, orderBy, limit } = window.firebase.firestore;
     async function initAssessment() {
       try {
         // Set default month to current month
@@ -7985,45 +7987,87 @@ Click "Test Connection" after starting the service.`);
           monthDisplay.textContent = monthName;
         }
 
-        // SIMPLE DUMMY DATA - NO FIRESTORE QUERIES
-        const employeeAssessments = [
-          {
-            index: 1,
-            name: "Employee 1",
-            requiredHours: 176,
-            currentHours: 165.5,
-            pastDueHours: 0,
-            hoursShort: 10.5,
-            payRate: 30.00,
-            currentIncomeDue: 4965.00,
-            status: 'Behind',
-            statusColor: '#fd7e14'
-          },
-          {
-            index: 2,
-            name: "Employee 2",
-            requiredHours: 176,
-            currentHours: 180.0,
-            pastDueHours: 0,
-            hoursShort: 0,
-            payRate: 32.00,
-            currentIncomeDue: 5760.00,
-            status: 'On Track',
-            statusColor: '#28a745'
-          },
-          {
-            index: 3,
-            name: "Employee 3",
-            requiredHours: 176,
-            currentHours: 120.0,
-            pastDueHours: 0,
-            hoursShort: 56.0,
-            payRate: 28.00,
-            currentIncomeDue: 3360.00,
-            status: 'Critical',
-            statusColor: '#dc3545'
+        // Try to load from assessment collection first, fallback to dummy data
+        let employeeAssessments = [];
+        
+        try {
+          // Load from assessment collection
+          const assessmentRef = collection(db, "businesses", businessId, "assessment");
+          const assessmentQuery = query(assessmentRef, where("month", "==", month));
+          const assessmentSnap = await getDocs(assessmentQuery);
+
+          if (!assessmentSnap.empty) {
+            // Use existing assessment data from collection
+            assessmentSnap.forEach(doc => {
+              const data = doc.data();
+              employeeAssessments.push({
+                index: data.employeeIndex || data.slot || 1,
+                name: data.employeeName || `Employee ${data.employeeIndex || data.slot}`,
+                requiredHours: data.requiredHours || 176,
+                currentHours: data.actualHours || data.currentHours || 0,
+                pastDueHours: data.pastDueHours || 0,
+                hoursShort: data.hoursShort || 0,
+                payRate: data.payRate || data.hourlyRate || 30.00,
+                currentIncomeDue: data.totalPay || data.currentIncomeDue || 0,
+                status: data.status === 'on_track' ? 'On Track' : 
+                       data.status === 'behind' ? 'Behind' : 
+                       data.status === 'critical' ? 'Critical' : 'On Track',
+                statusColor: data.status === 'on_track' ? '#28a745' : 
+                            data.status === 'behind' ? '#fd7e14' : 
+                            data.status === 'critical' ? '#dc3545' : '#28a745'
+              });
+            });
+            
+            // Sort by index
+            employeeAssessments.sort((a, b) => a.index - b.index);
+            console.log('✅ Loaded assessment data from collection');
           }
-        ];
+        } catch (error) {
+          console.log('⚠️ Could not load from collection, using dummy data:', error.message);
+        }
+
+        // Fallback to dummy data if collection is empty or failed
+        if (employeeAssessments.length === 0) {
+          console.log('📋 Using dummy assessment data');
+          employeeAssessments = [
+            {
+              index: 1,
+              name: "Employee 1",
+              requiredHours: 176,
+              currentHours: 165.5,
+              pastDueHours: 0,
+              hoursShort: 10.5,
+              payRate: 30.00,
+              currentIncomeDue: 4965.00,
+              status: 'Behind',
+              statusColor: '#fd7e14'
+            },
+            {
+              index: 2,
+              name: "Employee 2",
+              requiredHours: 176,
+              currentHours: 180.0,
+              pastDueHours: 0,
+              hoursShort: 0,
+              payRate: 32.00,
+              currentIncomeDue: 5760.00,
+              status: 'On Track',
+              statusColor: '#28a745'
+            },
+            {
+              index: 3,
+              name: "Employee 3",
+              requiredHours: 176,
+              currentHours: 120.0,
+              pastDueHours: 0,
+              hoursShort: 56.0,
+              payRate: 28.00,
+              currentIncomeDue: 3360.00,
+              status: 'Critical',
+              statusColor: '#dc3545'
+            }
+          ];
+        }
 
         // Calculate totals
         const totalEmployees = employeeAssessments.length;
