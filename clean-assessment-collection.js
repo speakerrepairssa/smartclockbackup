@@ -1,8 +1,8 @@
-// Script to create sample assessment collection data
+// Script to clean and recreate assessment collection
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
 
-console.log('🚀 Starting assessment collection creation...');
+console.log('🧹 Cleaning assessment collection...');
 
 const firebaseConfig = {
   apiKey: "AIzaSyBtlxL6ZhConEWI8bOhFxlWqt-a_Nt03ag",
@@ -13,17 +13,31 @@ const firebaseConfig = {
   appId: "1:778031738932:web:cbb9b34c5c2b93d1c6eb14"
 };
 
-console.log('⚙️ Initializing Firebase...');
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-async function createAssessmentData() {
+async function cleanAndRecreateAssessment() {
   try {
     const businessId = "biz_srcomponents";
-    const currentMonth = "2026-01"; // January 2026
     
-    // Assessment data based on actual employee structure from attendance_events
+    // Step 1: Delete all existing assessment documents
+    console.log('🗑️ Deleting old assessment documents...');
+    const assessmentRef = collection(db, "businesses", businessId, "assessment");
+    const snapshot = await getDocs(assessmentRef);
+    
+    const deletePromises = [];
+    snapshot.forEach((docSnap) => {
+      console.log(`Deleting: ${docSnap.id}`);
+      deletePromises.push(deleteDoc(docSnap.ref));
+    });
+    
+    await Promise.all(deletePromises);
+    console.log(`✅ Deleted ${deletePromises.length} old documents`);
+    
+    // Step 2: Create fresh assessment data for January 2026
+    const currentMonth = "2026-01";
+    console.log(`📝 Creating fresh assessment data for ${currentMonth}...`);
+    
     const assessmentData = [
       {
         month: currentMonth,
@@ -36,12 +50,11 @@ async function createAssessmentData() {
         payRate: 35.00,
         totalPay: 5775.00,
         status: "behind",
-        lastUpdated: new Date(),
         attendanceStatus: "active"
       },
       {
         month: currentMonth,
-        employeeId: "2", 
+        employeeId: "2",
         employeeName: "Employee 2",
         employeeIndex: 2,
         requiredHours: 176,
@@ -50,13 +63,12 @@ async function createAssessmentData() {
         payRate: 32.00,
         totalPay: 5760.00,
         status: "on_track",
-        lastUpdated: new Date(),
         attendanceStatus: "active"
       },
       {
         month: currentMonth,
         employeeId: "3",
-        employeeName: "Employee 3", 
+        employeeName: "Employee 3",
         employeeIndex: 3,
         requiredHours: 176,
         actualHours: 120,
@@ -64,15 +76,14 @@ async function createAssessmentData() {
         payRate: 30.00,
         totalPay: 3600.00,
         status: "critical",
-        lastUpdated: new Date(),
         attendanceStatus: "active"
       }
     ];
 
-    // Create documents in the assessment subcollection - same structure as attendance_events
-    for (let i = 0; i < assessmentData.length; i++) {
-      const data = assessmentData[i];
-      const docRef = doc(db, "businesses", businessId, "assessment", `${currentMonth}-emp${data.employeeId}`);
+    // Create new documents
+    for (const data of assessmentData) {
+      const docId = `${currentMonth}-emp${data.employeeId}`;
+      const docRef = doc(db, "businesses", businessId, "assessment", docId);
       
       await setDoc(docRef, {
         ...data,
@@ -80,17 +91,18 @@ async function createAssessmentData() {
         updatedAt: new Date()
       });
       
-      console.log(`✅ Created assessment document for ${data.employeeName} (ID: ${data.employeeId})`);
+      console.log(`✅ Created: ${docId} - ${data.employeeName}`);
     }
     
-    console.log("🎉 Assessment collection created successfully!");
-    console.log(`📍 Collection path: businesses/${businessId}/assessment`);
+    console.log("🎉 Assessment collection cleaned and recreated successfully!");
+    console.log(`📍 Collection: businesses/${businessId}/assessment`);
+    console.log(`📅 Month: ${currentMonth}`);
     process.exit(0);
     
   } catch (error) {
-    console.error("❌ Error creating assessment data:", error);
+    console.error("❌ Error cleaning assessment collection:", error);
     process.exit(1);
   }
 }
 
-createAssessmentData();
+cleanAndRecreateAssessment();

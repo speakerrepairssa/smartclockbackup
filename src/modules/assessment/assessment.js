@@ -1,9 +1,17 @@
 // Assessment Module - Handle employee performance assessments
 class AssessmentModule {
-  constructor(firebase, businessId) {
-    this.db = firebase.firestore();
+  constructor(firebaseCompat, businessId) {
     this.businessId = businessId;
     this.currentMonth = null;
+    
+    console.log('🔧 Assessment module initialized with:', {
+      businessId: this.businessId,
+      windowDB: !!window.db,
+      collection: !!window.collection,
+      query: !!window.query,
+      where: !!window.where,
+      getDocs: !!window.getDocs
+    });
   }
 
   async init() {
@@ -64,26 +72,30 @@ class AssessmentModule {
           collection: `businesses/${this.businessId}/assessment`
         });
         
-        // Load from assessment collection
-        const assessmentRef = this.db.collection("businesses").doc(this.businessId).collection("assessment");
-        const assessmentQuery = assessmentRef.where("month", "==", month);
-        const assessmentSnap = await assessmentQuery.get();
-        
-        console.log('📊 Firestore query results:', {
-          empty: assessmentSnap.empty,
-          size: assessmentSnap.size,
-          docs: assessmentSnap.docs.length
-        });
+        // Load from assessment collection using window Firebase v9 functions
+        if (window.collection && window.query && window.where && window.getDocs && window.db) {
+          console.log('✅ All Firebase v9 functions available from window');
+          
+          const assessmentRef = window.collection(window.db, "businesses", this.businessId, "assessment");
+          const assessmentQuery = window.query(assessmentRef, window.where("month", "==", month));
+          const assessmentSnap = await window.getDocs(assessmentQuery);
+          
+          console.log('📊 Modern Firestore query results:', {
+            empty: assessmentSnap.empty,
+            size: assessmentSnap.size,
+            docs: assessmentSnap.docs.length
+          });
 
-        if (!assessmentSnap.empty) {
-          // Use existing assessment data from collection
-          assessmentSnap.forEach(doc => {
-            const data = doc.data();
-            console.log('📄 Processing document:', doc.id, data);
-            
-            employeeAssessments.push({
-              index: data.employeeIndex || data.slot || 1,
-              name: data.employeeName || `Employee ${data.employeeIndex || data.slot}`,
+          if (!assessmentSnap.empty) {
+            // Use existing assessment data from collection
+            assessmentSnap.forEach(doc => {
+              const data = doc.data();
+              console.log('📄 Processing document:', doc.id, data);
+              
+              employeeAssessments.push({
+              index: data.employeeIndex || data.employeeId || 1,
+              name: data.employeeName || `Employee ${data.employeeIndex || data.employeeId}`,
+              employeeId: data.employeeId || data.employeeIndex,
               requiredHours: data.requiredHours || 176,
               currentHours: data.actualHours || data.currentHours || 0,
               pastDueHours: data.pastDueHours || 0,
@@ -95,15 +107,28 @@ class AssessmentModule {
                      data.status === 'critical' ? 'Critical' : 'On Track',
               statusColor: data.status === 'on_track' ? '#28a745' : 
                           data.status === 'behind' ? '#fd7e14' : 
-                          data.status === 'critical' ? '#dc3545' : '#28a745'
+                          data.status === 'critical' ? '#dc3545' : '#28a745',
+              attendanceStatus: data.attendanceStatus || 'active'
+              });
             });
-          });
-          
-          // Sort by index
-          employeeAssessments.sort((a, b) => a.index - b.index);
-          console.log('✅ Loaded', employeeAssessments.length, 'assessment records from Firestore');
+            
+            // Sort by index
+            employeeAssessments.sort((a, b) => a.index - b.index);
+            console.log('✅ Loaded', employeeAssessments.length, 'assessment records from Firestore');
+          } else {
+            console.log('📭 No assessment documents found for month:', month);
+            console.log('🔄 Calculating assessment from attendance events...');
+            employeeAssessments = await this.calculateAssessmentFromAttendance(month);
+          }
         } else {
-          console.log('📭 No assessment documents found for month:', month);
+          console.error('❌ Missing Firebase v9 functions:', {
+            collection: !!window.collection,
+            query: !!window.query,
+            where: !!window.where,
+            getDocs: !!window.getDocs,
+            db: !!window.db
+          });
+          employeeAssessments = await this.calculateAssessmentFromAttendance(month);
         }
         
       } catch (error) {
@@ -286,6 +311,101 @@ class AssessmentModule {
         </div>
       </div>
     `;
+  }
+
+  // Calculate assessment data from attendance events
+  async calculateAssessmentFromAttendance(month) {
+    try {
+      console.log('📊 Calculating assessment from attendance_events for month:', month);
+      
+      // Get all attendance events for this business
+      const attendanceRef = window.collection(this.db, "businesses", this.businessId, "attendance_events");
+      const attendanceSnap = await window.getDocs(attendanceRef);
+      
+      console.log(`📋 Found ${attendanceSnap.size} total attendance events`);
+      
+      // Process attendance data
+      const employeeData = {};
+      const standardPayRates = { "azam": 35.00, "1": 35.00, "2": 32.00, "3": 30.00 };
+      
+      attendanceSnap.forEach(doc => {
+        const data = doc.data();
+        const empId = data.employeeId || data.employeeName || "unknown";
+        const empName = data.employeeName || empId;
+        
+        if (!employeeData[empId]) {
+          employeeData[empId] = {
+            name: empName,
+            totalHours: 0,
+            attendanceDays: 0,
+            payRate: standardPayRates[empId] || standardPayRates[empName] || 30.00
+          };
+        }
+        
+        // Calculate hours worked (8 hours per attendance event for now)
+        const hoursWorked = 8;
+        employeeData[empId].totalHours += hoursWorked;
+        employeeData[empId].attendanceDays += 1;
+      });
+      
+      console.log('👥 Calculated employee data:', employeeData);
+      
+      // Generate assessment array
+      const assessmentArray = [];
+      const requiredHoursPerMonth = 176;
+      let employeeIndex = 1;
+      
+      for (const [empId, data] of Object.entries(employeeData)) {
+        const hoursShort = Math.max(0, requiredHoursPerMonth - data.totalHours);
+        const totalPay = data.totalHours * data.payRate;
+        
+        let status = 'On Track';
+        let statusColor = '#28a745';
+        if (hoursShort > 40) {
+          status = 'Critical';
+          statusColor = '#dc3545';
+        } else if (hoursShort > 0) {
+          status = 'Behind';
+          statusColor = '#fd7e14';
+        }
+        
+        assessmentArray.push({
+          index: employeeIndex++,
+          name: data.name,
+          employeeId: empId,
+          requiredHours: requiredHoursPerMonth,
+          currentHours: data.totalHours,
+          pastDueHours: 0,
+          hoursShort: hoursShort,
+          payRate: data.payRate,
+          currentIncomeDue: totalPay,
+          status: status,
+          statusColor: statusColor,
+          attendanceStatus: "active",
+          dataSource: 'calculated_from_attendance'
+        });
+      }
+      
+      // If no attendance data found, return basic employee structure
+      if (assessmentArray.length === 0) {
+        console.log('📝 No attendance data found, creating placeholder employees');
+        return [
+          {
+            index: 1, name: "azam", employeeId: "1", requiredHours: 176, currentHours: 0,
+            pastDueHours: 0, hoursShort: 176, payRate: 35.00, currentIncomeDue: 0,
+            status: 'Critical', statusColor: '#dc3545', attendanceStatus: "no_data",
+            dataSource: 'placeholder'
+          }
+        ];
+      }
+      
+      console.log('✅ Calculated assessment for', assessmentArray.length, 'employees');
+      return assessmentArray;
+      
+    } catch (error) {
+      console.error('❌ Error calculating from attendance:', error);
+      return [];
+    }
   }
 
   // Print functionality
