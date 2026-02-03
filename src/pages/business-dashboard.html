@@ -2946,6 +2946,14 @@
         
         console.log('Dashboard initialized successfully');
         
+        // Initialize Assessment Module
+        if (window.Assessment && firebase && businessId) {
+          console.log('📊 Initializing Assessment module...');
+          window.assessmentModule = new window.Assessment(firebase, businessId);
+        } else {
+          console.warn('⚠️ Assessment module or dependencies not available');
+        }
+        
       } catch (error) {
         console.error('Error initializing dashboard:', error);
         // Show error message to user
@@ -7333,6 +7341,9 @@
   <!-- Optional SQL Device Integration Module -->
   <script src="../modules/sql-device-integration.js"></script>
   
+  <!-- Assessment Module -->
+  <script src="../modules/assessment/assessment.js"></script>
+  
   <!-- Firebase Data Connect Integration Module -->
   <script type="module" src="../modules/firebase-dataconnect-integration.js"></script>
   
@@ -7939,240 +7950,12 @@ Click "Test Connection" after starting the service.`);
       `;
     }
 
-    // ASSESSMENT MODULE FUNCTIONS - WITH FIRESTORE COLLECTION SUPPORT
-    // Import Firebase functions for the assessment module
-    const { collection, query, where, getDocs, orderBy, limit } = window.firebase.firestore;
-    async function initAssessment() {
-      try {
-        // Set default month to current month
-        const now = new Date();
-        const monthInput = document.getElementById('assessmentMonthInput');
-        const monthDisplay = document.getElementById('assessmentMonth');
-        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        
-        if (monthInput) {
-          monthInput.value = currentMonth;
-        }
-        
-        if (monthDisplay) {
-          monthDisplay.textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        }
-        
-        // Load assessment for current month
-        await loadAssessment();
-      } catch (error) {
-        console.error("Error initializing assessment:", error);
-      }
-    }
+    // ASSESSMENT MODULE - Now loaded from ../modules/assessment/assessment.js
+    // Assessment functions are available globally through the window object
+    // No need to define them here anymore
 
-    async function loadAssessment() {
-      const month = document.getElementById('assessmentMonthInput').value;
-      const display = document.getElementById('assessmentContent');
-      const monthDisplay = document.getElementById('assessmentMonth');
-
-      if (!month) {
-        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Select a month to generate assessment</div>';
-        return;
-      }
-
-      try {
-        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Generating assessment...</div>';
-
-        // Parse month
-        const [year, monthNum] = month.split('-');
-        const monthDate = new Date(year, monthNum - 1, 1);
-        const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        
-        if (monthDisplay) {
-          monthDisplay.textContent = monthName;
-        }
-
-        // Try to load from assessment collection first, fallback to dummy data
-        let employeeAssessments = [];
-        
-        try {
-          // Load from assessment collection
-          const assessmentRef = collection(db, "businesses", businessId, "assessment");
-          const assessmentQuery = query(assessmentRef, where("month", "==", month));
-          const assessmentSnap = await getDocs(assessmentQuery);
-
-          if (!assessmentSnap.empty) {
-            // Use existing assessment data from collection
-            assessmentSnap.forEach(doc => {
-              const data = doc.data();
-              employeeAssessments.push({
-                index: data.employeeIndex || data.slot || 1,
-                name: data.employeeName || `Employee ${data.employeeIndex || data.slot}`,
-                requiredHours: data.requiredHours || 176,
-                currentHours: data.actualHours || data.currentHours || 0,
-                pastDueHours: data.pastDueHours || 0,
-                hoursShort: data.hoursShort || 0,
-                payRate: data.payRate || data.hourlyRate || 30.00,
-                currentIncomeDue: data.totalPay || data.currentIncomeDue || 0,
-                status: data.status === 'on_track' ? 'On Track' : 
-                       data.status === 'behind' ? 'Behind' : 
-                       data.status === 'critical' ? 'Critical' : 'On Track',
-                statusColor: data.status === 'on_track' ? '#28a745' : 
-                            data.status === 'behind' ? '#fd7e14' : 
-                            data.status === 'critical' ? '#dc3545' : '#28a745'
-              });
-            });
-            
-            // Sort by index
-            employeeAssessments.sort((a, b) => a.index - b.index);
-            console.log('✅ Loaded assessment data from collection');
-          }
-        } catch (error) {
-          console.log('⚠️ Could not load from collection, using dummy data:', error.message);
-        }
-
-        // Fallback to dummy data if collection is empty or failed
-        if (employeeAssessments.length === 0) {
-          console.log('📋 Using dummy assessment data');
-          employeeAssessments = [
-            {
-              index: 1,
-              name: "Employee 1",
-              requiredHours: 176,
-              currentHours: 165.5,
-              pastDueHours: 0,
-              hoursShort: 10.5,
-              payRate: 30.00,
-              currentIncomeDue: 4965.00,
-              status: 'Behind',
-              statusColor: '#fd7e14'
-            },
-            {
-              index: 2,
-              name: "Employee 2",
-              requiredHours: 176,
-              currentHours: 180.0,
-              pastDueHours: 0,
-              hoursShort: 0,
-              payRate: 32.00,
-              currentIncomeDue: 5760.00,
-              status: 'On Track',
-              statusColor: '#28a745'
-            },
-            {
-              index: 3,
-              name: "Employee 3",
-              requiredHours: 176,
-              currentHours: 120.0,
-              pastDueHours: 0,
-              hoursShort: 56.0,
-              payRate: 28.00,
-              currentIncomeDue: 3360.00,
-              status: 'Critical',
-              statusColor: '#dc3545'
-            }
-          ];
-        }
-
-        // Calculate totals
-        const totalEmployees = employeeAssessments.length;
-        const totalHoursWorked = employeeAssessments.reduce((sum, emp) => sum + emp.currentHours, 0);
-        const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + emp.hoursShort, 0);
-        const totalAmountDue = employeeAssessments.reduce((sum, emp) => sum + emp.currentIncomeDue, 0);
-        const potentialPayroll = employeeAssessments.reduce((sum, emp) => sum + (emp.requiredHours * emp.payRate), 0);
-        const avgAttendance = totalEmployees > 0 ? ((totalHoursWorked / (totalEmployees * 176)) * 100).toFixed(1) : 0;
-
-        // Render assessment table
-        display.innerHTML = `
-          <!-- Assessment Table -->
-          <div class="assessment-table-container" style="background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 2rem;">
-            <table style="width: 100%; border-collapse: collapse;">
-              <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                <tr>
-                  <th style="padding: 1rem; text-align: center; font-weight: 600;">#</th>
-                  <th style="padding: 1rem; text-align: left; font-weight: 600;">Employee Name</th>
-                  <th style="padding: 1rem; text-align: center; font-weight: 600;">Required Hours</th>
-                  <th style="padding: 1rem; text-align: center; font-weight: 600;">Current Hours</th>
-                  <th style="padding: 1rem; text-align: center; font-weight: 600;">Past Due Hours</th>
-                  <th style="padding: 1rem; text-align: center; font-weight: 600;">Hours Short</th>
-                  <th style="padding: 1rem; text-align: center; font-weight: 600;">Pay Rate</th>
-                  <th style="padding: 1rem; text-align: center; font-weight: 600;">Current Income Due</th>
-                  <th style="padding: 1rem; text-align: center; font-weight: 600;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${employeeAssessments.map(emp => `
-                  <tr style="border-bottom: 1px solid #f1f3f4;">
-                    <td style="padding: 1rem; text-align: center; font-weight: 500;">${emp.index}</td>
-                    <td style="padding: 1rem; font-weight: 500; color: #333;">${emp.name}</td>
-                    <td style="padding: 1rem; text-align: center; color: #666;">${emp.requiredHours}</td>
-                    <td style="padding: 1rem; text-align: center; font-weight: 600; color: #1e88e5;">${emp.currentHours.toFixed(1)}</td>
-                    <td style="padding: 1rem; text-align: center; color: #ff9800;">${emp.pastDueHours.toFixed(1)}</td>
-                    <td style="padding: 1rem; text-align: center; color: ${emp.hoursShort > 0 ? '#f44336' : '#4caf50'};">${emp.hoursShort.toFixed(1)}</td>
-                    <td style="padding: 1rem; text-align: center; color: #333;">R${emp.payRate.toFixed(2)}</td>
-                    <td style="padding: 1rem; text-align: center; font-weight: 600; color: #4caf50;">R${emp.currentIncomeDue.toFixed(2)}</td>
-                    <td style="padding: 1rem; text-align: center;">
-                      <span style="background: ${emp.statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem; font-weight: 500;">${emp.status}</span>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Assessment Statistics Cards -->
-          <div class="assessment-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 1.5rem;">
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; grid-column: 1 / -1;">
-              <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 12px; text-align: center; position: relative; overflow: hidden;">
-                <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.3);"></div>
-                <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Total Employees</div>
-                <div style="font-size: 3rem; font-weight: 300; margin: 0;">${totalEmployees}</div>
-              </div>
-              
-              <div class="stat-card" style="background: linear-gradient(135deg, #ffa726 0%, #ff7043 100%); color: white; padding: 2rem; border-radius: 12px; text-align: center; position: relative; overflow: hidden;">
-                <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.3);"></div>
-                <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Total Hours Worked</div>
-                <div style="font-size: 3rem; font-weight: 300; margin: 0;">${totalHoursWorked.toFixed(1)}</div>
-              </div>
-              
-              <div class="stat-card" style="background: linear-gradient(135deg, #ef5350 0%, #e91e63 100%); color: white; padding: 2rem; border-radius: 12px; text-align: center; position: relative; overflow: hidden;">
-                <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.3);"></div>
-                <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Total Hours Short</div>
-                <div style="font-size: 3rem; font-weight: 300; margin: 0;">${totalHoursShort.toFixed(1)}</div>
-              </div>
-              
-              <div class="stat-card" style="background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%); color: white; padding: 2rem; border-radius: 12px; text-align: center; position: relative; overflow: hidden;">
-                <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.3);"></div>
-                <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Total Amount Due</div>
-                <div style="font-size: 3rem; font-weight: 300; margin: 0;">R${totalAmountDue.toFixed(2)}</div>
-              </div>
-              
-              <div class="stat-card" style="background: linear-gradient(135deg, #ab47bc 0%, #8e24aa 100%); color: white; padding: 2rem; border-radius: 12px; text-align: center; position: relative; overflow: hidden;">
-                <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.3);"></div>
-                <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Potential Payroll (100%)</div>
-                <div style="font-size: 3rem; font-weight: 300; margin: 0;">R${potentialPayroll.toFixed(2)}</div>
-              </div>
-              
-              <div class="stat-card" style="background: linear-gradient(135deg, #26c6da 0%, #00acc1 100%); color: white; padding: 2rem; border-radius: 12px; text-align: center; position: relative; overflow: hidden;">
-                <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: rgba(255,255,255,0.3);"></div>
-                <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Average Attendance</div>
-                <div style="font-size: 3rem; font-weight: 300; margin: 0;">${avgAttendance}%</div>
-              </div>
-            </div>
-          </div>
-        `;
-
-      } catch (error) {
-        console.error("Error loading assessment:", error);
-        display.innerHTML = `
-          <div style="text-align: center; padding: 3rem; color: #dc3545;">
-            <div style="font-size: 2rem; margin-bottom: 1rem;">⚠️</div>
-            <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">Error loading assessment</div>
-            <div style="font-size: 0.9rem; color: #666;">${error.message}</div>
-          </div>
-        `;
-      }
-    }
-
-    function printAssessment() {
-      window.print();
-    }
-
+    // Make assessment functions globally available (handled by module)
+    // window.initAssessment, window.loadAssessment, window.printAssessment are defined in the module
     // Make assessment functions globally available
     window.initAssessment = initAssessment;
     window.loadAssessment = loadAssessment;
