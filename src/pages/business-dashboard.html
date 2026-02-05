@@ -2882,12 +2882,22 @@
   <script type="module">
     import authService from '../modules/auth/auth.service.js';
     import { doc, getDoc, collection, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getDatabase, ref, get, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { db } from '../config/firebase.js';
 
+    // Initialize Realtime Database
+    const rtdb = getDatabase();
+    
     // Make db and Firebase functions globally accessible for Assessment module
     window.db = db;
+    window.rtdb = rtdb;
     window.collection = collection;
     window.query = query;
+    window.ref = ref;
+    window.get = get;
+    window.set = set;
+    window.onValue = onValue;
+    window.update = update;
     window.where = where;
     window.getDocs = getDocs;
     window.doc = doc;
@@ -2896,6 +2906,7 @@
     let businessId = null;
     let pollingInterval = null;
     let statusUnsubscribe = null;
+    let eventListenersSetup = false; // Prevent duplicate event listener setup
 
     // Placeholder functions for global access
     window.loadModuleData = async function(module) {
@@ -2991,16 +3002,220 @@
           loadingEl.style.color = '#dc3545';
         }
         
-        // Still try to setup event listeners even if other things fail
-        try {
-          setupEventListeners();
-        } catch (listenerError) {
-          console.error('Error setting up event listeners:', listenerError);
+        // Note: Event listeners already set up in normal flow
+      }
+    }
+
+    // 🚀 NEW: Get pre-calculated attendance data from Realtime Database
+    async function getRealtimeAttendanceData(businessId) {
+      try {
+        const attendanceRef = ref(rtdb, `businesses/${businessId}/attendance_realtime`);
+        const snapshot = await get(attendanceRef);
+        
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          console.log('📊 Retrieved full realtime data:', data);
+          
+          return {
+            activeCount: data.summary.total || 0,
+            presentCount: data.summary.present || 0,
+            attendanceRate: data.summary.percentage || 0,
+            employees: data.employees || {}
+          };
+        } else {
+          console.log('⚠️ No realtime attendance data found, calculating from Firestore...');
+          // Fallback to calculate and populate realtime database
+          return await calculateAndCacheAttendanceData(businessId);
         }
+      } catch (error) {
+        console.error('❌ Error getting realtime attendance data:', error);
+        // Fallback to default values
+        return {
+          activeCount: 0,
+          presentCount: 0,
+          attendanceRate: 0,
+          employees: {}
+        };
+      }
+    }
+
+    // 🔄 Calculate attendance from Firestore and cache in Realtime Database
+    async function calculateAndCacheAttendanceData(businessId) {
+      try {
+        console.log('🔄 Calculating fresh attendance data for caching...');
+        
+        // Get business plan limits
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+        const businessData = businessDoc.data();
+        
+        const planLimits = {
+          'Basic': 5,
+          'Standard': 10, 
+          'Professional': 20,
+          'Premium': 30,
+          'Enterprise': 50
+        };
+        const maxSlots = businessData.slotsAllowed || businessData.maxEmployees || planLimits[businessData.planName] || 20;
+        
+        // Count all employees (like assessment does)
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const staffSnap = await getDocs(staffRef);
+        const allEmployees = Array.from(staffSnap.docs).filter(doc => {
+          const staff = doc.data();
+          const slot = parseInt(staff.slot || doc.id);
+          // Include all employees within slot limits (matching assessment logic)
+          return slot >= 1 && slot <= maxSlots;
+        });
+        const totalCount = allEmployees.length;
+        
+        console.log(`📊 Total employees in slots 1-${maxSlots}: ${totalCount}`);
+        
+        // Count present employees (only from total employees)
+        const statusRef = collection(db, "businesses", businessId, "status");
+        const statusSnap = await getDocs(statusRef);
+        const allEmployeeIds = allEmployees.map(doc => doc.id);
+        const presentCount = Array.from(statusSnap.docs).filter(doc => {
+          const status = doc.data();
+          return allEmployeeIds.includes(doc.id) && 
+                 status.attendanceStatus === 'in' && 
+                 status.lastClockTime;
+        }).length;
+        
+        console.log(`📊 Present employees: ${presentCount} out of ${totalCount}`);
+        
+        const attendanceRate = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+        
+        // � NEW: Build full employee data for Realtime Database
+        const employeeDetails = {};
+        // No hardcoded pay rates - get from staff data
+        
+        // Collect all employee data
+        for (let doc of allEmployees) {
+          const staff = doc.data();
+          const empId = doc.id;
+          const slot = parseInt(staff.slot || doc.id);
+          
+          // Get status data
+          const statusDoc = statusSnap.docs.find(statusDoc => statusDoc.id === empId);
+          const status = statusDoc ? statusDoc.data() : {};
+          const isPresent = status.attendanceStatus === 'in' && status.lastClockTime;
+          
+          employeeDetails[empId] = {
+            id: empId,
+            name: staff.employeeName || empId,
+            slot: slot,
+            payRate: staff.payRate || staff.hourlyRate || NaN,
+            isPresent: isPresent,
+            status: status.attendanceStatus || 'out',
+            lastClockTime: status.lastClockTime || null,
+            active: staff.active || true
+          };
+        }
+        
+        // 📝 Cache EVERYTHING in Realtime Database
+        const fullAttendanceData = {
+          summary: {
+            total: totalCount,
+            present: presentCount,
+            percentage: attendanceRate,
+            last_calculated: Date.now(),
+            status: 'ready'
+          },
+          employees: employeeDetails
+        };
+        
+        const cacheRef = ref(rtdb, `businesses/${businessId}/attendance_realtime`);
+        await set(cacheRef, fullAttendanceData);
+        
+        console.log('✅ Cached full employee data:', fullAttendanceData);
+        
+        return {
+          activeCount: totalCount,
+          presentCount,
+          attendanceRate
+        };
+        
+      } catch (error) {
+        console.error('❌ Error calculating attendance data:', error);
+        return {
+          activeCount: 0,
+          presentCount: 0,
+          attendanceRate: 0
+        };
       }
     }
 
     function setupRealtimeListeners() {
+      // Setup real-time listener for status collection (triggers recalculation)
+      const statusRef = collection(db, "businesses", businessId, "status");
+      statusUnsubscribe = onSnapshot(statusRef, (snapshot) => {
+        console.log("🔄 Status update received - triggering attendance recalculation");
+        
+        // Trigger background recalculation when someone clocks in/out
+        triggerAttendanceRecalculation(businessId);
+        
+        // Update monitor if active
+        if (document.querySelector('.menu-btn[data-module="monitor"].active')) {
+          loadMonitorData();
+        }
+      }, (error) => {
+        console.error("Error listening to status:", error);
+      });
+      
+      // 🚀 NEW: Setup realtime listener for attendance data updates
+      const attendanceRealtimeRef = ref(rtdb, `businesses/${businessId}/attendance_realtime/summary`);
+      const attendanceUnsubscribe = onValue(attendanceRealtimeRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          console.log("📊 Realtime attendance update received:", data);
+          
+          // Update dashboard immediately when attendance data changes
+          if (document.querySelector('.menu-btn[data-module="monitor"].active')) {
+            document.getElementById('activeEmployees').textContent = data.total || 0;
+            document.getElementById('presentToday').textContent = data.present || 0;
+            document.getElementById('attendanceRate').textContent = (data.percentage || 0) + '%';
+          }
+        }
+      });
+      
+      // 👥 NEW: Setup realtime listener for staff collection (employee data changes)
+      const staffRef = collection(db, "businesses", businessId, "staff");
+      const staffUnsubscribe = onSnapshot(staffRef, (snapshot) => {
+        console.log("👥 Employee data change detected - refreshing Realtime Database cache");
+        
+        // Trigger background cache refresh when employee data changes
+        setTimeout(async () => {
+          await calculateAndCacheAttendanceData(businessId);
+          console.log('✅ Cache refreshed after employee data change');
+        }, 1000); // Small delay to let changes propagate
+        
+      }, (error) => {
+        console.error("Error listening to staff collection:", error);
+      });
+      
+      // Store unsubscribe functions
+      window.attendanceUnsubscribe = attendanceUnsubscribe;
+      window.staffUnsubscribe = staffUnsubscribe;
+    }
+
+    // 🚀 NEW: Trigger attendance recalculation in background when someone clocks in/out
+    async function triggerAttendanceRecalculation(businessId) {
+      try {
+        console.log('🔄 Background attendance recalculation triggered...');
+        
+        // Use setTimeout to avoid blocking the UI
+        setTimeout(async () => {
+          await calculateAndCacheAttendanceData(businessId);
+          console.log('✅ Background recalculation completed');
+        }, 500); // Small delay to let status changes propagate
+        
+      } catch (error) {
+        console.error('❌ Error in background recalculation:', error);
+      }
+    }
+    
+    function setupRealtimeListenersOLD() {
       // Setup real-time listener for status collection
       const statusRef = collection(db, "businesses", businessId, "status");
       statusUnsubscribe = onSnapshot(statusRef, (snapshot) => {
@@ -3016,7 +3231,13 @@
 
     function setupEventListeners() {
       try {
+        if (eventListenersSetup) {
+          console.log('Event listeners already set up, skipping...');
+          return;
+        }
+        
         console.log('Setting up menu button listeners...');
+        eventListenersSetup = true;
         
         // Menu buttons - only select buttons with data-module attribute
         const menuButtons = document.querySelectorAll('.menu-btn[data-module]');
@@ -3156,37 +3377,13 @@
           // Use slotsAllowed as primary source, fall back to maxEmployees or plan limits
           const maxSlots = data.slotsAllowed || data.maxEmployees || planLimits[planName] || 20;
           
-          // Load staff to count active employees (only within slot limits)
-          const staffRef = collection(db, "businesses", businessId, "staff");
-          const staffSnap = await getDocs(staffRef);
+          // ✅ NEW: Get pre-calculated attendance data from Realtime Database
+          const attendanceData = await getRealtimeAttendanceData(businessId);
           
-          // Only count employees within the allowed slot range
-          const validActiveEmployees = Array.from(staffSnap.docs).filter(doc => {
-            const staff = doc.data();
-            const slot = parseInt(staff.slot || doc.id);
-            return staff.active && slot >= 1 && slot <= maxSlots;
-          });
-          const activeCount = validActiveEmployees.length;
-          
-          // Load status to count present today (only for valid employees)
-          const statusRef = collection(db, "businesses", businessId, "status");
-          const statusSnap = await getDocs(statusRef);
-          
-          const validEmployeeIds = validActiveEmployees.map(doc => doc.id);
-          const presentCount = Array.from(statusSnap.docs).filter(doc => {
-            const status = doc.data();
-            return validEmployeeIds.includes(doc.id) && 
-                   status.attendanceStatus === 'in' && 
-                   status.lastClockTime;
-          }).length;
-          
-          document.getElementById('activeEmployees').textContent = activeCount;
-          document.getElementById('presentToday').textContent = presentCount;
+          document.getElementById('activeEmployees').textContent = attendanceData.activeCount;
+          document.getElementById('presentToday').textContent = attendanceData.presentCount;
           document.getElementById('slotsText').textContent = `Out of ${maxSlots} slots`;
-          
-          // Calculate attendance rate
-          const attendanceRate = activeCount > 0 ? Math.round((presentCount / activeCount) * 100) : 0;
-          document.getElementById('attendanceRate').textContent = attendanceRate + '%';
+          document.getElementById('attendanceRate').textContent = attendanceData.attendanceRate + '%';
         }
       } catch (error) {
         console.error("Error loading dashboard data:", error);
@@ -3674,6 +3871,11 @@
         
         console.log("Employee updated successfully");
         
+        // 🚀 NEW: Refresh Realtime Database cache after employee update
+        if (window.refreshEmployeeCache) {
+          await window.refreshEmployeeCache();
+        }
+        
         // Close modal
         closeModal();
         
@@ -3903,6 +4105,11 @@
         const staffRef = doc(db, "businesses", businessId, "staff", slotId);
         await setDoc(staffRef, employeeData);
 
+        // 🚀 NEW: Refresh Realtime Database cache after new employee
+        if (window.refreshEmployeeCache) {
+          await window.refreshEmployeeCache();
+        }
+
         closeModal();
         await loadEmployees();
         
@@ -3982,6 +4189,11 @@
             console.error('Error performing first-time punch:', webhookError);
             alert('Employee added but first-time punch failed. They may need to punch on the device first.');
           }
+        }
+
+        // 🚀 NEW: Refresh Realtime Database cache after slot employee creation
+        if (window.refreshEmployeeCache) {
+          await window.refreshEmployeeCache();
         }
 
         closeModal();
@@ -5193,7 +5405,7 @@
         const staffSnap = await getDocs(staffRef);
         
         const employeeData = {};
-        const standardPayRates = { "azam": 35.00, "1": 35.00, "2": 32.00, "3": 30.00 };
+        // No hardcoded pay rates - get from staff data
         
         // Initialize employee data from staff collection
         staffSnap.forEach(doc => {
@@ -5203,7 +5415,7 @@
             name: staff.employeeName || empId,
             totalHours: 0,
             attendanceDays: 0,
-            payRate: standardPayRates[empId] || standardPayRates[staff.employeeName] || 30.00,
+            payRate: staff.payRate || staff.hourlyRate || NaN,
             slot: staff.slot || 1
           };
         });
@@ -5216,14 +5428,50 @@
         
         console.log('📋 Found', attendanceSnap.size, 'attendance events');
         
-        // Process attendance events
+        // 🚀 FIXED: Process attendance events with real time calculation  
+        const processedDates = new Set();
+        
         attendanceSnap.forEach(doc => {
           const event = doc.data();
           const empId = event.employeeId || event.employeeName;
+          const eventDate = event.timestamp ? event.timestamp.split('T')[0] : 'unknown';
+          const uniqueKey = `${empId}-${eventDate}`;
           
-          if (employeeData[empId]) {
-            // Calculate hours (8 hours per day for now)
-            employeeData[empId].totalHours += 8;
+          if (employeeData[empId] && !processedDates.has(uniqueKey)) {
+            processedDates.add(uniqueKey);
+            
+            // Calculate real hours for this employee/date
+            const dateEvents = [];
+            attendanceSnap.forEach(subDoc => {
+              const subEvent = subDoc.data();
+              const subEmpId = subEvent.employeeId || subEvent.employeeName;
+              const subEventDate = subEvent.timestamp ? subEvent.timestamp.split('T')[0] : 'unknown';
+              
+              if (subEmpId === empId && subEventDate === eventDate) {
+                dateEvents.push({
+                  timestamp: subEvent.timestamp,
+                  status: subEvent.attendanceStatus,
+                  time: new Date(subEvent.timestamp)
+                });
+              }
+            });
+            
+            // Sort events and calculate daily hours
+            dateEvents.sort((a, b) => a.time - b.time);
+            let dailyHours = 0;
+            let clockInTime = null;
+            
+            for (const evt of dateEvents) {
+              if (evt.status === 'in' && !clockInTime) {
+                clockInTime = evt.time;
+              } else if (evt.status === 'out' && clockInTime) {
+                const hoursWorked = (evt.time - clockInTime) / (1000 * 60 * 60);
+                dailyHours += Math.max(0, hoursWorked);
+                clockInTime = null;
+              }
+            }
+            
+            employeeData[empId].totalHours += Math.round(dailyHours * 100) / 100;
             employeeData[empId].attendanceDays += 1;
           }
         });
@@ -8534,7 +8782,120 @@ Click "Test Connection" after starting the service.`);
 
     // Make assessment functions globally available
     window.initAssessment = initAssessment;
-    async function calculateAssessmentFromAttendance(month) {
+    
+    // 🚀 NEW: Calculate assessment from Realtime Database (fast!)
+    async function calculateAssessmentFromRealtimeDB(month) {
+      try {
+        console.log('🚀 Calculating assessment from Realtime Database for month:', month);
+        
+        // Get employee data from Realtime Database
+        const realtimeData = await getRealtimeAttendanceData(businessId);
+        const employees = realtimeData.employees || {};
+        
+        const employeeAssessments = [];
+        const monthPattern = month === "2026-02" ? "2026-02" : month;
+        
+        // Convert employee data to assessment format
+        for (const [empId, empData] of Object.entries(employees)) {
+          // Calculate hours from attendance events (still need to get this from Firestore for historical data)
+          let totalHours = 0;
+          let attendanceDays = 0;
+          
+          try {
+            // Get attendance events for this employee for the month
+            const attendanceRef = collection(db, "businesses", businessId, "attendance_events");
+            const attendanceSnap = await getDocs(attendanceRef);
+            
+            for (const dateDoc of attendanceSnap.docs) {
+              const dateId = dateDoc.id;
+              if (dateId.startsWith(monthPattern)) {
+                const slotsRef = collection(db, "businesses", businessId, "attendance_events", dateId, empData.slot.toString());
+                const slotsSnap = await getDocs(slotsRef);
+                
+                if (!slotsSnap.empty) {
+                  attendanceDays++;
+                  
+                  // 🚀 FIXED: Calculate real hours from clock events
+                  let dailyHours = 0;
+                  const clockEvents = [];
+                  
+                  // Collect all clock events for this day
+                  slotsSnap.forEach(eventDoc => {
+                    const eventData = eventDoc.data();
+                    clockEvents.push({
+                      timestamp: eventData.timestamp,
+                      status: eventData.attendanceStatus,
+                      time: new Date(eventData.timestamp)
+                    });
+                  });
+                  
+                  // Sort events by time
+                  clockEvents.sort((a, b) => a.time - b.time);
+                  
+                  // Calculate hours from clock-in/clock-out pairs
+                  let clockInTime = null;
+                  for (const event of clockEvents) {
+                    if (event.status === 'in' && !clockInTime) {
+                      clockInTime = event.time;
+                    } else if (event.status === 'out' && clockInTime) {
+                      const hoursWorked = (event.time - clockInTime) / (1000 * 60 * 60); // Convert to hours
+                      dailyHours += Math.max(0, hoursWorked); // Ensure positive hours
+                      clockInTime = null; // Reset for next pair
+                    }
+                  }
+                  
+                  // If still clocked in (no clock-out), calculate up to end of day or current time
+                  if (clockInTime) {
+                    const endOfDay = new Date(clockInTime);
+                    endOfDay.setHours(17, 0, 0, 0); // Assume 5 PM end of workday
+                    const currentTime = new Date();
+                    const endTime = endOfDay < currentTime ? endOfDay : currentTime;
+                    
+                    if (endTime > clockInTime) {
+                      const hoursWorked = (endTime - clockInTime) / (1000 * 60 * 60);
+                      dailyHours += Math.max(0, hoursWorked);
+                    }
+                  }
+                  
+                  totalHours += Math.round(dailyHours * 100) / 100; // Round to 2 decimal places
+                  console.log(`📊 ${empId} - Date: ${dateId}, Daily Hours: ${dailyHours.toFixed(2)}`);
+                }
+              }
+            }
+          } catch (error) {
+            console.log(`⚠️ No attendance data for employee ${empId}`);
+          }
+          
+          const currentIncomeDue = totalHours * empData.payRate;
+          
+          employeeAssessments.push({
+            index: empData.slot,
+            employeeId: empId,
+            name: empData.name,
+            requiredHours: NaN, // No hardcoded required hours
+            currentHours: totalHours,
+            pastDueHours: NaN, // Cannot calculate without required hours
+            hoursShort: NaN, // Cannot calculate without required hours
+            payRate: empData.payRate,
+            currentIncomeDue: isNaN(empData.payRate) ? NaN : currentIncomeDue,
+            status: totalHours > 0 ? 'Working' : 'No Data'
+          });
+        }
+        
+        // Sort by slot number
+        employeeAssessments.sort((a, b) => a.index - b.index);
+        
+        console.log('🚀 Assessment calculated from Realtime DB:', employeeAssessments);
+        return employeeAssessments;
+        
+      } catch (error) {
+        console.error('❌ Error calculating assessment from Realtime DB:', error);
+        // Fallback to original Firestore method
+        return await calculateAssessmentFromAttendanceOriginal(month);
+      }
+    }
+    
+    async function calculateAssessmentFromAttendanceOriginal(month) {
       try {
         console.log('📊 Calculating assessment from attendance for month:', month);
         
@@ -8543,7 +8904,7 @@ Click "Test Connection" after starting the service.`);
         const staffSnap = await getDocs(staffRef);
         
         const employeeData = {};
-        const standardPayRates = { "azam": 35.00, "1": 35.00, "2": 32.00, "3": 30.00 };
+        // No hardcoded pay rates - get from staff data
         
         // Initialize employee data from staff collection
         staffSnap.forEach(doc => {
@@ -8553,7 +8914,7 @@ Click "Test Connection" after starting the service.`);
             name: staff.employeeName || empId,
             totalHours: 0,
             attendanceDays: 0,
-            payRate: standardPayRates[empId] || standardPayRates[staff.employeeName] || 30.00,
+            payRate: staff.payRate || staff.hourlyRate || NaN,
             slot: staff.slot || 1
           };
         });
@@ -8696,6 +9057,66 @@ Click "Test Connection" after starting the service.`);
     window.initAssessment = initAssessment;
     window.loadAssessment = loadAssessment;
     window.printAssessment = printAssessment;
+    
+    // 🚀 NEW: Make attendance functions globally available
+    window.getRealtimeAttendanceData = getRealtimeAttendanceData;
+    window.calculateAndCacheAttendanceData = calculateAndCacheAttendanceData;
+    window.triggerAttendanceRecalculation = triggerAttendanceRecalculation;
+    
+    // 🔧 DEBUG: Manual attendance refresh function
+    window.refreshAttendanceNow = async function() {
+      console.log('🔄 Manual attendance refresh triggered...');
+      const result = await calculateAndCacheAttendanceData(businessId);
+      console.log('✅ Manual refresh completed:', result);
+      return result;
+    };
+    
+    // 🚀 NEW: Function to refresh cache when employee data changes
+    window.refreshEmployeeCache = async function() {
+      console.log('👥 Employee data changed - refreshing Realtime Database cache...');
+      const result = await calculateAndCacheAttendanceData(businessId);
+      console.log('✅ Employee cache refresh completed:', result);
+      return result;
+    };
+    
+    // 🚀 NEW: Make Realtime DB assessment function the default
+    window.calculateAssessmentFromAttendance = calculateAssessmentFromRealtimeDB;
+    window.calculateAssessmentFromRealtimeDB = calculateAssessmentFromRealtimeDB;
+    window.calculateAssessmentFromAttendanceOriginal = calculateAssessmentFromAttendanceOriginal;
+    
+    // 🚀 CRITICAL: Override loadAssessment to force Realtime Database usage
+    const originalLoadAssessment = window.loadAssessment;
+    window.loadAssessment = async function() {
+      try {
+        const month = document.getElementById('assessmentMonthInput').value;
+        const display = document.getElementById('assessmentContent');
+        const monthDisplay = document.getElementById('assessmentMonth');
+
+        if (!month) {
+          display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Select a month to generate assessment</div>';
+          return;
+        }
+
+        console.log('🚀 FORCED: Loading assessment from Realtime Database for month:', month);
+        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Generating assessment from Realtime Database...</div>';
+
+        const [year, monthNum] = month.split('-');
+        const monthDate = new Date(year, monthNum - 1, 1);
+        const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        
+        if (monthDisplay) {
+          monthDisplay.textContent = monthName;
+        }
+
+        // Always use Realtime Database
+        const employeeAssessments = await calculateAssessmentFromRealtimeDB(month);
+        renderAssessmentTable(employeeAssessments, display);
+        
+      } catch (error) {
+        console.error('❌ Error in forced loadAssessment:', error);
+        document.getElementById('assessmentContent').innerHTML = `<div style="color: red; padding: 2rem;">Error: ${error.message}</div>`;
+      }
+    };
 
   </script>
 </body>

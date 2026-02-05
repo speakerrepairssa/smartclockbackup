@@ -96,11 +96,11 @@ class AssessmentModule {
               index: data.employeeIndex || data.employeeId || 1,
               name: data.employeeName || `Employee ${data.employeeIndex || data.employeeId}`,
               employeeId: data.employeeId || data.employeeIndex,
-              requiredHours: data.requiredHours || 176,
+              requiredHours: data.requiredHours || NaN,
               currentHours: data.actualHours || data.currentHours || 0,
               pastDueHours: data.pastDueHours || 0,
               hoursShort: data.hoursShort || 0,
-              payRate: data.payRate || data.hourlyRate || 30.00,
+              payRate: data.payRate || data.hourlyRate || NaN,
               currentIncomeDue: data.totalPay || data.currentIncomeDue || 0,
               status: data.status === 'on_track' ? 'On Track' : 
                      data.status === 'behind' ? 'Behind' : 
@@ -141,39 +141,39 @@ class AssessmentModule {
         employeeAssessments = [
           {
             index: 1,
-            name: "Employee 1",
-            requiredHours: 176,
-            currentHours: 165.5,
-            pastDueHours: 0,
-            hoursShort: 10.5,
-            payRate: 30.00,
-            currentIncomeDue: 4965.00,
-            status: 'Behind',
-            statusColor: '#fd7e14'
+            name: "No Data",
+            requiredHours: NaN,
+            currentHours: NaN,
+            pastDueHours: NaN,
+            hoursShort: NaN,
+            payRate: NaN,
+            currentIncomeDue: NaN,
+            status: 'No Data',
+            statusColor: '#999'
           },
           {
             index: 2,
-            name: "Employee 2",
-            requiredHours: 176,
-            currentHours: 180.0,
-            pastDueHours: 0,
-            hoursShort: 0,
-            payRate: 32.00,
-            currentIncomeDue: 5760.00,
-            status: 'On Track',
-            statusColor: '#28a745'
+            name: "No Data",
+            requiredHours: NaN,
+            currentHours: NaN,
+            pastDueHours: NaN,
+            hoursShort: NaN,
+            payRate: NaN,
+            currentIncomeDue: NaN,
+            status: 'No Data',
+            statusColor: '#999'
           },
           {
             index: 3,
-            name: "Employee 3",
-            requiredHours: 176,
-            currentHours: 120.0,
-            pastDueHours: 0,
-            hoursShort: 56.0,
-            payRate: 30.00,
-            currentIncomeDue: 3360.00,
-            status: 'Critical',
-            statusColor: '#dc3545'
+            name: "No Data",
+            requiredHours: NaN,
+            currentHours: NaN,
+            pastDueHours: NaN,
+            hoursShort: NaN,
+            payRate: NaN,
+            currentIncomeDue: NaN,
+            status: 'No Data',
+            statusColor: '#999'
           }
         ];
       }
@@ -302,7 +302,7 @@ class AssessmentModule {
           <div class="summary-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 1.5rem; border-radius: 12px;">
             <div style="display: flex; align-items: center; justify-content: space-between;">
               <div>
-                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${((totalHours / (totalEmployees * 176)) * 100).toFixed(1)}%</h3>
+                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalEmployees === 0 ? 'NaN' : ((totalHours / (totalEmployees * 176)) * 100).toFixed(1)}%</h3>
                 <p style="margin: 0; opacity: 0.9;">Average Attendance</p>
               </div>
               <div style="font-size: 3rem; opacity: 0.3;">📈</div>
@@ -326,7 +326,7 @@ class AssessmentModule {
       
       // Process attendance data
       const employeeData = {};
-      const standardPayRates = { "azam": 35.00, "1": 35.00, "2": 32.00, "3": 30.00 };
+      // No hardcoded pay rates - will use NaN if missing
       
       attendanceSnap.forEach(doc => {
         const data = doc.data();
@@ -338,7 +338,7 @@ class AssessmentModule {
             name: empName,
             totalHours: 0,
             attendanceDays: 0,
-            payRate: standardPayRates[empId] || standardPayRates[empName] || 30.00
+            payRate: data.payRate || NaN
           };
         }
         
@@ -352,21 +352,26 @@ class AssessmentModule {
       
       // Generate assessment array
       const assessmentArray = [];
-      const requiredHoursPerMonth = 176;
+      const requiredHoursPerMonth = NaN; // No longer hardcoded
       let employeeIndex = 1;
       
       for (const [empId, data] of Object.entries(employeeData)) {
-        const hoursShort = Math.max(0, requiredHoursPerMonth - data.totalHours);
-        const totalPay = data.totalHours * data.payRate;
+        const hoursShort = isNaN(requiredHoursPerMonth) ? NaN : Math.max(0, requiredHoursPerMonth - data.totalHours);
+        const totalPay = isNaN(data.payRate) ? NaN : (data.totalHours * data.payRate);
         
-        let status = 'On Track';
-        let statusColor = '#28a745';
-        if (hoursShort > 40) {
-          status = 'Critical';
-          statusColor = '#dc3545';
-        } else if (hoursShort > 0) {
-          status = 'Behind';
-          statusColor = '#fd7e14';
+        let status = 'No Data';
+        let statusColor = '#999';
+        
+        if (!isNaN(hoursShort)) {
+          status = 'On Track';
+          statusColor = '#28a745';
+          if (hoursShort > 40) {
+            status = 'Critical';
+            statusColor = '#dc3545';
+          } else if (hoursShort > 0) {
+            status = 'Behind';
+            statusColor = '#fd7e14';
+          }
         }
         
         assessmentArray.push({
@@ -388,12 +393,12 @@ class AssessmentModule {
       
       // If no attendance data found, return basic employee structure
       if (assessmentArray.length === 0) {
-        console.log('📝 No attendance data found, creating placeholder employees');
+        console.log('📝 No attendance data found, creating NaN placeholder');
         return [
           {
-            index: 1, name: "azam", employeeId: "1", requiredHours: 176, currentHours: 0,
-            pastDueHours: 0, hoursShort: 176, payRate: 35.00, currentIncomeDue: 0,
-            status: 'Critical', statusColor: '#dc3545', attendanceStatus: "no_data",
+            index: 1, name: "No Data", employeeId: "unknown", requiredHours: NaN, currentHours: NaN,
+            pastDueHours: NaN, hoursShort: NaN, payRate: NaN, currentIncomeDue: NaN,
+            status: 'No Data', statusColor: '#999', attendanceStatus: "no_data",
             dataSource: 'placeholder'
           }
         ];
