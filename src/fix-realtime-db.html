@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Realtime Database</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBssR7qaFYd1Bcm7urHQrKfLPVvdoZJ1kw",
+      authDomain: "aiclock-82608.firebaseapp.com",
+      databaseURL: "https://aiclock-82608-default-rtdb.firebaseio.com",
+      projectId: "aiclock-82608",
+      storageBucket: "aiclock-82608.appspot.com",
+      messagingSenderId: "847148296718",
+      appId: "1:847148296718:web:a8bf69cb527ee7c7e1ea5f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const rtdb = getDatabase(app);
+
+    async function fixRealtimeDatabase() {
+      const businessId = "biz_machine_2"; // Update if different
+      
+      console.log('🔧 Fixing Realtime Database for:', businessId);
+      document.getElementById('status').textContent = 'Fixing...';
+
+      try {
+        // Get business data
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+        const businessData = businessDoc.data();
+        
+        const maxSlots = businessData.slotsAllowed || businessData.maxEmployees || 20;
+        
+        // Get all staff
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const staffSnap = await getDocs(staffRef);
+        
+        const allEmployees = Array.from(staffSnap.docs).filter(doc => {
+          const staff = doc.data();
+          const slot = parseInt(staff.slot || doc.id);
+          return slot >= 1 && slot <= maxSlots;
+        });
+        
+        console.log(`📊 Found ${allEmployees.length} employees`);
+        
+        // Get status data
+        const statusRef = collection(db, "businesses", businessId, "status");
+        const statusSnap = await getDocs(statusRef);
+        
+        const allEmployeeIds = allEmployees.map(doc => doc.id);
+        const presentCount = Array.from(statusSnap.docs).filter(doc => {
+          const status = doc.data();
+          return allEmployeeIds.includes(doc.id) && 
+                 status.attendanceStatus === 'in' && 
+                 status.lastClockTime;
+        }).length;
+        
+        const attendanceRate = allEmployees.length > 0 ? 
+          Math.round((presentCount / allEmployees.length) * 100) : 0;
+        
+        // Build correct employee data
+        const employeeDetails = {};
+        
+        for (let empDoc of allEmployees) {
+          const staff = empDoc.data();
+          const empId = empDoc.id;
+          const slot = parseInt(staff.slot || empDoc.id);
+          
+          // Get status
+          const statusDoc = statusSnap.docs.find(statusDoc => statusDoc.id === empId);
+          const status = statusDoc ? statusDoc.data() : {};
+          const isPresent = status.attendanceStatus === 'in' && status.lastClockTime;
+          
+          employeeDetails[empId] = {
+            id: empId,
+            name: staff.employeeName || empId,
+            slot: slot,
+            payRate: parseFloat(staff.payRate || staff.hourlyRate) || 0, // Ensure number
+            isPresent: Boolean(isPresent), // ✅ FIX: Ensure boolean
+            status: status.attendanceStatus || 'out',
+            lastClockTime: status.lastClockTime || null,
+            active: Boolean(staff.active !== false) // Default true
+          };
+          
+          console.log(`✅ ${empId}:`, employeeDetails[empId]);
+        }
+        
+        // Write to Realtime Database
+        const fullAttendanceData = {
+          summary: {
+            total: allEmployees.length,
+            present: presentCount,
+            percentage: attendanceRate,
+            last_calculated: Date.now(),
+            status: 'ready'
+          },
+          employees: employeeDetails
+        };
+        
+        const cacheRef = ref(rtdb, `businesses/${businessId}/attendance_realtime`);
+        await set(cacheRef, fullAttendanceData);
+        
+        console.log('✅ Realtime Database fixed!');
+        document.getElementById('status').textContent = 'Fixed! Check console for details.';
+        document.getElementById('status').style.color = 'green';
+        document.getElementById('result').innerHTML = `
+          <h3>Success!</h3>
+          <p>Total Employees: ${allEmployees.length}</p>
+          <p>Present: ${presentCount}</p>
+          <p>Attendance Rate: ${attendanceRate}%</p>
+          <pre>${JSON.stringify(fullAttendanceData, null, 2)}</pre>
+        `;
+        
+      } catch (error) {
+        console.error('❌ Error:', error);
+        document.getElementById('status').textContent = 'Error: ' + error.message;
+        document.getElementById('status').style.color = 'red';
+      }
+    }
+
+    window.addEventListener('load', () => {
+      document.getElementById('fixBtn').addEventListener('click', fixRealtimeDatabase);
+    });
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    #status {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f0f0f0;
+      border-radius: 8px;
+      font-size: 18px;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    pre {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 Fix Realtime Database</h1>
+  <p>This will rebuild the Realtime Database cache with correct data types.</p>
+  
+  <button id="fixBtn">Fix Realtime Database Now</button>
+  
+  <div id="status">Ready to fix...</div>
+  <div id="result"></div>
+</body>
+</html>

@@ -1768,3 +1768,100 @@ I0203 23:02:45.032681   85290 installsdk.go:138] generate.javascriptSdk.packageJ
  {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0203 23:02:45.038779   85290 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50003\n"}}
 [debug] [2026-02-03T21:02:45.280Z] I0203 23:02:45.280525   85290 engine.go:205] [/emulator/device-events 8860] ExecuteGraphqlRead IntrospectionQuery: succeeded. 
  {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0203 23:02:45.280525   85290 engine.go:205] [/emulator/device-events 8860] ExecuteGraphqlRead IntrospectionQuery: succeeded. \n"}}
+[debug] [2026-02-05T16:27:36.007Z] [Firebase Plugin] Activating Firebase extension.
+[info] [Firebase Plugin] Checked firebase-tools, is up to date!
+[debug] [2026-02-05T16:27:45.881Z] [Firebase Plugin] requireAuthWrapper
+[debug] [2026-02-05T16:27:45.883Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-05T16:27:45.883Z] > authorizing via signed-in user (info@simplewebhost.co.za)
+[debug] [2026-02-05T16:27:45.887Z] Checked if tokens are valid: true, expires at: 1770311226358
+[debug] [2026-02-05T16:27:45.887Z] Checked if tokens are valid: true, expires at: 1770311226358
+[debug] [2026-02-05T16:27:45.887Z] [Firebase Plugin] User found:  info@simplewebhost.co.za
+[info] [Firebase Plugin] (Core:Project) New user detected, fetching projects
+[debug] [2026-02-05T16:27:45.888Z] Checked if tokens are valid: true, expires at: 1770311226358
+[debug] [2026-02-05T16:27:45.890Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-02-05T16:27:45.898Z] [Firebase Plugin] VSCode notification server listening on port 40001
+[debug] [2026-02-05T16:27:46.164Z] Object "/dataconnect" in "firebase.json" has unknown property: {"additionalProperty":"serviceId"}
+[debug] [2026-02-05T16:27:46.165Z] Field "/dataconnect" in "firebase.json" is possibly invalid: must be array
+[debug] [2026-02-05T16:27:46.165Z] Field "/dataconnect" in "firebase.json" is possibly invalid: must match a schema in anyOf
+[info] [Firebase Plugin] Starting Data Connect toolkit (version 3.1.1) on port 50001
+[debug] [2026-02-05T16:27:46.537Z] I0205 18:27:46.518415   53898 control.go:100] [/emulator/device-events 5b8e] UpdateResources(): done
+Main schema: sources: schema/schema.gql [289B] 
+Connector "device-connector": sources: device-connector/queries.gql [742B] 
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0205 18:27:46.518415   53898 control.go:100] [/emulator/device-events 5b8e] UpdateResources(): done\nMain schema: sources: schema/schema.gql [289B] \nConnector \"device-connector\": sources: device-connector/queries.gql [742B] \n"}}
+[debug] [2026-02-05T16:27:46.538Z] Ignoring unsupported arg: auto_download {"metadata":{"emulator":{"name":"dataconnect"},"message":"Ignoring unsupported arg: auto_download"}}
+[debug] [2026-02-05T16:27:46.538Z] Ignoring unsupported arg: port {"metadata":{"emulator":{"name":"dataconnect"},"message":"Ignoring unsupported arg: port"}}
+[debug] [2026-02-05T16:27:46.539Z] Starting Data Connect Emulator with command {"binary":"/Users/mobalife/.cache/firebase/emulators/dataconnect-emulator-3.1.1","args":["--logtostderr","-v=2","dev","--listen=localhost:50001","--config_dir=/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect","--enable_output_schema_extensions=true","--enable_output_generated_sdk=true"],"optionalArgs":["listen","config_dir","enable_output_schema_extensions","enable_output_generated_sdk"],"joinArgs":true,"shell":false,"port":9399} {"metadata":{"emulator":{"name":"dataconnect"},"message":"Starting Data Connect Emulator with command {\"binary\":\"/Users/mobalife/.cache/firebase/emulators/dataconnect-emulator-3.1.1\",\"args\":[\"--logtostderr\",\"-v=2\",\"dev\",\"--listen=localhost:50001\",\"--config_dir=/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect\",\"--enable_output_schema_extensions=true\",\"--enable_output_generated_sdk=true\"],\"optionalArgs\":[\"listen\",\"config_dir\",\"enable_output_schema_extensions\",\"enable_output_generated_sdk\"],\"joinArgs\":true,\"shell\":false,\"port\":9399}"}}
+[info] i  dataconnect: Data Connect Emulator logging to dataconnect-debug.log {"metadata":{"emulator":{"name":"dataconnect"},"message":"Data Connect Emulator logging to dataconnect-debug.log"}}
+[debug] [2026-02-05T16:27:46.577Z] I0205 18:27:46.566129   53899 load.go:31] Reloading schema and connectors...
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0205 18:27:46.566129   53899 load.go:31] Reloading schema and connectors...\n"}}
+[debug] [2026-02-05T16:27:46.618Z] I0205 18:27:46.618189   53899 control.go:100] [/emulator/device-events b9f7] UpdateResources(): done
+Main schema: sources: schema/schema.gql [289B] 
+Connector "device-connector": sources: device-connector/queries.gql [742B] 
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0205 18:27:46.618189   53899 control.go:100] [/emulator/device-events b9f7] UpdateResources(): done\nMain schema: sources: schema/schema.gql [289B] \nConnector \"device-connector\": sources: device-connector/queries.gql [742B] \n"}}
+[debug] [2026-02-05T16:27:46.654Z] I0205 18:27:46.654538   53899 codegen.go:80] [connector "device-connector" javascriptSdk] Generating sources into "/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/generated"
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0205 18:27:46.654538   53899 codegen.go:80] [connector \"device-connector\" javascriptSdk] Generating sources into \"/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/generated\"\n"}}
+[debug] [2026-02-05T16:27:46.667Z] I0205 18:27:46.665509   53899 collector.go:107] schema extensions wrote into "/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/.dataconnect/schema"
+Generated sources: main/query.gql [1329B] main/mutation.gql [3590B] main/input.gql [13032B] prelude.gql [73281B] main/relation.gql [5919B] 
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0205 18:27:46.665509   53899 collector.go:107] schema extensions wrote into \"/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/.dataconnect/schema\"\nGenerated sources: main/query.gql [1329B] main/mutation.gql [3590B] main/input.gql [13032B] prelude.gql [73281B] main/relation.gql [5919B] \n"}}
+[debug] [2026-02-05T16:27:46.670Z] I0205 18:27:46.669926   53899 collector.go:107] connector "device-connector" javascriptSdk wrote into "/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/generated"
+Generated sources: package.json [646B] .guides/setup.md [584B] .guides/config.json [236B] esm/index.esm.js [1079B] esm/package.json [17B] README.md [15178B] .guides/usage.md [815B] index.d.ts [2641B] index.cjs.js [1249B] 
+I0205 18:27:46.669948   53899 installsdk.go:138] generate.javascriptSdk.packageJsonDir is not specified, skipping automatic installation of package
+I0205 18:27:46.669971   53899 load.go:109] Finished reloading
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0205 18:27:46.669926   53899 collector.go:107] connector \"device-connector\" javascriptSdk wrote into \"/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/generated\"\nGenerated sources: package.json [646B] .guides/setup.md [584B] .guides/config.json [236B] esm/index.esm.js [1079B] esm/package.json [17B] README.md [15178B] .guides/usage.md [815B] index.d.ts [2641B] index.cjs.js [1249B] \nI0205 18:27:46.669948   53899 installsdk.go:138] generate.javascriptSdk.packageJsonDir is not specified, skipping automatic installation of package\nI0205 18:27:46.669971   53899 load.go:109] Finished reloading\n"}}
+[debug] [2026-02-05T16:27:46.676Z] I0205 18:27:46.675874   53899 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50001
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0205 18:27:46.675874   53899 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50001\n"}}
+[debug] [2026-02-05T16:27:47.272Z] I0205 18:27:47.272436   53899 engine.go:205] [/emulator/device-events b9f7] ExecuteGraphqlRead IntrospectionQuery: succeeded. 
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0205 18:27:47.272436   53899 engine.go:205] [/emulator/device-events b9f7] ExecuteGraphqlRead IntrospectionQuery: succeeded. \n"}}
+[debug] [2026-02-05T16:27:47.917Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-02-05T16:27:47.917Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] [Firebase Plugin] Stopping Data Connect toolkit
+[warn] ⚠  Data Connect Emulator has exited upon receiving signal: SIGINT 
+[debug] [2026-02-06T07:06:57.131Z] [Firebase Plugin] Activating Firebase extension.
+[info] [Firebase Plugin] Checked firebase-tools, is up to date!
+[debug] [2026-02-06T07:07:02.680Z] [Firebase Plugin] requireAuthWrapper
+[debug] [2026-02-06T07:07:02.681Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-06T07:07:02.682Z] > authorizing via signed-in user (info@simplewebhost.co.za)
+[debug] [2026-02-06T07:07:02.685Z] Checked if tokens are valid: false, expires at: 1770328945751
+[debug] [2026-02-06T07:07:02.686Z] Checked if tokens are valid: false, expires at: 1770328945751
+[debug] [2026-02-06T07:07:02.686Z] > refreshing access token with scopes: []
+[debug] [2026-02-06T07:07:02.688Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-02-06T07:07:02.689Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-06T07:07:02.699Z] [Firebase Plugin] VSCode notification server listening on port 40001
+[debug] [2026-02-06T07:07:03.530Z] Object "/dataconnect" in "firebase.json" has unknown property: {"additionalProperty":"serviceId"}
+[debug] [2026-02-06T07:07:03.530Z] Field "/dataconnect" in "firebase.json" is possibly invalid: must be array
+[debug] [2026-02-06T07:07:03.530Z] Field "/dataconnect" in "firebase.json" is possibly invalid: must match a schema in anyOf
+[info] [Firebase Plugin] Starting Data Connect toolkit (version 3.1.1) on port 50001
+[debug] [2026-02-06T07:07:03.872Z] I0206 09:07:03.850930   65272 control.go:100] [/emulator/device-events 35e9] UpdateResources(): done
+Main schema: sources: schema/schema.gql [289B] 
+Connector "device-connector": sources: device-connector/queries.gql [742B] 
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0206 09:07:03.850930   65272 control.go:100] [/emulator/device-events 35e9] UpdateResources(): done\nMain schema: sources: schema/schema.gql [289B] \nConnector \"device-connector\": sources: device-connector/queries.gql [742B] \n"}}
+[debug] [2026-02-06T07:07:03.873Z] Ignoring unsupported arg: auto_download {"metadata":{"emulator":{"name":"dataconnect"},"message":"Ignoring unsupported arg: auto_download"}}
+[debug] [2026-02-06T07:07:03.873Z] Ignoring unsupported arg: port {"metadata":{"emulator":{"name":"dataconnect"},"message":"Ignoring unsupported arg: port"}}
+[debug] [2026-02-06T07:07:03.873Z] Starting Data Connect Emulator with command {"binary":"/Users/mobalife/.cache/firebase/emulators/dataconnect-emulator-3.1.1","args":["--logtostderr","-v=2","dev","--listen=localhost:50001","--config_dir=/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect","--enable_output_schema_extensions=true","--enable_output_generated_sdk=true"],"optionalArgs":["listen","config_dir","enable_output_schema_extensions","enable_output_generated_sdk"],"joinArgs":true,"shell":false,"port":9399} {"metadata":{"emulator":{"name":"dataconnect"},"message":"Starting Data Connect Emulator with command {\"binary\":\"/Users/mobalife/.cache/firebase/emulators/dataconnect-emulator-3.1.1\",\"args\":[\"--logtostderr\",\"-v=2\",\"dev\",\"--listen=localhost:50001\",\"--config_dir=/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect\",\"--enable_output_schema_extensions=true\",\"--enable_output_generated_sdk=true\"],\"optionalArgs\":[\"listen\",\"config_dir\",\"enable_output_schema_extensions\",\"enable_output_generated_sdk\"],\"joinArgs\":true,\"shell\":false,\"port\":9399}"}}
+[info] i  dataconnect: Data Connect Emulator logging to dataconnect-debug.log {"metadata":{"emulator":{"name":"dataconnect"},"message":"Data Connect Emulator logging to dataconnect-debug.log"}}
+[debug] [2026-02-06T07:07:04.053Z] I0206 09:07:04.003429   65273 load.go:31] Reloading schema and connectors...
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0206 09:07:04.003429   65273 load.go:31] Reloading schema and connectors...\n"}}
+[debug] [2026-02-06T07:07:04.076Z] I0206 09:07:04.063918   65273 control.go:100] [/emulator/device-events 96e5] UpdateResources(): done
+Main schema: sources: schema/schema.gql [289B] 
+Connector "device-connector": sources: device-connector/queries.gql [742B] 
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0206 09:07:04.063918   65273 control.go:100] [/emulator/device-events 96e5] UpdateResources(): done\nMain schema: sources: schema/schema.gql [289B] \nConnector \"device-connector\": sources: device-connector/queries.gql [742B] \n"}}
+[debug] [2026-02-06T07:07:04.117Z] I0206 09:07:04.100882   65273 codegen.go:80] [connector "device-connector" javascriptSdk] Generating sources into "/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/generated"
+I0206 09:07:04.111514   65273 collector.go:107] schema extensions wrote into "/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/.dataconnect/schema"
+Generated sources: prelude.gql [73281B] main/input.gql [13032B] main/relation.gql [5919B] main/query.gql [1329B] main/mutation.gql [3590B] 
+I0206 09:07:04.115776   65273 collector.go:107] connector "device-connector" javascriptSdk wrote into "/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/generated"
+Generated sources: README.md [15178B] .guides/setup.md [584B] .guides/config.json [236B] index.d.ts [2641B] esm/index.esm.js [1079B] index.cjs.js [1249B] .guides/usage.md [815B] esm/package.json [17B] package.json [646B] 
+I0206 09:07:04.115799   65273 installsdk.go:138] generate.javascriptSdk.packageJsonDir is not specified, skipping automatic installation of package
+I0206 09:07:04.115819   65273 load.go:109] Finished reloading
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0206 09:07:04.100882   65273 codegen.go:80] [connector \"device-connector\" javascriptSdk] Generating sources into \"/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/generated\"\nI0206 09:07:04.111514   65273 collector.go:107] schema extensions wrote into \"/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/.dataconnect/schema\"\nGenerated sources: prelude.gql [73281B] main/input.gql [13032B] main/relation.gql [5919B] main/query.gql [1329B] main/mutation.gql [3590B] \nI0206 09:07:04.115776   65273 collector.go:107] connector \"device-connector\" javascriptSdk wrote into \"/Users/mobalife/Documents/Dropbox/projects development/aiclock/dataconnect/generated\"\nGenerated sources: README.md [15178B] .guides/setup.md [584B] .guides/config.json [236B] index.d.ts [2641B] esm/index.esm.js [1079B] index.cjs.js [1249B] .guides/usage.md [815B] esm/package.json [17B] package.json [646B] \nI0206 09:07:04.115799   65273 installsdk.go:138] generate.javascriptSdk.packageJsonDir is not specified, skipping automatic installation of package\nI0206 09:07:04.115819   65273 load.go:109] Finished reloading\n"}}
+[debug] [2026-02-06T07:07:04.129Z] I0206 09:07:04.121971   65273 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50001
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0206 09:07:04.121971   65273 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:50001\n"}}
+[debug] [2026-02-06T07:07:04.550Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-02-06T07:07:04.551Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-06T07:07:04.579Z] [Firebase Plugin] User found:  info@simplewebhost.co.za
+[info] [Firebase Plugin] (Core:Project) New user detected, fetching projects
+[debug] [2026-02-06T07:07:04.580Z] Checked if tokens are valid: true, expires at: 1770365223551
+[debug] [2026-02-06T07:07:04.581Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=1000
+[debug] [2026-02-06T07:07:06.117Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-02-06T07:07:06.117Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[debug] [2026-02-06T07:07:09.638Z] I0206 09:07:09.637889   65273 engine.go:205] [/emulator/device-events 96e5] ExecuteGraphqlRead IntrospectionQuery: succeeded. 
+ {"metadata":{"emulator":{"name":"dataconnect"},"message":"I0206 09:07:09.637889   65273 engine.go:205] [/emulator/device-events 96e5] ExecuteGraphqlRead IntrospectionQuery: succeeded. \n"}}
