@@ -2137,8 +2137,8 @@
             <label for="assessmentMonthInput" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Assessment Month:</label>
             <input type="month" id="assessmentMonthInput" onchange="loadAssessment()" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;">
           </div>
-          <button class="btn-trigger-calculation" onclick="triggerAssessmentCalculation()" style="background: #ff6b6b; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.2s;">
-            🚀 Recalculate Now
+          <button class="btn-refresh-cache" onclick="refreshRealtimeCache()" style="background: #ff6b6b; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.2s;">
+            🔧 Fix Cache
           </button>
           <button class="btn-refresh-assessment" onclick="loadAssessment()" style="background: #667eea; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: all 0.2s;">
             🔄 Refresh Assessment
@@ -3041,6 +3041,9 @@
         };
       }
     }
+    
+    // Make function globally available
+    window.getRealtimeAttendanceData = getRealtimeAttendanceData;
 
     // 🔄 Calculate attendance from Firestore and cache in Realtime Database
     async function calculateAndCacheAttendanceData(businessId) {
@@ -3151,6 +3154,9 @@
         };
       }
     }
+    
+    // Make function globally available
+    window.calculateAndCacheAttendanceData = calculateAndCacheAttendanceData;
 
     // 🔧 Manual cache refresh function (for Assessment module)
     async function refreshRealtimeCache() {
@@ -3203,6 +3209,9 @@
         }
       }
     }
+    
+    // Make refreshRealtimeCache available globally for onclick handlers
+    window.refreshRealtimeCache = refreshRealtimeCache;
 
     function setupRealtimeListeners() {
       // Setup real-time listener for status collection (triggers recalculation)
@@ -3265,11 +3274,177 @@
         // Use setTimeout to avoid blocking the UI
         setTimeout(async () => {
           await calculateAndCacheAttendanceData(businessId);
+          
+          // Also recalculate assessment for current month
+          const now = new Date();
+          const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          await calculateAndCacheMonthlyAssessment(businessId, currentMonth);
+          
           console.log('✅ Background recalculation completed');
         }, 500); // Small delay to let status changes propagate
         
       } catch (error) {
         console.error('❌ Error in background recalculation:', error);
+      }
+    }
+    
+    // Make function globally available
+    window.triggerAttendanceRecalculation = triggerAttendanceRecalculation;
+    
+    // 📊 NEW: Calculate and cache monthly assessment in Realtime DB
+    async function calculateAndCacheMonthlyAssessment(businessId, month) {
+      try {
+        console.log('📊 Calculating monthly assessment for cache:', month);
+        
+        // Get employee data from Realtime Database
+        const attendanceRealtimeRef = ref(rtdb, `businesses/${businessId}/attendance_realtime`);
+        const snapshot = await get(attendanceRealtimeRef);
+        
+        if (!snapshot.exists()) {
+          console.log('⚠️ No employee data in Realtime DB');
+          return;
+        }
+        
+        const realtimeData = snapshot.val();
+        const employees = realtimeData.employees || {};
+        
+        const [year, monthNum] = month.split('-');
+        const daysInMonth = new Date(year, monthNum, 0).getDate();
+        
+        const employeeAssessments = {};
+        
+        // Process each employee
+        for (const [empId, empData] of Object.entries(employees)) {
+          let totalHours = 0;
+          let attendanceDays = 0;
+          
+          // Query attendance for each day of the month
+          for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            try {
+              const slotEventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, empData.slot.toString());
+              const eventsSnap = await getDocs(slotEventsRef);
+              
+              if (eventsSnap.empty) continue;
+              
+              const events = [];
+              eventsSnap.forEach(eventDoc => {
+                const eventData = eventDoc.data();
+                if (eventData && eventData.timestamp && !eventData.testMode) {
+                  events.push({
+                    time: new Date(eventData.timestamp),
+                    status: eventData.attendanceStatus
+                  });
+                }
+              });
+              
+              if (events.length === 0) continue;
+              
+              events.sort((a, b) => a.time - b.time);
+              
+              let dailyHours = 0;
+              let clockInTime = null;
+              
+              for (const event of events) {
+                if (event.status === 'in' && !clockInTime) {
+                  clockInTime = event.time;
+                } else if (event.status === 'out' && clockInTime) {
+                  const hoursWorked = (event.time - clockInTime) / (1000 * 60 * 60);
+                  dailyHours += Math.max(0, hoursWorked);
+                  clockInTime = null;
+                }
+              }
+              
+              if (clockInTime) {
+                const now = new Date();
+                const endOfDay = new Date(clockInTime);
+                endOfDay.setHours(17, 0, 0, 0);
+                const endTime = endOfDay < now ? endOfDay : now;
+                
+                if (endTime > clockInTime) {
+                  const hoursWorked = (endTime - clockInTime) / (1000 * 60 * 60);
+                  dailyHours += Math.max(0, hoursWorked);
+                }
+              }
+              
+              if (dailyHours > 0) {
+                totalHours += dailyHours;
+                attendanceDays++;
+              }
+              
+            } catch (dayError) {
+              // Day might not exist
+            }
+          }
+          
+          totalHours = Math.round(totalHours * 100) / 100;
+          const payRate = parseFloat(empData.payRate) || 0;
+          const requiredHours = 176;
+          const hoursShort = Math.max(0, requiredHours - totalHours);
+          const currentIncomeDue = Math.round(totalHours * payRate * 100) / 100;
+          
+          let status = 'On Track';
+          let statusColor = '#28a745';
+          if (hoursShort > 40) {
+            status = 'Critical';
+            statusColor = '#dc3545';
+          } else if (hoursShort > 0) {
+            status = 'Behind';
+            statusColor = '#fd7e14';
+          }
+          
+          // Complete assessment cache structure matching table display
+          employeeAssessments[empId] = {
+            index: parseInt(empData.slot) || 1,
+            employeeId: empId,
+            name: empData.name || `Employee ${empData.slot}`,
+            slot: parseInt(empData.slot) || 1,
+            requiredHours: requiredHours,
+            currentHours: totalHours,
+            pastDueHours: 0, // Past due from previous months
+            attendanceDays: attendanceDays,
+            hoursShort: hoursShort,
+            payRate: payRate,
+            currentIncomeDue: currentIncomeDue,
+            status: status,
+            statusColor: statusColor,
+            active: empData.active !== false,
+            lastUpdated: Date.now(),
+            calculatedAt: new Date().toISOString()
+          };
+        }
+        
+        // Calculate summary totals
+        const allEmployees = Object.values(employeeAssessments);
+        const totalHoursWorked = allEmployees.reduce((sum, emp) => sum + emp.currentHours, 0);
+        const totalHoursShort = allEmployees.reduce((sum, emp) => sum + emp.hoursShort, 0);
+        const totalIncomeDue = allEmployees.reduce((sum, emp) => sum + emp.currentIncomeDue, 0);
+        const potentialPayroll = allEmployees.reduce((sum, emp) => sum + (emp.requiredHours * emp.payRate), 0);
+        const averageAttendance = allEmployees.length > 0 ? (totalHoursWorked / (allEmployees.length * 176)) * 100 : 0;
+        
+        // Cache in Realtime Database with full summary
+        const assessmentCacheRef = ref(rtdb, `businesses/${businessId}/assessment_cache/${month}`);
+        await set(assessmentCacheRef, {
+          employees: employeeAssessments,
+          summary: {
+            totalEmployees: allEmployees.length,
+            totalHoursWorked: Math.round(totalHoursWorked * 100) / 100,
+            totalHoursShort: Math.round(totalHoursShort * 100) / 100,
+            totalIncomeDue: Math.round(totalIncomeDue * 100) / 100,
+            potentialPayroll: Math.round(potentialPayroll * 100) / 100,
+            averageAttendance: Math.round(averageAttendance * 100) / 100,
+            lastCalculated: Date.now(),
+            calculatedAt: new Date().toISOString(),
+            month: month,
+            businessId: businessId
+          }
+        });
+        
+        console.log('✅ Assessment cached in Realtime DB for', month, ':', Object.keys(employeeAssessments).length, 'employees');
+        
+      } catch (error) {
+        console.error('❌ Error caching monthly assessment:', error);
       }
     }
     
@@ -5379,53 +5554,34 @@
           monthDisplay.textContent = monthName;
         }
 
-        // 🚀 Load from Firestore Assessment Cache (PRIMARY method)
+        // 🚀 Load from CACHE ONLY (instant!)
         let employeeAssessments = [];
         
         try {
-          console.log('🚀 Loading from Firestore assessment cache for instant loading:', {
-            businessId: businessId,
-            month: month,
-            collection: `businesses/${businessId}/assessment_cache/${month}`
-          });
-          
-          const cacheRef = doc(db, "businesses", businessId, "assessment_cache", month);
-          const cacheSnap = await getDoc(cacheRef);
-          console.log('🔍 Cache snapshot exists:', cacheSnap.exists());
+          // Read from assessment_cache - NO calculation!
+          console.log('📦 Reading cached assessment for month:', month);
+          const cacheRef = ref(rtdb, `businesses/${businessId}/assessment_cache/${month}`);
+          const cacheSnap = await get(cacheRef);
           
           if (cacheSnap.exists()) {
-            const cacheData = cacheSnap.data();
-            console.log('✅ Found cached assessment data:', cacheData);
+            const cacheData = cacheSnap.val();
+            console.log('✅ Cache found! Loading instantly...');
+            employeeAssessments = Object.values(cacheData.employees || {});
             
-            // Use cached employee data with proper field mapping
-            employeeAssessments = (cacheData.employees || []).map(emp => ({
-              index: emp.employeeIndex || emp.index,
-              name: emp.employeeName || emp.name,
-              requiredHours: emp.requiredHours || 176,
-              currentHours: parseFloat(emp.currentHours) || 0,
-              pastDueHours: emp.pastDueHours || 0,
-              hoursShort: parseFloat(emp.hoursShort) || 0,
-              payRate: parseFloat(emp.payRate) || 0,
-              currentIncomeDue: parseFloat(emp.currentIncomeDue) || 0,
-              status: emp.status || 'Unknown',
-              statusColor: emp.statusColor || '#999'
-            }));
-            
-            console.log('✅ Successfully loaded', employeeAssessments.length, 'cached employee assessments');
-            console.log('🔍 Sample employee:', employeeAssessments[0]);
-            
+            // Show cache age
+            const cacheAge = Date.now() - (cacheData.summary?.lastCalculated || 0);
+            console.log('📊 Cache age:', Math.round(cacheAge / 1000), 'seconds old');
           } else {
-            console.log('📭 No cached assessment found, calculating from attendance...');
-            throw new Error('No cache found - fallback to calculation');
+            console.log('❌ No cache found for', month, '- Click "Fix Cache" button');
+            employeeAssessments = [];
           }
           
         } catch (error) {
-          console.error('❌ Error loading from Firestore cache:', error);
-          // Fallback to attendance calculation
-          employeeAssessments = await calculateAssessmentFromAttendance(month);
+          console.error('❌ Error reading cache:', error);
+          employeeAssessments = [];
         }
 
-        // Fallback to dummy data if still empty
+        // Show message if no cached data
         if (employeeAssessments.length === 0) {
           console.log('📋 Using dummy assessment data');
           employeeAssessments = [
@@ -5796,60 +5952,6 @@
     window.initAssessment = initAssessment;
     window.loadAssessment = loadAssessment;
     window.printAssessment = printAssessment;
-
-    // 🚀 NEW: Assessment cache trigger function
-    async function triggerAssessmentCalculation() {
-      const month = document.getElementById('assessmentMonthInput')?.value;
-      if (!month) {
-        alert('Please select a month first');
-        return;
-      }
-
-      const btn = document.querySelector('[onclick="triggerAssessmentCalculation()"]');
-      const originalText = btn ? btn.innerHTML : '';
-      
-      try {
-        if (btn) {
-          btn.innerHTML = '🔄 Calculating...';
-          btn.disabled = true;
-        }
-        
-        console.log('🚀 Triggering assessment cache recalculation for:', { 
-          businessId: businessId, 
-          month 
-        });
-        
-        // Call Cloud Function directly
-        const functionUrl = `https://updateassessmentcache-4q7htrps4q-uc.a.run.app?businessId=${businessId}&month=${month}`;
-        const response = await fetch(functionUrl, {
-          method: 'GET'
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          console.log('✅ Assessment cache updated:', result);
-          
-          alert('✅ Assessment recalculated successfully! Refreshing data...');
-          
-          // Reload the assessment to show new data
-          await loadAssessment();
-          
-        } else {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to update assessment cache');
-        }
-        
-      } catch (error) {
-        console.error('❌ Failed to trigger assessment calculation:', error);
-        alert('❌ Failed to recalculate: ' + error.message);
-      } finally {
-        if (btn) {
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-        }
-      }
-    }
-    window.triggerAssessmentCalculation = triggerAssessmentCalculation;
 
     // ============================================
     // PUNCHES MODULE FUNCTIONS
@@ -8818,21 +8920,34 @@ Click "Test Connection" after starting the service.`);
           monthDisplay.textContent = monthName;
         }
 
-        // 🚀 Load from Firestore (PRIMARY method)
+        // 🚀 Load from CACHE ONLY (instant!)
         let employeeAssessments = [];
         
         try {
-          console.log('🚀 Calculating assessment from Firestore...');
-          employeeAssessments = await calculateAssessmentFromFirestore(businessId, month);
-          console.log('✅ Successfully loaded', employeeAssessments.length, 'employee assessments');
+          // Read from assessment_cache - NO calculation!
+          console.log('📦 Reading cached assessment for month:', month);
+          const cacheRef = ref(rtdb, `businesses/${businessId}/assessment_cache/${month}`);
+          const cacheSnap = await get(cacheRef);
+          
+          if (cacheSnap.exists()) {
+            const cacheData = cacheSnap.val();
+            console.log('✅ Cache found! Loading instantly...');
+            employeeAssessments = Object.values(cacheData.employees || {});
+            
+            // Show cache age
+            const cacheAge = Date.now() - (cacheData.summary?.lastCalculated || 0);
+            console.log('📊 Cache age:', Math.round(cacheAge / 1000), 'seconds old');
+          } else {
+            console.log('❌ No cache found for', month, '- Click "Fix Cache" button');
+            employeeAssessments = [];
+          }
           
         } catch (error) {
-          console.error('❌ Error loading assessment from Firestore:', error);
-          // Fallback to attendance calculation
-          employeeAssessments = await calculateAssessmentFromAttendance(month);
+          console.error('❌ Error reading cache:', error);
+          employeeAssessments = [];
         }
 
-        // Fallback to dummy data if still empty
+        // Show message if no cached data
         if (employeeAssessments.length === 0) {
           console.log('📋 Using dummy assessment data');
           employeeAssessments = [
@@ -8867,17 +8982,17 @@ Click "Test Connection" after starting the service.`);
     // Make assessment functions globally available
     window.initAssessment = initAssessment;
     
-    // 🚀 PRIMARY: Calculate assessment from Firestore (fast!)
-    async function calculateAssessmentFromFirestore(businessId, month) {
+    // 🚀 PRIMARY: Calculate assessment from Realtime Database (fast!)
+    async function calculateAssessmentFromRealtimeDB(businessId, month) {
       try {
-        console.log('🚀 Calculating assessment from Firestore for month:', month, 'businessId:', businessId);
+        console.log('🚀 Calculating assessment from Realtime Database for month:', month, 'businessId:', businessId);
         
-        // Get employee data from Firestore
+        // Get employee data from Realtime Database
         const attendanceRealtimeRef = ref(rtdb, `businesses/${businessId}/attendance_realtime`);
         const snapshot = await get(attendanceRealtimeRef);
         
         if (!snapshot.exists()) {
-          console.log('⚠️ No Firestore data found');
+          console.log('⚠️ No Realtime Database data found');
           return [];
         }
         
@@ -8888,85 +9003,84 @@ Click "Test Connection" after starting the service.`);
         
         const employeeAssessments = [];
         const [year, monthNum] = month.split('-');
+        const daysInMonth = new Date(year, monthNum, 0).getDate();
         
-        // Get attendance data for the entire month (efficient - one query per employee)
-        const attendanceEventsRef = collection(db, "businesses", businessId, "attendance_events");
-        const attendanceSnapshot = await getDocs(attendanceEventsRef);
-        
-        // Build a map of employee hours by date
+        // Build a map of employee hours by processing each employee's attendance
         const employeeHoursByDate = {};
         
-        attendanceSnapshot.forEach(dateDoc => {
-          const dateId = dateDoc.id; // e.g., "2026-02-05"
-          
-          // Check if this date is in our target month
-          if (!dateId.startsWith(`${year}-${String(monthNum).padStart(2, '0')}`)) {
-            return; // Skip dates not in target month
-          }
-          
-          // Get all slots for this date
-          const dateData = dateDoc.data();
-          
-          // Iterate through slots in the date document
-          for (const [slotId, slotData] of Object.entries(dateData)) {
-            if (!slotData || typeof slotData !== 'object') continue;
-            
-            // Find employee with this slot
-            const employee = Object.entries(employees).find(([id, emp]) => emp.slot === parseInt(slotId));
-            if (!employee) continue;
-            
-            const [empId, empData] = employee;
-            
-            if (!employeeHoursByDate[empId]) {
-              employeeHoursByDate[empId] = {};
-            }
-            
-            // Calculate hours for this day
-            const events = [];
-            for (const [eventId, eventData] of Object.entries(slotData)) {
-              if (eventData && eventData.timestamp && !eventData.testMode) {
-                events.push({
-                  time: new Date(eventData.timestamp),
-                  status: eventData.attendanceStatus
-                });
-              }
-            }
-            
-            // Sort events by time
-            events.sort((a, b) => a.time - b.time);
-            
-            // Calculate daily hours
-            let dailyHours = 0;
-            let clockInTime = null;
-            
-            for (const event of events) {
-              if (event.status === 'in' && !clockInTime) {
-                clockInTime = event.time;
-              } else if (event.status === 'out' && clockInTime) {
-                const hoursWorked = (event.time - clockInTime) / (1000 * 60 * 60);
-                dailyHours += Math.max(0, hoursWorked);
-                clockInTime = null;
-              }
-            }
-            
-            // Handle incomplete day (still clocked in)
-            if (clockInTime) {
-              const now = new Date();
-              const endOfDay = new Date(clockInTime);
-              endOfDay.setHours(17, 0, 0, 0);
-              const endTime = endOfDay < now ? endOfDay : now;
-              
-              if (endTime > clockInTime) {
-                const hoursWorked = (endTime - clockInTime) / (1000 * 60 * 60);
-                dailyHours += Math.max(0, hoursWorked);
-              }
-            }
-            
-            employeeHoursByDate[empId][dateId] = dailyHours;
-          }
-        });
+        console.log(`🔍 Querying attendance for ${daysInMonth} days in ${year}-${monthNum}`);
         
-        // Now process each employee
+        // Process each employee
+        for (const [empId, empData] of Object.entries(employees)) {
+          employeeHoursByDate[empId] = {};
+          
+          // Query attendance for each day of the month for this employee's slot
+          for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            try {
+              // Query the subcollection: attendance_events/{date}/{slotId}/
+              const slotEventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, empData.slot.toString());
+              const eventsSnap = await getDocs(slotEventsRef);
+              
+              if (eventsSnap.empty) continue;
+              
+              // Collect all events for this day
+              const events = [];
+              eventsSnap.forEach(eventDoc => {
+                const eventData = eventDoc.data();
+                if (eventData && eventData.timestamp && !eventData.testMode) {
+                  events.push({
+                    time: new Date(eventData.timestamp),
+                    status: eventData.attendanceStatus
+                  });
+                }
+              });
+              
+              if (events.length === 0) continue;
+              
+              // Sort events by time
+              events.sort((a, b) => a.time - b.time);
+              
+              // Calculate daily hours
+              let dailyHours = 0;
+              let clockInTime = null;
+              
+              for (const event of events) {
+                if (event.status === 'in' && !clockInTime) {
+                  clockInTime = event.time;
+                } else if (event.status === 'out' && clockInTime) {
+                  const hoursWorked = (event.time - clockInTime) / (1000 * 60 * 60);
+                  dailyHours += Math.max(0, hoursWorked);
+                  clockInTime = null;
+                }
+              }
+              
+              // Handle incomplete day (still clocked in)
+              if (clockInTime) {
+                const now = new Date();
+                const endOfDay = new Date(clockInTime);
+                endOfDay.setHours(17, 0, 0, 0);
+                const endTime = endOfDay < now ? endOfDay : now;
+                
+                if (endTime > clockInTime) {
+                  const hoursWorked = (endTime - clockInTime) / (1000 * 60 * 60);
+                  dailyHours += Math.max(0, hoursWorked);
+                }
+              }
+              
+              if (dailyHours > 0) {
+                employeeHoursByDate[empId][dateStr] = dailyHours;
+                console.log(`  📅 ${empData.name} (${dateStr}): ${dailyHours.toFixed(2)} hours`);
+              }
+              
+            } catch (dayError) {
+              // Day or slot might not exist - that's ok
+            }
+          }
+        }
+        
+        // Now calculate totals for each employee
         for (const [empId, empData] of Object.entries(employees)) {
           console.log(`🔍 Processing employee ${empId}:`, empData.name, 'Slot:', empData.slot, 'Pay Rate:', empData.payRate);
           
@@ -9190,10 +9304,7 @@ Click "Test Connection" after starting the service.`);
     window.loadAssessment = loadAssessment;
     window.printAssessment = printAssessment;
     
-    // 🚀 NEW: Make attendance functions globally available
-    window.getRealtimeAttendanceData = getRealtimeAttendanceData;
-    window.calculateAndCacheAttendanceData = calculateAndCacheAttendanceData;
-    window.triggerAttendanceRecalculation = triggerAttendanceRecalculation;
+    // Note: Attendance functions already assigned to window where they're defined
     
     // 🔧 DEBUG: Manual attendance refresh function
     window.refreshAttendanceNow = async function() {

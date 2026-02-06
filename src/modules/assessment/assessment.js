@@ -51,7 +51,7 @@ class AssessmentModule {
     }
 
     try {
-      display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Generating assessment...</div>';
+      display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Loading assessment...</div>';
 
       // Parse month
       const [year, monthNum] = month.split('-');
@@ -62,80 +62,83 @@ class AssessmentModule {
         monthDisplay.textContent = monthName;
       }
 
-      // Try to load from assessment collection first, fallback to dummy data
+      // 📊 NEW: Try to load from assessment_cache first (INSTANT LOADING!)
       let employeeAssessments = [];
       
       try {
-        console.log('🔍 Loading assessment data for:', {
+        console.log('🚀 Loading from assessment cache for instant loading:', {
           businessId: this.businessId,
           month: month,
-          collection: `businesses/${this.businessId}/assessment`
+          collection: `businesses/${this.businessId}/assessment_cache/${month}`
         });
         
-        // Load from assessment collection using window Firebase v9 functions
-        if (window.collection && window.query && window.where && window.getDocs && window.db) {
-          console.log('✅ All Firebase v9 functions available from window');
+        const cacheRef = window.doc(window.db, "businesses", this.businessId, "assessment_cache", month);
+        console.log('🔍 Cache reference created:', cacheRef);
+        
+        const cacheSnap = await window.getDoc(cacheRef);
+        console.log('🔍 Cache snapshot:', cacheSnap, 'exists:', cacheSnap.exists());
+        
+        if (cacheSnap.exists()) {
+          const cacheData = cacheSnap.data();
+          console.log('✅ Found cached assessment data:', cacheData);
           
-          const assessmentRef = window.collection(window.db, "businesses", this.businessId, "assessment");
-          const assessmentQuery = window.query(assessmentRef, window.where("month", "==", month));
-          const assessmentSnap = await window.getDocs(assessmentQuery);
-          
-          console.log('📊 Modern Firestore query results:', {
-            empty: assessmentSnap.empty,
-            size: assessmentSnap.size,
-            docs: assessmentSnap.docs.length
-          });
-
-          if (!assessmentSnap.empty) {
-            // Use existing assessment data from collection
-            assessmentSnap.forEach(doc => {
-              const data = doc.data();
-              console.log('📄 Processing document:', doc.id, data);
-              
-              employeeAssessments.push({
-              index: data.employeeIndex || data.employeeId || 1,
-              name: data.employeeName || `Employee ${data.employeeIndex || data.employeeId}`,
-              employeeId: data.employeeId || data.employeeIndex,
-              requiredHours: data.requiredHours || NaN,
-              currentHours: data.actualHours || data.currentHours || 0,
-              pastDueHours: data.pastDueHours || 0,
-              hoursShort: data.hoursShort || 0,
-              payRate: data.payRate || data.hourlyRate || NaN,
-              currentIncomeDue: data.totalPay || data.currentIncomeDue || 0,
-              status: data.status === 'on_track' ? 'On Track' : 
-                     data.status === 'behind' ? 'Behind' : 
-                     data.status === 'critical' ? 'Critical' : 'On Track',
-              statusColor: data.status === 'on_track' ? '#28a745' : 
-                          data.status === 'behind' ? '#fd7e14' : 
-                          data.status === 'critical' ? '#dc3545' : '#28a745',
-              attendanceStatus: data.attendanceStatus || 'active'
-              });
-            });
-            
-            // Sort by index
-            employeeAssessments.sort((a, b) => a.index - b.index);
-            console.log('✅ Loaded', employeeAssessments.length, 'assessment records from Firestore');
-          } else {
-            console.log('📭 No assessment documents found for month:', month);
-            console.log('🔄 Calculating assessment from attendance events...');
-            employeeAssessments = await this.calculateAssessmentFromAttendance(month);
+          // 🐛 DEBUG: Check actual cache structure
+          console.log('🔍 Cache employees data:', cacheData.employees);
+          if (cacheData.employees && cacheData.employees.length > 0) {
+            console.log('🔍 First employee sample:', cacheData.employees[0]);
           }
-        } else {
-          console.error('❌ Missing Firebase v9 functions:', {
-            collection: !!window.collection,
-            query: !!window.query,
-            where: !!window.where,
-            getDocs: !!window.getDocs,
-            db: !!window.db
+          
+          // Use cached employee data
+          employeeAssessments = cacheData.employees || [];
+          
+          // 🔧 DATA VALIDATION: Ensure proper field mapping
+          employeeAssessments = employeeAssessments.map(emp => {
+            console.log('🔍 Processing employee:', emp.employeeName, 'currentHours:', emp.currentHours);
+            
+            return {
+              index: emp.employeeIndex || emp.index,
+              employeeIndex: emp.employeeIndex || emp.index,
+              name: emp.employeeName || emp.name,
+              employeeName: emp.employeeName || emp.name,
+              employeeId: emp.employeeId,
+              requiredHours: emp.requiredHours || 176,
+              currentHours: parseFloat(emp.currentHours) || 0,
+              pastDueHours: emp.pastDueHours || 0,
+              hoursShort: parseFloat(emp.hoursShort) || 0,
+              payRate: parseFloat(emp.payRate) || 0,
+              currentIncomeDue: parseFloat(emp.currentIncomeDue) || 0,
+              status: emp.status || 'Unknown',
+              statusColor: emp.statusColor || '#999'
+            };
           });
+          
+          console.log('🔧 Processed employee assessments:', employeeAssessments);
+          
+          // Show cache timestamp for transparency
+          const cacheTimestamp = cacheData.lastUpdated?.toDate ? 
+            cacheData.lastUpdated.toDate().toLocaleString() : 
+            'Unknown';
+          
+          console.log(`📊 Loaded ${employeeAssessments.length} cached assessments (updated: ${cacheTimestamp})`);
+          
+          // Update summary display if available
+          if (cacheData.summary) {
+            this.displayCacheSummary(cacheData.summary, cacheTimestamp);
+          }
+          
+        } else {
+          console.log('📭 No cached assessment found, calculating from attendance data...');
+          // Fallback to real-time calculation
           employeeAssessments = await this.calculateAssessmentFromAttendance(month);
         }
         
       } catch (error) {
-        console.error('⚠️ Could not load from collection:', error);
+        console.error('⚠️ Could not load from cache:', error);
+        // Fallback to real-time calculation  
+        employeeAssessments = await this.calculateAssessmentFromAttendance(month);
       }
 
-      // Fallback to dummy data if collection is empty or failed
+      // Fallback to dummy data if no cache and calculation failed
       if (employeeAssessments.length === 0) {
         console.log('📋 Using dummy assessment data as fallback');
         employeeAssessments = [
@@ -153,7 +156,7 @@ class AssessmentModule {
           },
           {
             index: 2,
-            name: "No Data",
+            name: "No Data", 
             requiredHours: NaN,
             currentHours: NaN,
             pastDueHours: NaN,
@@ -190,14 +193,202 @@ class AssessmentModule {
   renderAssessmentTable(employeeAssessments, display) {
     // Calculate totals
     const totalEmployees = employeeAssessments.length;
-    const totalHours = employeeAssessments.reduce((sum, emp) => sum + emp.currentHours, 0);
-    const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + emp.hoursShort, 0);
-    const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + emp.currentIncomeDue, 0);
+    const totalHours = employeeAssessments.reduce((sum, emp) => sum + (emp.currentHours || 0), 0);
+    const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + (emp.hoursShort || 0), 0);
+    const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + (emp.currentIncomeDue || 0), 0);
 
     display.innerHTML = `
       <!-- Employee Assessment Table -->
       <div class="table-responsive">
         <table class="table table-hover">
+          <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <tr>
+              <th style="padding: 1rem; text-align: center;"># </th>
+              <th style="padding: 1rem;">Employee Name</th>
+              <th style="padding: 1rem; text-align: center;">Required Hours</th>
+              <th style="padding: 1rem; text-align: center;">Current Hours</th>
+              <th style="padding: 1rem; text-align: center;">Past Due Hours</th>
+              <th style="padding: 1rem; text-align: center;">Hours Short</th>
+              <th style="padding: 1rem; text-align: center;">Pay Rate</th>
+              <th style="padding: 1rem; text-align: center;">Current Income Due</th>
+              <th style="padding: 1rem; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${employeeAssessments.map(emp => `
+              <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 1rem; text-align: center; font-weight: bold;">${emp.index || emp.employeeIndex}</td>
+                <td style="padding: 1rem; font-weight: 600; color: #2c3e50;">${emp.employeeName || emp.name}</td>
+                <td style="padding: 1rem; text-align: center;">${isNaN(emp.requiredHours) ? '-' : emp.requiredHours}</td>
+                <td style="padding: 1rem; text-align: center; font-weight: bold; color: #2c3e50;">${isNaN(emp.currentHours) ? '0.0' : emp.currentHours.toFixed(1)}</td>
+                <td style="padding: 1rem; text-align: center;">${isNaN(emp.pastDueHours) ? '-' : emp.pastDueHours}</td>
+                <td style="padding: 1rem; text-align: center; color: ${emp.hoursShort > 0 ? '#dc3545' : '#28a745'}; font-weight: bold;">${isNaN(emp.hoursShort) ? '-' : emp.hoursShort.toFixed(1)}</td>
+                <td style="padding: 1rem; text-align: center;">${isNaN(emp.payRate) ? '-' : 'R' + emp.payRate.toFixed(2)}</td>
+                <td style="padding: 1rem; text-align: center; font-weight: bold; color: #28a745;">${isNaN(emp.currentIncomeDue) ? 'R0.00' : 'R' + emp.currentIncomeDue.toFixed(2)}</td>
+                <td style="padding: 1rem; text-align: center;">
+                  <span style="background: ${emp.statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: bold;">
+                    ${emp.status}
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="row" style="margin-top: 2rem;">
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">${totalEmployees}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">TOTAL EMPLOYEES</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">${totalHours.toFixed(1)}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">TOTAL HOURS WORKED</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">${totalHoursShort.toFixed(1)}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">TOTAL HOURS SHORT</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">R${totalIncomeDue.toFixed(2)}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">TOTAL AMOUNT DUE</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">R${(totalIncomeDue * 1.5).toFixed(2)}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">POTENTIAL PAYROLL (100%)</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">${((totalHours / (totalEmployees * 176)) * 100).toFixed(1)}%</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">AVERAGE ATTENDANCE</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 📊 NEW: Display cache summary information
+  displayCacheSummary(summaryData, cacheTimestamp) {
+    console.log('📊 Displaying cache summary:', summaryData);
+    
+    // You can add a cache status indicator here
+    const existingCacheInfo = document.getElementById('cache-info');
+    if (existingCacheInfo) {
+      existingCacheInfo.remove();
+    }
+    
+    const cacheInfoDiv = document.createElement('div');
+    cacheInfoDiv.id = 'cache-info';
+    cacheInfoDiv.style.cssText = `
+      background: #e8f5e8; 
+      border: 1px solid #c3e6c3; 
+      padding: 0.75rem 1rem; 
+      border-radius: 6px; 
+      margin-bottom: 1rem; 
+      font-size: 0.9rem; 
+      color: #2d5a2d;
+    `;
+    cacheInfoDiv.innerHTML = `
+      ✅ <strong>Instant loading from cache</strong> | 
+      Last calculated: ${cacheTimestamp} | 
+      ${summaryData.totalEmployees} employees, ${summaryData.totalHoursWorked}h worked
+    `;
+    
+    const assessmentContent = document.getElementById('assessmentContent');
+    assessmentContent.parentNode.insertBefore(cacheInfoDiv, assessmentContent);
+  }
+
+  // 🔄 NEW: Manual trigger to recalculate assessment cache
+  async triggerAssessmentCalculation() {
+    const month = document.getElementById('assessmentMonthInput').value;
+    if (!month) {
+      alert('Please select a month first');
+      return;
+    }
+
+    const triggerBtn = document.querySelector('.btn-trigger-calculation');
+    const originalText = triggerBtn.innerHTML;
+    
+    try {
+      triggerBtn.innerHTML = '🔄 Calculating...';
+      triggerBtn.disabled = true;
+      
+      console.log('🚀 Manual trigger: Recalculating assessment cache for:', { 
+        businessId: this.businessId, 
+        month 
+      });
+      
+      // Call Cloud Function to recalculate
+      const response = await fetch(`/updateAssessmentCache?businessId=${this.businessId}&month=${month}`, {
+        method: 'GET'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Assessment cache updated:', result);
+        
+        // Show success message
+        this.showTemporaryMessage('✅ Assessment recalculated successfully!', 'success');
+        
+        // Reload the assessment to show new data
+        setTimeout(() => {
+          this.loadAssessment();
+        }, 1000);
+        
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update assessment cache');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to trigger assessment calculation:', error);
+      this.showTemporaryMessage('❌ Failed to recalculate: ' + error.message, 'error');
+    } finally {
+      triggerBtn.innerHTML = originalText;
+      triggerBtn.disabled = false;
+    }
+  }
+
+  // Helper function to show temporary messages
+  showTemporaryMessage(message, type = 'info') {
+    const existingMessage = document.getElementById('temp-message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.id = 'temp-message';
+    messageDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 1rem 1.5rem;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      z-index: 1000;
+      background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(() => {
+      messageDiv.remove();
+    }, 3000);
+  }
           <thead class="table-dark">
             <tr>
               <th>#</th>
