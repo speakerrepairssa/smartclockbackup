@@ -3404,6 +3404,19 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
     const payRate = parseFloat(employee.payRate || employee.hourlyRate || 0);
     const slot = employee.slot || 0;
     
+    // 📅 Get daily rate multipliers for each day of the week (Sunday=0, Monday=1, ..., Saturday=6)
+    const dailyMultipliers = {
+      0: parseFloat(employee.sundayMultiplier || 1.5),     // Sunday
+      1: parseFloat(employee.mondayMultiplier || 1.0),     // Monday
+      2: parseFloat(employee.tuesdayMultiplier || 1.0),    // Tuesday  
+      3: parseFloat(employee.wednesdayMultiplier || 1.0),  // Wednesday
+      4: parseFloat(employee.thursdayMultiplier || 1.0),   // Thursday
+      5: parseFloat(employee.fridayMultiplier || 1.0),     // Friday
+      6: parseFloat(employee.saturdayMultiplier || 1.25)   // Saturday
+    };
+    
+    console.log(`💰 Daily Rate Multipliers: Sun:${dailyMultipliers[0]}x, Mon:${dailyMultipliers[1]}x, Tue:${dailyMultipliers[2]}x, Wed:${dailyMultipliers[3]}x, Thu:${dailyMultipliers[4]}x, Fri:${dailyMultipliers[5]}x, Sat:${dailyMultipliers[6]}x`);
+    
     // Get business settings (for break duration and schedule)
     const businessDoc = await db.collection("businesses").doc(businessId).get();
     const businessData = businessDoc.data();
@@ -3414,6 +3427,9 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
     let defaultScheduledWorkHours = 9; // Default 9h shift (08:30-17:30)
     let defaultScheduledStartTime = '08:30';
     let defaultScheduledEndTime = '17:30';
+    let saturdayScheduledHours = 6; // Default Saturday: 08:30-14:30
+    let saturdayStartTime = '08:30';
+    let saturdayEndTime = '14:30';
     
     if (businessData?.workStartTime && businessData?.workEndTime) {
       defaultScheduledStartTime = businessData.workStartTime;
@@ -3423,13 +3439,41 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
       defaultScheduledWorkHours = (endH + endM/60) - (startH + startM/60);
     }
     
-    console.log(`⚙️  Business Settings: ${defaultScheduledStartTime}-${defaultScheduledEndTime} (${defaultScheduledWorkHours}h shift), Break: ${breakMinutes}min`);
+    if (businessData?.saturdayStartTime && businessData?.saturdayEndTime) {
+      saturdayStartTime = businessData.saturdayStartTime;
+      saturdayEndTime = businessData.saturdayEndTime;
+      const [startH, startM] = saturdayStartTime.split(':').map(Number);
+      const [endH, endM] = saturdayEndTime.split(':').map(Number);
+      saturdayScheduledHours = (endH + endM/60) - (startH + startM/60);
+    }
+    
+    console.log(`⚙️  Business Settings: Mon-Fri ${defaultScheduledStartTime}-${defaultScheduledEndTime} (${defaultScheduledWorkHours}h), Sat ${saturdayStartTime}-${saturdayEndTime} (${saturdayScheduledHours}h), Break: ${breakMinutes}min`);
     
     // Parse month for date range
     const [year, monthNum] = targetMonth.split('-');
     const daysInMonth = new Date(year, monthNum, 0).getDate();
     const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(monthNum).padStart(2, '0')}-${daysInMonth}`;
+    
+    // 📅 Calculate dynamic monthly required hours based on calendar
+    let monthlyWeekdays = 0;
+    let monthlySaturdays = 0;
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const checkDate = new Date(year, monthNum - 1, day);
+      const dayOfWeek = checkDate.getDay();
+      
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday-Friday
+        monthlyWeekdays++;
+      } else if (dayOfWeek === 6) { // Saturday
+        monthlySaturdays++;
+      }
+    }
+    
+    const calculatedRequiredHours = (monthlyWeekdays * (defaultScheduledWorkHours - 1)) + (monthlySaturdays * saturdayScheduledHours);
+    const requiredHours = parseFloat(employee.requiredHoursPerMonth) || calculatedRequiredHours;
+    
+    console.log(`📅 Calendar: ${monthlyWeekdays} weekdays × ${defaultScheduledWorkHours-1}h + ${monthlySaturdays} Saturdays × ${saturdayScheduledHours}h = ${calculatedRequiredHours.toFixed(1)}h (Employee required: ${requiredHours}h)`);
     
     // ⚡ Get attendance events for this employee (TIMECARD LOGIC)
     const eventsByDate = {};
@@ -3488,9 +3532,17 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
       }
     }
     
-    // Calculate payable hours (EXACT TIMECARD LOGIC)
+    // Calculate payable hours with daily multipliers (EXACT TIMECARD LOGIC)
     let totalPayableHours = 0;
+    let dailyHoursByMultiplier = {}; // Track hours by multiplier rate
     let workingDays = 0;
+    
+    // Initialize tracking for each day multiplier
+    Object.values(dailyMultipliers).forEach(multiplier => {
+      if (!dailyHoursByMultiplier[multiplier]) {
+        dailyHoursByMultiplier[multiplier] = 0;
+      }
+    });
     
     console.log(`📊 Employee ${employeeId}: Found ${Object.keys(eventsByDate).length} days with events`);
     
@@ -3507,8 +3559,12 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
         const actualStart = firstClockIn.timestamp;
         const actualEnd = lastClockOut.timestamp;
         
-        // Get scheduled times for this day
+        // Get day of week and corresponding multiplier
         const date = new Date(dateStr);
+        const dayOfWeek = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+        const dayMultiplier = dailyMultipliers[dayOfWeek];
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
         const fullDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
         const daySchedule = schedule[fullDayName];
         
@@ -3516,7 +3572,12 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
         let scheduledEndTime = defaultScheduledEndTime;
         let scheduledWorkHours = defaultScheduledWorkHours;
         
-        if (daySchedule && daySchedule.enabled && daySchedule.startTime && daySchedule.endTime) {
+        // Use Saturday schedule for Saturdays, otherwise use weekday schedule
+        if (dayOfWeek === 6) { // Saturday
+          scheduledStartTime = saturdayStartTime;
+          scheduledEndTime = saturdayEndTime;
+          scheduledWorkHours = saturdayScheduledHours;
+        } else if (daySchedule && daySchedule.enabled && daySchedule.startTime && daySchedule.endTime) {
           scheduledStartTime = daySchedule.startTime;
           scheduledEndTime = daySchedule.endTime;
           // Calculate ACTUAL scheduled hours (WITHOUT lunch deduction for now)
@@ -3553,27 +3614,50 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
         
         console.log(`      Raw duration: ${payableDuration.toFixed(2)}h, Break: ${breakMinutes}min, Max shift: ${scheduledWorkHours}h`);
         
-        // Subtract lunch break (match timecard: always subtract if > 0)
-        let dayPayableHours = Math.max(0, payableDuration - (breakMinutes / 60));
+        // Subtract lunch break (only for weekdays, not weekends)
+        const needsLunchBreak = dayOfWeek >= 1 && dayOfWeek <= 5; // Monday-Friday
+        let dayPayableHours = needsLunchBreak ? 
+          Math.max(0, payableDuration - (breakMinutes / 60)) : 
+          payableDuration;
         
         // Cap at scheduled work hours AFTER lunch has been subtracted
-        const maxPayableHours = Math.max(0, scheduledWorkHours - (breakMinutes / 60));
+        const maxPayableHours = needsLunchBreak ? 
+          Math.max(0, scheduledWorkHours - (breakMinutes / 60)) : 
+          scheduledWorkHours;
         dayPayableHours = Math.min(dayPayableHours, maxPayableHours);
+        
+        // Track hours by multiplier for income calculation
+        if (!dailyHoursByMultiplier[dayMultiplier]) {
+          dailyHoursByMultiplier[dayMultiplier] = 0;
+        }
+        dailyHoursByMultiplier[dayMultiplier] += dayPayableHours;
         
         totalPayableHours += dayPayableHours;
         workingDays++;
         
-        console.log(`   → Payable: ${dayPayableHours.toFixed(2)}h (capped at ${maxPayableHours.toFixed(2)}h)`);
+        console.log(`   → Payable: ${dayPayableHours.toFixed(2)}h (${dayNames[dayOfWeek]} - rate: ${dayMultiplier}x, capped at ${maxPayableHours.toFixed(2)}h)`);
       } else {
         console.log(`   → Skipped (incomplete: clockIn=${!!firstClockIn}, clockOut=${!!lastClockOut})`);
       }
     });
     
     const currentHours = Math.round(totalPayableHours * 100) / 100;
+    
     console.log(`✅ Employee ${employeeId}: Total ${currentHours}h over ${workingDays} days`);
-    const requiredHours = 176; // Standard monthly hours
+    console.log(`📊 Hours breakdown by rate:`, Object.entries(dailyHoursByMultiplier).map(([rate, hours]) => `${rate}x: ${hours.toFixed(1)}h`).join(', '));
+    
     const hoursShort = Math.max(0, requiredHours - currentHours);
-    const currentIncomeDue = currentHours * payRate;
+    
+    // Calculate income with daily multipliers
+    let totalIncome = 0;
+    Object.entries(dailyHoursByMultiplier).forEach(([multiplier, hours]) => {
+      const rateForThisMultiplier = payRate * parseFloat(multiplier);
+      const incomeForThisRate = hours * rateForThisMultiplier;
+      totalIncome += incomeForThisRate;
+      console.log(`💰 ${hours.toFixed(1)}h @ R${rateForThisRate.toFixed(2)}/h (${multiplier}x) = R${incomeForThisRate.toFixed(2)}`);
+    });
+    
+    const currentIncomeDue = totalIncome;
     const potentialIncome = requiredHours * payRate;
     
     // 📅 Calculate Past Due Hours (based on working days passed in the month)
@@ -3586,22 +3670,25 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
     
     // Only calculate past due if we're in the target month
     if (year == currentYear && monthNum == currentMonth) {
-      // Count working days (Mon-Fri) from start of month until TODAY (not including today if it's incomplete)
-      let workingDaysPassed = 0;
+      // Count working days (Mon-Fri + Sat) from start of month until TODAY (not including today)
+      let weekdaysPassed = 0;
+      let saturdaysPassed = 0;
       
       for (let day = 1; day < currentDay; day++) { // Note: < currentDay (not <=) to exclude today
         const checkDate = new Date(year, monthNum - 1, day);
         const dayOfWeek = checkDate.getDay(); // 0=Sunday, 6=Saturday
         
         if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday-Friday
-          workingDaysPassed++;
+          weekdaysPassed++;
+        } else if (dayOfWeek === 6) { // Saturday
+          saturdaysPassed++;
         }
       }
       
-      const requiredHoursSoFar = workingDaysPassed * defaultScheduledWorkHours;
+      const requiredHoursSoFar = (weekdaysPassed * (defaultScheduledWorkHours - 1)) + (saturdaysPassed * saturdayScheduledHours);
       pastDueHours = Math.max(0, requiredHoursSoFar - currentHours);
       
-      console.log(`📅 Past Due Calculation: ${workingDaysPassed} working days passed, should have ${requiredHoursSoFar.toFixed(1)}h, actual ${currentHours}h → Past Due: ${pastDueHours.toFixed(1)}h`);
+      console.log(`📅 Past Due: ${weekdaysPassed} weekdays + ${saturdaysPassed} Saturdays = ${requiredHoursSoFar.toFixed(1)}h required, actual ${currentHours}h → Past Due: ${pastDueHours.toFixed(1)}h`);
     }
     
     // Determine status
@@ -3632,11 +3719,13 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
       employeeIndex: slot,
       employeeName: employee.employeeName || employee.name || `Slot ${slot}`,
       currentHours: currentHours,
+      dailyHoursBreakdown: dailyHoursByMultiplier,
       requiredHours: requiredHours,
       hoursShort: hoursShort,
       pastDueHours: Math.round(pastDueHours * 100) / 100,
       workingDays: workingDays,
       payRate: payRate,
+      dailyMultipliers: dailyMultipliers,
       currentIncomeDue: Math.round(currentIncomeDue * 100) / 100,
       potentialIncome: Math.round(potentialIncome * 100) / 100,
       status: status,
