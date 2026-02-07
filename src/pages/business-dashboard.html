@@ -9268,41 +9268,6 @@ Click "Test Connection" after starting the service.`);
     window.calculateAssessmentFromAttendance = calculateAssessmentFromRealtimeDB;
     window.calculateAssessmentFromRealtimeDB = calculateAssessmentFromRealtimeDB;
     window.calculateAssessmentFromAttendanceOriginal = calculateAssessmentFromAttendanceOriginal;
-    
-    // 🚀 CRITICAL: Override loadAssessment to force Realtime Database usage
-    const originalLoadAssessment = window.loadAssessment;
-    window.loadAssessment = async function() {
-      try {
-        const month = document.getElementById('assessmentMonthInput').value;
-        const display = document.getElementById('assessmentContent');
-        const monthDisplay = document.getElementById('assessmentMonth');
-
-        if (!month) {
-          display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Select a month to generate assessment</div>';
-          return;
-        }
-
-        console.log('🚀 FORCED: Loading assessment from Realtime Database for month:', month);
-        display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Generating assessment from Realtime Database...</div>';
-
-        const [year, monthNum] = month.split('-');
-        const monthDate = new Date(year, monthNum - 1, 1);
-        const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        
-        if (monthDisplay) {
-          monthDisplay.textContent = monthName;
-        }
-
-        // Always use Realtime Database
-        const employeeAssessments = await calculateAssessmentFromRealtimeDB(businessId, month);
-        renderAssessmentTable(employeeAssessments, display);
-        
-      } catch (error) {
-        console.error('❌ Error in forced loadAssessment:', error);
-        document.getElementById('assessmentContent').innerHTML = `<div style="color: red; padding: 2rem;">Error: ${error.message}</div>`;
-      }
-    };
-
   </script>
 </body>
 </html>
