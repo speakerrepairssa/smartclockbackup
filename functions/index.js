@@ -273,18 +273,18 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
 
     await Promise.all(processPromises);
 
-    // 🚀 AUTO-UPDATE ASSESSMENT CACHE for this specific employee
+    // 🚀 AUTO-UPDATE ASSESSMENT CACHE (simplified for reliability)
     try {
       const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM format
       
-      // Update cache for only this employee in all affected businesses
+      // Trigger full cache refresh for all affected businesses (more reliable than single employee update)
       const cachePromises = businessIds.map(async (businessId) => {
-        logger.info(`🔄 Updating assessment cache for employee ${employeeId} in business ${businessId}`);
-        return updateSingleEmployeeCache(businessId, employeeId, currentMonth);
+        logger.info(`🔄 Triggering full assessment cache refresh for business ${businessId} after employee ${employeeId} clock event`);
+        return calculateAndCacheAssessment(businessId, currentMonth, 176);
       });
       
       await Promise.all(cachePromises);
-      logger.info(`✅ Assessment cache updated for employee ${employeeId}`);
+      logger.info(`✅ Assessment cache refreshed for ${businessIds.length} business(es) after employee ${employeeId} clock event`);
     } catch (cacheError) {
       logger.warn("⚠️ Assessment cache update failed (non-critical)", { error: cacheError.message });
       // Don't fail the main webhook - cache update is optional
