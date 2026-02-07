@@ -102,7 +102,7 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
     }
 
     // 🔍 EXTRACT BADGE NUMBER AND EVENT DATA
-    let { deviceId, employeeId, employeeName, attendanceStatus, timestamp, event_log, AccessControllerEvent } = eventData;
+    let { deviceId, employeeId, employeeName, attendanceStatus, timestamp, event_log, AccessControllerEvent, businessId } = eventData;
     let verifyNo = null;
     let serialNo = null;
 
@@ -169,30 +169,6 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
       serialNo = eventData.serialNo;
     }
 
-    // 🎯 CRITICAL: ALWAYS use slot number (1-6), IGNORE device auto-generated employeeId
-    if (verifyNo && parseInt(verifyNo) >= 1 && parseInt(verifyNo) <= 6) {
-      employeeId = verifyNo.toString();
-      employeeName = employeeName || `Employee ${verifyNo}`;
-      logger.info("✅ Using verifyNo as slot number", { 
-        slotNumber: verifyNo,
-        employeeId: employeeId,
-        ignoredDeviceEmployeeId: eventData.employeeId
-      });
-    } else {
-      logger.error("🚨 INVALID SLOT NUMBER", {
-        verifyNo,
-        deviceEmployeeId: eventData.employeeId,
-        expectedRange: "1-6"
-      });
-      // Don't process invalid slot numbers
-      res.status(400).json({ 
-        error: 'Invalid slot number - must be 1-6',
-        verifyNo,
-        deviceEmployeeId: eventData.employeeId
-      });
-      return;
-    }
-
     logger.info("🎯 Final extracted values", { 
       employeeId, 
       verifyNo, 
@@ -255,7 +231,16 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
     });
 
     // 🔥 DYNAMIC DEVICE-TO-BUSINESS MAPPING - Now supports multiple businesses
-    const businessIds = await findBusinessByDeviceId(deviceId);
+    let businessIds;
+    
+    // If businessId is provided directly (for testing), use it
+    if (businessId) {
+      businessIds = [businessId];
+      logger.info("Using provided businessId for testing", { businessId });
+    } else {
+      // Otherwise, find by deviceId
+      businessIds = await findBusinessByDeviceId(deviceId);
+    }
     
     if (!businessIds || businessIds.length === 0) {
       logger.error("Device not registered to any business", { 
@@ -288,31 +273,22 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
 
     await Promise.all(processPromises);
 
-    // 🔄 STORE RAW DEVICE EVENTS (Device mirroring for sync logic)
-    const deviceMirrorPromises = businessIds.map(businessId => 
-      storeRawDeviceEvent(businessId, deviceId, {
-        deviceId: deviceId,
-        deviceInternalId: deviceInternalId,
-        employeeId: employeeId || verifyNo,
-        employeeName: employeeName || `Employee ${employeeId || verifyNo}`,
-        verifyNo: verifyNo,
-        attendanceStatus: attendanceStatus || 'in',
-        timestamp: timestamp || new Date().toISOString(),
-        serialNo: serialNo,
-        rawEventData: eventData,
-        receivedAt: new Date().toISOString(),
-        processed: true
-      })
-    );
-
-    await Promise.all(deviceMirrorPromises);
-
-    // 🔍 TRIGGER SYNC CHECK (Compare device events vs processed events) 
-    const syncPromises = businessIds.map(businessId => 
-      triggerSyncCheck(businessId, deviceId)
-    );
-
-    await Promise.all(syncPromises);
+    // 🚀 AUTO-UPDATE ASSESSMENT CACHE for this specific employee
+    try {
+      const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM format
+      
+      // Update cache for only this employee in all affected businesses
+      const cachePromises = businessIds.map(async (businessId) => {
+        logger.info(`🔄 Updating assessment cache for employee ${employeeId} in business ${businessId}`);
+        return updateSingleEmployeeCache(businessId, employeeId, currentMonth);
+      });
+      
+      await Promise.all(cachePromises);
+      logger.info(`✅ Assessment cache updated for employee ${employeeId}`);
+    } catch (cacheError) {
+      logger.warn("⚠️ Assessment cache update failed (non-critical)", { error: cacheError.message });
+      // Don't fail the main webhook - cache update is optional
+    }
 
     res.status(200).json({ 
       success: true, 
@@ -509,11 +485,26 @@ async function findBusinessByDeviceId(deviceId) {
 /**
  * 📝 PROCESS ATTENDANCE EVENT
  * Updates the correct business's attendance data with badge number mapping
- * Includes duplicate prevention and sequence validation
  */
 async function processAttendanceEvent(businessId, eventData) {
   try {
     const { employeeId, employeeName, attendanceStatus, timestamp, deviceId, verifyNo, serialNo } = eventData;
+    
+    // Get business plan limits early for validation
+    const businessRef = db.collection('businesses').doc(businessId);
+    const businessDoc = await businessRef.get();
+    const businessData = businessDoc.exists ? businessDoc.data() : {};
+    
+    const planLimits = {
+      'Basic': 5,
+      'Standard': 10,
+      'Professional': 20,
+      'Premium': 30,
+      'Enterprise': 50
+    };
+    
+    const planName = businessData.plan || 'Professional';
+    const maxEmployees = businessData.maxEmployees || planLimits[planName] || 20;
     
     logger.info("🎯 Processing attendance for business", { 
       businessId, 
@@ -522,37 +513,9 @@ async function processAttendanceEvent(businessId, eventData) {
       attendanceStatus,
       verifyNo,
       serialNo,
+      planName,
+      maxEmployees,
       rawEventData: eventData
-    });
-
-    // 🚫 DEVICE-LEVEL THROTTLING - Prevent rapid successive punches from same device
-    const deviceThrottleKey = `${businessId}_${deviceId}_${verifyNo || employeeId}`;
-    const now = Date.now();
-    
-    // Check if we have a recent event from this device/employee (in-memory throttling)
-    if (global.lastPunchTimes && global.lastPunchTimes[deviceThrottleKey]) {
-      const timeSinceLastPunch = now - global.lastPunchTimes[deviceThrottleKey];
-      if (timeSinceLastPunch < 10000) { // 10 seconds minimum between punches
-        logger.warn("🚫 DEVICE THROTTLE - Rejecting rapid successive punch", {
-          deviceThrottleKey,
-          timeSinceLastPunch: `${timeSinceLastPunch}ms`,
-          message: "Minimum 10 seconds between punches required"
-        });
-        throw new Error(`Device throttle: Please wait ${Math.ceil((10000 - timeSinceLastPunch) / 1000)} more seconds before next punch`);
-      }
-    }
-    
-    // Initialize throttle tracking if needed
-    if (!global.lastPunchTimes) {
-      global.lastPunchTimes = {};
-    }
-    global.lastPunchTimes[deviceThrottleKey] = now;
-    
-    // Clean up old entries (older than 1 minute)
-    Object.keys(global.lastPunchTimes).forEach(key => {
-      if (now - global.lastPunchTimes[key] > 60000) {
-        delete global.lastPunchTimes[key];
-      }
     });
 
     // 🎯 EXTRACT SLOT NUMBER FROM DEVICE EMPLOYEE ID
@@ -581,7 +544,7 @@ async function processAttendanceEvent(businessId, eventData) {
         slotNumber = parseInt(eventData.AccessControllerEvent.employeeNoString);
         logger.info("🔧 Recovered slot number from AccessControllerEvent", { slotNumber });
       } else {
-        throw new Error(`Invalid employee ID detected: ${employeeId}. Expected slot number 1-6, got ${employeeId}`);
+        throw new Error(`Invalid employee ID detected: ${employeeId}. Expected slot number 1-${maxEmployees}, got ${employeeId}`);
       }
     } 
     else {
@@ -593,19 +556,121 @@ async function processAttendanceEvent(businessId, eventData) {
       throw new Error("No valid slot number found in device event");
     }
 
-    // Validate slot number is in expected range (1-6)
-    if (slotNumber < 1 || slotNumber > 6) {
+    // Validate slot number is in expected range based on business plan
+    if (slotNumber < 1 || slotNumber > maxEmployees) {
       logger.error("🚨 Slot number out of range", { 
         slotNumber, 
-        expectedRange: "1-6",
+        expectedRange: `1-${maxEmployees}`,
+        planName,
+        businessId,
         eventData 
       });
-      throw new Error(`Slot number ${slotNumber} is out of expected range 1-6`);
+      throw new Error(`Slot number ${slotNumber} is out of expected range 1-${maxEmployees} for ${planName} plan`);
     }
 
     logger.info("🎯 Using slot number from device", { slotNumber, verifyNo, employeeId });
 
     const isClockingIn = attendanceStatus === 'in' || attendanceStatus === 'checkIn';
+
+    // 🚨 DUPLICATE PREVENTION: Check last clock status to prevent duplicate punches
+    const statusRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('status')
+      .doc(slotNumber.toString());
+    
+    const currentStatusSnap = await statusRef.get();
+    const currentStatus = currentStatusSnap.exists ? currentStatusSnap.data() : null;
+    const lastClockStatus = currentStatus?.attendanceStatus || 'out'; // Default to 'out' if no history
+    
+    logger.info("🔍 Duplicate detection check", { 
+      slotNumber, 
+      currentPunch: attendanceStatus,
+      lastClockStatus,
+      isDuplicate: (isClockingIn && lastClockStatus === 'in') || (!isClockingIn && lastClockStatus === 'out')
+    });
+    
+    // Check for duplicate clock-ins or clock-outs
+    if (isClockingIn && lastClockStatus === 'in') {
+      logger.warn("🚨 DUPLICATE CLOCK-IN DETECTED", {
+        slotNumber,
+        employeeName,
+        lastClockStatus,
+        newPunch: attendanceStatus,
+        timestamp,
+        businessId,
+        message: "Employee trying to clock in while already clocked in - treating as mispunch"
+      });
+      
+      // Store as mispunch event
+      const eventDate = new Date(timestamp).toISOString().split('T')[0];
+      const mispunchRef = db.collection('businesses')
+        .doc(businessId)
+        .collection('attendance_events')
+        .doc(eventDate)
+        .collection(slotNumber.toString())
+        .doc();
+      
+      await mispunchRef.set({
+        employeeId: slotNumber.toString(),
+        employeeName: employeeName || `Employee ${slotNumber}`,
+        slotNumber: slotNumber,
+        time: new Date(timestamp).toLocaleTimeString('en-US', { hour12: false }),
+        timestamp: timestamp,
+        type: 'clock-in',
+        attendanceStatus: 'in',
+        deviceId: deviceId,
+        serialNo: serialNo || null,
+        recordedAt: new Date().toISOString(),
+        isDuplicatePunch: true,
+        mispunchType: 'duplicate_clock_in',
+        lastClockStatus: lastClockStatus,
+        mispunchReason: 'Employee attempted to clock in while already clocked in'
+      });
+      
+      throw new Error(`Duplicate clock-in detected for ${employeeName}. Last status was already "in". Punch stored as mispunch for admin review.`);
+    }
+    
+    if (!isClockingIn && lastClockStatus === 'out') {
+      logger.warn("🚨 DUPLICATE CLOCK-OUT DETECTED", {
+        slotNumber,
+        employeeName,
+        lastClockStatus,
+        newPunch: attendanceStatus,
+        timestamp,
+        businessId,
+        message: "Employee trying to clock out while already clocked out - treating as mispunch"
+      });
+      
+      // Store as mispunch event
+      const eventDate = new Date(timestamp).toISOString().split('T')[0];
+      const mispunchRef = db.collection('businesses')
+        .doc(businessId)
+        .collection('attendance_events')
+        .doc(eventDate)
+        .collection(slotNumber.toString())
+        .doc();
+      
+      await mispunchRef.set({
+        employeeId: slotNumber.toString(),
+        employeeName: employeeName || `Employee ${slotNumber}`,
+        slotNumber: slotNumber,
+        time: new Date(timestamp).toLocaleTimeString('en-US', { hour12: false }),
+        timestamp: timestamp,
+        type: 'clock-out',
+        attendanceStatus: 'out',
+        deviceId: deviceId,
+        serialNo: serialNo || null,
+        recordedAt: new Date().toISOString(),
+        isDuplicatePunch: true,
+        mispunchType: 'duplicate_clock_out',
+        lastClockStatus: lastClockStatus,
+        mispunchReason: 'Employee attempted to clock out while already clocked out'
+      });
+      
+      throw new Error(`Duplicate clock-out detected for ${employeeName}. Last status was already "out". Punch stored as mispunch for admin review.`);
+    }
+
+    logger.info("✅ Valid punch - no duplicates detected", { slotNumber, attendanceStatus, lastClockStatus });
 
     // 🎯 UPDATE NUMBERED STAFF SLOT (CRITICAL: Use slot number as document ID)
     const staffSlotRef = db.collection('businesses')
@@ -632,13 +697,13 @@ async function processAttendanceEvent(businessId, eventData) {
 
     await staffSlotRef.set(updatedSlotData, { merge: true });
 
-    // 📊 UPDATE STATUS COLLECTION FOR REAL-TIME MONITORING
-    const statusRef = db.collection('businesses')
+    // 📊 UPDATE STATUS COLLECTION FOR REAL-TIME MONITORING (with lastClockStatus tracking)
+    const statusUpdateRef = db.collection('businesses')
       .doc(businessId)
       .collection('status')
       .doc(slotNumber.toString());
 
-    await statusRef.set({
+    await statusUpdateRef.set({
       employeeId: slotNumber.toString(),
       employeeName: employeeName || `Employee ${slotNumber}`,
       badgeNumber: slotNumber.toString(),
@@ -648,10 +713,12 @@ async function processAttendanceEvent(businessId, eventData) {
       deviceId: deviceId || 'Unknown',
       slot: slotNumber,
       active: true,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      lastClockStatus: isClockingIn ? 'in' : 'out', // Track for duplicate detection
+      previousClockStatus: lastClockStatus // Keep history
     }, { merge: true });
 
-    // 📅 STORE EVENT IN DATE-ORGANIZED COLLECTION WITH DUPLICATE PREVENTION
+    // 📅 STORE EVENT IN DATE-ORGANIZED COLLECTION
     const eventDate = new Date(timestamp).toISOString().split('T')[0]; // YYYY-MM-DD
     const eventTime = new Date(timestamp).toLocaleTimeString('en-US', { 
       hour12: false, 
@@ -660,72 +727,12 @@ async function processAttendanceEvent(businessId, eventData) {
       second: '2-digit'
     });
     
-    // 🚫 PREVENT DUPLICATE EVENTS - Check if similar event exists within last 30 seconds
-    const eventDateTime = new Date(timestamp);
-    const thirtySecondsAgo = new Date(eventDateTime.getTime() - 30000); // 30 seconds ago
-    const thirtySecondsAfter = new Date(eventDateTime.getTime() + 30000); // 30 seconds after
-    
-    const dayEventsRef = db.collection('businesses')
+    const eventsRef = db.collection('businesses')
       .doc(businessId)
       .collection('attendance_events')
       .doc(eventDate)
-      .collection(slotNumber.toString());
-    
-    const recentEventsSnap = await dayEventsRef
-      .where('timestamp', '>=', thirtySecondsAgo.toISOString())
-      .where('timestamp', '<=', thirtySecondsAfter.toISOString())
-      .get();
-    
-    // Check for duplicates (same type within 30 seconds)
-    const hasDuplicate = recentEventsSnap.docs.some(doc => {
-      const data = doc.data();
-      return data.type === (isClockingIn ? 'clock-in' : 'clock-out') &&
-             Math.abs(new Date(data.timestamp) - eventDateTime) < 30000; // Within 30 seconds
-    });
-    
-    if (hasDuplicate) {
-      logger.warn("🚫 DUPLICATE EVENT DETECTED - Skipping", {
-        businessId,
-        slotNumber,
-        eventType: isClockingIn ? 'clock-in' : 'clock-out',
-        timestamp,
-        message: "Similar event found within 30 seconds"
-      });
-      return; // Skip duplicate event
-    }
-    
-    // 🔍 VALIDATE PUNCH SEQUENCE - Prevent invalid state transitions
-    const lastEventsSnap = await dayEventsRef
-      .orderBy('timestamp', 'desc')
-      .limit(1)
-      .get();
-    
-    if (!lastEventsSnap.empty) {
-      const lastEvent = lastEventsSnap.docs[0].data();
-      
-      // Check for invalid sequence: clock-in after clock-in, or clock-out after clock-out
-      if (lastEvent.type === (isClockingIn ? 'clock-in' : 'clock-out')) {
-        // Check if it's recent (within last 4 hours) - allow overnight transitions
-        const lastEventTime = new Date(lastEvent.timestamp);
-        const timeDiffHours = (eventDateTime - lastEventTime) / (1000 * 60 * 60);
-        
-        if (timeDiffHours < 4) {
-          logger.warn("⚠️ INVALID PUNCH SEQUENCE DETECTED", {
-            businessId,
-            slotNumber,
-            lastEventType: lastEvent.type,
-            newEventType: isClockingIn ? 'clock-in' : 'clock-out',
-            timeDiffHours: timeDiffHours.toFixed(2),
-            message: `Cannot ${isClockingIn ? 'clock-in' : 'clock-out'} after recent ${lastEvent.type}`
-          });
-          
-          // Auto-correct: Allow the new event but log the issue
-          logger.info("🔧 AUTO-CORRECTION: Allowing punch but flagging sequence issue");
-        }
-      }
-    }
-    
-    const eventsRef = dayEventsRef.doc();
+      .collection(slotNumber.toString()) // Slot number (1, 2, 3, etc.)
+      .doc();
     
     await eventsRef.set({
       employeeId: slotNumber.toString(),
@@ -738,137 +745,13 @@ async function processAttendanceEvent(businessId, eventData) {
       deviceId: deviceId,
       serialNo: serialNo || null,
       recordedAt: new Date().toISOString(),
-      validated: true // Mark as validated to distinguish from old entries
+      lastClockStatus: lastClockStatus, // Previous status for context
+      isDuplicatePunch: false, // Valid punch
+      isManual: eventData.isManual || false,
+      manualNotes: eventData.manualNotes || null
     });
 
-    // 🗂️ UPDATE EMPLOYEE TIMESHEET (Daily Processing)
-    const timesheetRef = db.collection('businesses')
-      .doc(businessId)
-      .collection('employee_timesheets')
-      .doc(slotNumber.toString())
-      .collection('daily_sheets')
-      .doc(eventDate);
-    
-    // Get existing timesheet or create new
-    const timesheetSnap = await timesheetRef.get();
-    const existingTimesheet = timesheetSnap.exists ? timesheetSnap.data() : {
-      employeeId: slotNumber.toString(),
-      employeeName: employeeName || `Employee ${slotNumber}`,
-      date: eventDate,
-      clockEvents: [],
-      workPeriods: [],
-      totalHours: 0,
-      breakMinutes: 0,
-      overtimeHours: 0,
-      status: 'active'
-    };
-    
-    // Add new clock event
-    existingTimesheet.clockEvents.push({
-      timestamp: timestamp,
-      type: isClockingIn ? 'clock-in' : 'clock-out',
-      time: eventTime
-    });
-    
-    // Calculate work periods and total hours
-    const clockEvents = existingTimesheet.clockEvents.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    const workPeriods = [];
-    let totalHours = 0;
-    
-    // Get business schedule settings
-    const businessRef = await db.collection('businesses').doc(businessId).get();
-    const businessData = businessRef.data();
-    const schedule = businessData?.schedule || {};
-    const publicHolidays = businessData?.publicHolidays || [];
-    
-    // Check if this date is a public holiday
-    const isPublicHoliday = publicHolidays.includes(eventDate);
-    
-    if (!isPublicHoliday) {
-      // Get day of week schedule
-      const dayOfWeek = new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      const daySchedule = schedule[dayOfWeek];
-      
-      for (let i = 0; i < clockEvents.length; i += 2) {
-        const clockIn = clockEvents[i];
-        const clockOut = clockEvents[i + 1];
-        
-        if (clockIn && clockOut && clockIn.type === 'clock-in' && clockOut.type === 'clock-out') {
-          let start = new Date(clockIn.timestamp);
-          let end = new Date(clockOut.timestamp);
-          
-          // If day schedule exists, cap hours to scheduled shift times
-          if (daySchedule && daySchedule.enabled && daySchedule.startTime && daySchedule.endTime) {
-            const scheduledStart = new Date(eventDate + 'T' + daySchedule.startTime);
-            const scheduledEnd = new Date(eventDate + 'T' + daySchedule.endTime);
-            
-            // Use scheduled start if clocked in early
-            if (start < scheduledStart) {
-              start = scheduledStart;
-            }
-            
-            // Use scheduled end if still working after shift
-            if (end > scheduledEnd) {
-              end = scheduledEnd;
-            }
-          }
-          
-          const hours = Math.max(0, (end - start) / (1000 * 60 * 60)); // Convert to hours, min 0
-          
-          if (hours > 0) {
-            workPeriods.push({
-              start: clockIn.time,
-              end: clockOut.time,
-              scheduledStart: daySchedule?.startTime,
-              scheduledEnd: daySchedule?.endTime,
-              hours: Math.round(hours * 100) / 100
-            });
-            
-            totalHours += hours;
-          }
-        }
-      }
-      
-      // Deduct break time
-      const breakHours = (businessData?.breakDuration || 0) / 60;
-      totalHours = Math.max(0, totalHours - breakHours);
-    }
-    
-    existingTimesheet.workPeriods = workPeriods;
-    existingTimesheet.totalHours = Math.round(totalHours * 100) / 100;
-    existingTimesheet.isPublicHoliday = isPublicHoliday;
-    
-    // Calculate overtime based on day schedule
-    const dayOfWeek = new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    const daySchedule = schedule[dayOfWeek];
-    let scheduledHours = 8; // default
-    if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
-      const start = new Date(eventDate + 'T' + daySchedule.startTime);
-      const end = new Date(eventDate + 'T' + daySchedule.endTime);
-      scheduledHours = (end - start) / (1000 * 60 * 60);
-    }
-    existingTimesheet.scheduledHours = scheduledHours;
-    existingTimesheet.overtimeHours = Math.max(0, totalHours - scheduledHours);
-    existingTimesheet.lastUpdated = new Date().toISOString();
-    
-    await timesheetRef.set(existingTimesheet);
-
-    // 🏪 UPDATE LAST ATTENDANCE TRACKING
-    const lastAttendanceRef = db.collection('businesses')
-      .doc(businessId)
-      .collection('employee_last_attendance')
-      .doc(slotNumber.toString());
-    
-    await lastAttendanceRef.set({
-      employeeId: slotNumber.toString(),
-      employeeName: employeeName || `Employee ${slotNumber}`,
-      lastEventType: isClockingIn ? 'clock-in' : 'clock-out',
-      lastEventTime: timestamp,
-      attendanceStatus: isClockingIn ? 'in' : 'out',
-      updatedAt: new Date().toISOString()
-    });
-
-    // 📱 TRIGGER WHATSAPP ON CLOCK-OUT
+    // � TRIGGER WHATSAPP ON CLOCK-OUT
     if (!isClockingIn) {
       try {
         await sendDailyUpdateWhatsApp(businessId, slotNumber.toString(), employeeName, eventDate);
@@ -878,13 +761,13 @@ async function processAttendanceEvent(businessId, eventData) {
       }
     }
 
-    logger.info("Attendance event processed successfully", { 
+    logger.info("✅ UNIFIED: Attendance event processed successfully", { 
       businessId, 
       slotNumber,
       employeeName,
       attendanceStatus,
       eventDate,
-      collectionsUpdated: ['staff', 'status', 'attendance_events', 'employee_timesheets', 'employee_last_attendance']
+      collectionsUpdated: ['staff', 'status', 'attendance_events'] // Only unified collections
     });
 
   } catch (error) {
@@ -894,7 +777,285 @@ async function processAttendanceEvent(businessId, eventData) {
 }
 
 /**
- * � AUTO-SYNC SLOTS ON BUSINESS UPDATE
+ * 🔄 MIGRATE DATA TO UNIFIED COLLECTIONS
+ * Consolidates all old collection data into attendance_events
+ */
+exports.migrateToUnifiedCollections = onRequest(async (req, res) => {
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ 
+        error: 'Missing required parameter: businessId' 
+      });
+    }
+
+    logger.info("🚀 Starting migration to unified collections", { businessId });
+    
+    const batch = db.batch();
+    let migrationCount = 0;
+    const migratedData = {
+      fromEmployeeTimesheets: 0,
+      fromDeviceEvents: 0,
+      fromEmployeeLastAttendance: 0,
+      totalEvents: 0
+    };
+
+    // 1️⃣ MIGRATE FROM EMPLOYEE_TIMESHEETS
+    logger.info("📊 Migrating from employee_timesheets");
+    
+    const timesheetsRef = db.collection('businesses').doc(businessId).collection('employee_timesheets');
+    const employeeTimesheets = await timesheetsRef.get();
+    
+    for (const empDoc of employeeTimesheets.docs) {
+      const employeeId = empDoc.id;
+      logger.info(`Processing employee ${employeeId}`);
+      
+      // Get all daily sheets for this employee
+      const dailySheetsRef = empDoc.ref.collection('daily_sheets');
+      const dailySheets = await dailySheetsRef.get();
+      
+      for (const dayDoc of dailySheets.docs) {
+        const dayData = dayDoc.data();
+        const date = dayData.date;
+        
+        // Convert clock events to attendance_events format
+        if (dayData.clockEvents && Array.isArray(dayData.clockEvents)) {
+          dayData.clockEvents.forEach((clockEvent, index) => {
+            const eventRef = db.collection('businesses')
+              .doc(businessId)
+              .collection('attendance_events')
+              .doc();
+            
+            const attendanceStatus = clockEvent.type === 'clock-in' ? 'in' : 'out';
+            
+            const unifiedEvent = {
+              businessId,
+              slotNumber: parseInt(employeeId),
+              employeeId: employeeId,
+              employeeName: dayData.employeeName || `Employee ${employeeId}`,
+              timestamp: clockEvent.timestamp,
+              attendanceStatus,
+              eventDate: date,
+              eventTime: clockEvent.time,
+              deviceId: 'migrated_from_timesheet',
+              deviceName: 'Migrated Data',
+              verifyNo: `migrated_${date}_${employeeId}_${index}`,
+              source: 'timesheet_migration',
+              migratedAt: new Date().toISOString(),
+              originalCollection: 'employee_timesheets',
+              metadata: {
+                workPeriods: dayData.workPeriods || [],
+                totalHours: dayData.totalHours || 0,
+                overtimeHours: dayData.overtimeHours || 0
+              }
+            };
+            
+            batch.set(eventRef, unifiedEvent);
+            migrationCount++;
+            migratedData.fromEmployeeTimesheets++;
+          });
+        }
+      }
+    }
+
+    // 2️⃣ UPDATE STATUS FROM EMPLOYEE_LAST_ATTENDANCE
+    logger.info("🏪 Updating status from employee_last_attendance");
+    
+    const lastAttendanceRef = db.collection('businesses').doc(businessId).collection('employee_last_attendance');
+    const lastAttendanceDocs = await lastAttendanceRef.get();
+    
+    for (const doc of lastAttendanceDocs.docs) {
+      const data = doc.data();
+      const slotNumber = parseInt(doc.id);
+      
+      // Update status collection with last known state
+      const statusRef = db.collection('businesses')
+        .doc(businessId)
+        .collection('status')
+        .doc(slotNumber.toString());
+      
+      const statusUpdate = {
+        employeeId: slotNumber.toString(),
+        employeeName: data.employeeName || `Employee ${slotNumber}`,
+        badgeNumber: slotNumber.toString(),
+        attendanceStatus: data.currentStatus || 'out',
+        lastClockStatus: data.currentStatus || 'out',
+        lastClockTime: data.lastEventTime || new Date().toISOString(),
+        lastEventType: data.lastEventType || 'checkout',
+        updatedAt: new Date().toISOString(),
+        migratedFrom: 'employee_last_attendance'
+      };
+      
+      batch.set(statusRef, statusUpdate, { merge: true });
+      migratedData.fromEmployeeLastAttendance++;
+    }
+
+    // 3️⃣ COMMIT ALL CHANGES
+    logger.info(`💾 Committing ${migrationCount} events to attendance_events`);
+    
+    if (migrationCount > 0) {
+      await batch.commit();
+      logger.info("✅ Migration batch committed successfully");
+    }
+
+    migratedData.totalEvents = migrationCount;
+    
+    logger.info("✅ Migration completed successfully", migratedData);
+
+    res.json({
+      success: true,
+      message: '✅ Migration completed successfully',
+      summary: {
+        businessId,
+        fromEmployeeTimesheets: migratedData.fromEmployeeTimesheets,
+        fromDeviceEvents: migratedData.fromDeviceEvents,
+        statusUpdates: migratedData.fromEmployeeLastAttendance,
+        totalEvents: migratedData.totalEvents,
+        migratedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error("❌ Migration failed", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Migration failed'
+    });
+  }
+});
+
+/**
+ * �️ CLEANUP OLD COLLECTIONS
+ * Removes old collections that are no longer used in unified architecture
+ */
+exports.cleanupOldCollections = onRequest(async (req, res) => {
+  try {
+    const { businessId, confirm } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ 
+        error: 'Missing required parameter: businessId' 
+      });
+    }
+
+    if (confirm !== 'true') {
+      return res.status(400).json({ 
+        error: 'This is a destructive operation. Add ?confirm=true to proceed.',
+        warning: 'This will permanently delete old collections: employee_timesheets, employee_last_attendance, device_*_events'
+      });
+    }
+
+    logger.info("🗑️ Starting cleanup of old collections", { businessId });
+    
+    const businessRef = db.collection('businesses').doc(businessId);
+    const deletedCollections = [];
+    
+    try {
+      // Get all collections for this business
+      const allCollections = await businessRef.listCollections();
+      
+      // Delete employee_timesheets
+      const timesheetsCollection = allCollections.find(col => col.id === 'employee_timesheets');
+      if (timesheetsCollection) {
+        logger.info("Deleting employee_timesheets collection");
+        await deleteCollectionRecursively(timesheetsCollection);
+        deletedCollections.push('employee_timesheets');
+      }
+      
+      // Delete employee_last_attendance
+      const lastAttendanceCollection = allCollections.find(col => col.id === 'employee_last_attendance');
+      if (lastAttendanceCollection) {
+        logger.info("Deleting employee_last_attendance collection");
+        await deleteCollectionRecursively(lastAttendanceCollection);
+        deletedCollections.push('employee_last_attendance');
+      }
+      
+      // Delete device-specific collections (pattern: device_*_events)
+      const deviceCollections = allCollections.filter(col => 
+        col.id.startsWith('device_') && col.id.endsWith('_events')
+      );
+      
+      for (const deviceCol of deviceCollections) {
+        logger.info(`Deleting device collection: ${deviceCol.id}`);
+        await deleteCollectionRecursively(deviceCol);
+        deletedCollections.push(deviceCol.id);
+      }
+      
+      logger.info("✅ Cleanup completed successfully", { deletedCollections });
+      
+      res.json({
+        success: true,
+        message: '✅ Cleanup completed successfully',
+        summary: {
+          businessId,
+          deletedCollections,
+          cleanupAt: new Date().toISOString()
+        }
+      });
+      
+    } catch (error) {
+      logger.error("❌ Cleanup failed", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        message: 'Cleanup failed'
+      });
+    }
+
+  } catch (error) {
+    logger.error("❌ Cleanup request failed", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Cleanup request failed'
+    });
+  }
+});
+
+/**
+ * Helper function to recursively delete a collection and all subcollections
+ */
+async function deleteCollectionRecursively(collectionRef, batchSize = 100) {
+  const query = collectionRef.limit(batchSize);
+  
+  return new Promise((resolve, reject) => {
+    deleteQueryBatch(query, resolve).catch(reject);
+  });
+}
+
+async function deleteQueryBatch(query, resolve) {
+  const snapshot = await query.get();
+  
+  const batchSize = snapshot.size;
+  if (batchSize === 0) {
+    resolve();
+    return;
+  }
+  
+  const batch = db.batch();
+  
+  for (const doc of snapshot.docs) {
+    // Delete any subcollections first
+    const subcollections = await doc.ref.listCollections();
+    for (const subcol of subcollections) {
+      await deleteCollectionRecursively(subcol);
+    }
+    
+    // Then delete the document
+    batch.delete(doc.ref);
+  }
+  
+  await batch.commit();
+  
+  process.nextTick(() => {
+    deleteQueryBatch(query, resolve);
+  });
+}
+
+/**
+ * �🔧 AUTO-SYNC SLOTS ON BUSINESS UPDATE
  * Triggers when slotsAllowed field changes in business document
  */
 exports.autoSyncSlots = onDocumentUpdated("businesses/{businessId}", async (event) => {
@@ -974,17 +1135,7 @@ async function syncSlots(businessId, slotsAllowed) {
       deviceId: "" // Blank - admin assigns manually
     });
 
-    // Create employee_last_attendance slot
-    const lastAttendanceRef = businessRef.collection('employee_last_attendance');
-    await lastAttendanceRef.doc(slotNum.toString()).set({
-      employeeId: slotNum.toString(),
-      employeeName: `Employee ${slotNum}`,
-      lastClockIn: null,
-      lastClockOut: null,
-      currentStatus: "out",
-      lastUpdate: FieldValue.serverTimestamp(),
-      deviceId: "" // Blank - admin assigns manually
-    });
+    // ✅ UNIFIED: Status collection handles attendance state tracking
   }
 
   // REMOVE EXCESS SLOTS (above slotsAllowed, but only if empty)
@@ -1014,8 +1165,7 @@ async function syncSlots(businessId, slotsAllowed) {
     // Delete status slot
     await businessRef.collection('status').doc(slotNum.toString()).delete();
     
-    // Delete employee_last_attendance slot
-    await businessRef.collection('employee_last_attendance').doc(slotNum.toString()).delete();
+    // ✅ UNIFIED: Status collection handles attendance state tracking
   }
 
   // Update business document
@@ -2168,4 +2318,1675 @@ async function sendViaGenericAPI(settings, toNumber, message) {
     req.write(postData);
     req.end();
   });
+}
+
+/**
+ * 🎯 UPDATE BUSINESS PLAN LIMITS
+ * HTTP endpoint to update business plan and employee limits
+ */
+exports.updateBusinessPlan = onRequest(async (req, res) => {
+  try {
+    const { businessId, plan, maxEmployees } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ 
+        error: 'businessId is required',
+        example: '/updateBusinessPlan?businessId=biz_machine_2&plan=Premium&maxEmployees=30'
+      });
+    }
+
+    const validPlans = ['Basic', 'Standard', 'Professional', 'Premium', 'Enterprise'];
+    const planName = plan || 'Professional';
+    const employeeLimit = maxEmployees ? parseInt(maxEmployees) : null;
+    
+    if (!validPlans.includes(planName)) {
+      return res.status(400).json({ 
+        error: 'Invalid plan',
+        validPlans,
+        providedPlan: planName
+      });
+    }
+
+    logger.info("Updating business plan", { businessId, planName, employeeLimit });
+
+    const businessRef = db.collection('businesses').doc(businessId);
+    const updateData = {
+      plan: planName,
+      planUpdatedAt: new Date().toISOString()
+    };
+    
+    if (employeeLimit !== null) {
+      updateData.maxEmployees = employeeLimit;
+    }
+    
+    await businessRef.update(updateData);
+
+    // Get updated business data to return
+    const updatedDoc = await businessRef.get();
+    const updatedData = updatedDoc.data();
+
+    res.json({
+      success: true,
+      message: `Business plan updated successfully`,
+      businessId,
+      plan: updatedData.plan,
+      maxEmployees: updatedData.maxEmployees,
+      planUpdatedAt: updatedData.planUpdatedAt
+    });
+
+  } catch (error) {
+    logger.error("Business plan update failed", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * 🔍 CHECK BUSINESS SETTINGS
+ * Shows actual business document settings vs created slots
+ */
+exports.checkBusinessSettings = onRequest(async (req, res) => {
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId' });
+    }
+
+    const businessRef = db.collection('businesses').doc(businessId);
+    const businessDoc = await businessRef.get();
+    
+    if (!businessDoc.exists) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
+    
+    const businessData = businessDoc.data();
+    
+    // Count actual slots created
+    const staffRef = businessRef.collection('staff');
+    const staffDocs = await staffRef.get();
+    const actualSlots = staffDocs.size;
+    
+    const statusRef = businessRef.collection('status');
+    const statusDocs = await statusRef.get();
+    const statusSlots = statusDocs.size;
+    
+    const report = {
+      businessId,
+      businessDocument: {
+        slotsAllowed: businessData.slotsAllowed,
+        plan: businessData.plan,
+        maxEmployees: businessData.maxEmployees
+      },
+      actualCollections: {
+        staffSlots: actualSlots,
+        statusSlots: statusSlots
+      },
+      discrepancy: {
+        shouldHave: businessData.slotsAllowed || businessData.maxEmployees,
+        actuallyHas: actualSlots
+      }
+    };
+    
+    res.json({
+      success: true,
+      message: 'Business settings check completed',
+      report
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🔧 FIX SLOT COUNT
+ * Syncs slot count with actual business admin setting
+ */
+exports.fixSlotCount = onRequest(async (req, res) => {
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId' });
+    }
+
+    const businessRef = db.collection('businesses').doc(businessId);
+    const businessDoc = await businessRef.get();
+    
+    if (!businessDoc.exists) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
+    
+    const businessData = businessDoc.data();
+    
+    // Get the ACTUAL slot count from admin settings
+    const correctSlotCount = businessData.slotsAllowed || businessData.maxEmployees || 5;
+    
+    logger.info(`Fixing slot count for ${businessId} to ${correctSlotCount} slots`);
+    
+    // Get current collections
+    const staffRef = businessRef.collection('staff');
+    const statusRef = businessRef.collection('status');
+    
+    const staffDocs = await staffRef.get();
+    const statusDocs = await statusRef.get();
+    
+    const currentStaffSlots = staffDocs.size;
+    const currentStatusSlots = statusDocs.size;
+    
+    // If we have too many slots, remove excess
+    if (currentStaffSlots > correctSlotCount) {
+      const batch = db.batch();
+      for (let i = correctSlotCount + 1; i <= currentStaffSlots; i++) {
+        batch.delete(staffRef.doc(i.toString()));
+        batch.delete(statusRef.doc(i.toString()));
+      }
+      await batch.commit();
+      logger.info(`Removed ${currentStaffSlots - correctSlotCount} excess slots`);
+    }
+    
+    // If we have too few slots, add missing ones
+    if (currentStaffSlots < correctSlotCount) {
+      const batch = db.batch();
+      for (let i = currentStaffSlots + 1; i <= correctSlotCount; i++) {
+        // Add staff slot
+        batch.set(staffRef.doc(i.toString()), {
+          employeeId: i.toString(),
+          employeeName: `Employee ${i}`,
+          active: false,
+          slotNumber: i,
+          badgeNumber: i.toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deviceId: "",
+          phone: "",
+          email: ""
+        });
+        
+        // Add status slot
+        batch.set(statusRef.doc(i.toString()), {
+          employeeId: i.toString(),
+          employeeName: `Employee ${i}`,
+          badgeNumber: i.toString(),
+          attendanceStatus: 'out',
+          lastClockStatus: 'out',
+          lastClockTime: new Date().toISOString(),
+          lastEventType: 'checkout',
+          isActive: false,
+          slotNumber: i,
+          updatedAt: new Date().toISOString(),
+          deviceId: ""
+        });
+      }
+      await batch.commit();
+      logger.info(`Added ${correctSlotCount - currentStaffSlots} missing slots`);
+    }
+    
+    res.json({
+      success: true,
+      message: `Slot count fixed for ${businessId}`,
+      summary: {
+        businessId,
+        correctSlotCount,
+        previousStaffSlots: currentStaffSlots,
+        previousStatusSlots: currentStatusSlots,
+        action: currentStaffSlots > correctSlotCount ? 'removed_excess' : 
+                currentStaffSlots < correctSlotCount ? 'added_missing' : 'already_correct'
+      }
+    });
+
+  } catch (error) {
+    logger.error("❌ Fix slot count failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🏗️ SETUP UNIFIED STRUCTURE FOR ALL BUSINESSES
+ * Creates the correct collections for existing and new businesses
+ */
+exports.setupUnifiedStructure = onRequest(async (req, res) => {
+  try {
+    logger.info("🏗️ Setting up unified structure for all businesses");
+    
+    const businessesRef = db.collection('businesses');
+    const businesses = await businessesRef.get();
+    
+    const setupResults = [];
+    let totalBusinesses = 0;
+    
+    for (const businessDoc of businesses.docs) {
+      const businessId = businessDoc.id;
+      const businessData = businessDoc.data();
+      totalBusinesses++;
+      
+      logger.info(`Setting up unified structure for: ${businessId}`);
+      
+      // Get plan info for slot limits
+      const planName = businessData.plan || 'Basic';
+      const planLimits = {
+        'Basic': 5,
+        'Standard': 10, 
+        'Professional': 20,
+        'Premium': 30,
+        'Enterprise': 50
+      };
+      const maxEmployees = planLimits[planName] || 5;
+      
+      // 1️⃣ CREATE STAFF COLLECTION (Employee Management)
+      const staffRef = businessDoc.ref.collection('staff');
+      for (let i = 1; i <= maxEmployees; i++) {
+        await staffRef.doc(i.toString()).set({
+          employeeId: i.toString(),
+          employeeName: `Employee ${i}`,
+          active: false,
+          slotNumber: i,
+          badgeNumber: i.toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deviceId: "",
+          phone: "",
+          email: ""
+        });
+      }
+      
+      // 2️⃣ CREATE STATUS COLLECTION (Real-time Monitoring)  
+      const statusRef = businessDoc.ref.collection('status');
+      for (let i = 1; i <= maxEmployees; i++) {
+        await statusRef.doc(i.toString()).set({
+          employeeId: i.toString(),
+          employeeName: `Employee ${i}`,
+          badgeNumber: i.toString(),
+          attendanceStatus: 'out',
+          lastClockStatus: 'out',
+          lastClockTime: new Date().toISOString(),
+          lastEventType: 'checkout',
+          isActive: false,
+          slotNumber: i,
+          updatedAt: new Date().toISOString(),
+          deviceId: ""
+        });
+      }
+      
+      // 3️⃣ CREATE ATTENDANCE_EVENTS COLLECTION (Unified Data Storage)
+      // This will be populated by new attendance events - no placeholder needed
+      
+      setupResults.push({
+        businessId: businessId,
+        plan: planName,
+        maxEmployees: maxEmployees,
+        collectionsCreated: ['staff', 'status', 'attendance_events'],
+        slotsCreated: maxEmployees
+      });
+      
+      logger.info(`✅ Setup completed for ${businessId}: ${planName} plan with ${maxEmployees} slots`);
+    }
+    
+    logger.info("🏗️ Unified structure setup completed for all businesses", { 
+      totalBusinesses,
+      setupResults: setupResults.length
+    });
+    
+    res.json({
+      success: true,
+      message: '🏗️ Unified structure setup completed for all businesses',
+      summary: {
+        totalBusinesses,
+        structure: ['staff', 'status', 'attendance_events'],
+        setupResults
+      }
+    });
+
+  } catch (error) {
+    logger.error("❌ Unified structure setup failed", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Unified structure setup failed'
+    });
+  }
+});
+
+/**
+ * 🧹 NUCLEAR CLEANUP - DELETE ALL COLLECTIONS FROM ALL BUSINESSES
+ */
+exports.nuclearCleanup = onRequest(async (req, res) => {
+  try {
+    const { confirm } = req.query;
+    
+    if (confirm !== 'NUCLEAR_CLEANUP_CONFIRMED') {
+      return res.status(400).json({ 
+        error: 'This will DELETE ALL COLLECTIONS from ALL BUSINESSES. Use ?confirm=NUCLEAR_CLEANUP_CONFIRMED',
+        warning: 'THIS IS IRREVERSIBLE!'
+      });
+    }
+
+    logger.info("🧹 NUCLEAR CLEANUP STARTING - DELETING ALL COLLECTIONS");
+    
+    const businessesRef = db.collection('businesses');
+    const businesses = await businessesRef.get();
+    
+    const deletedItems = [];
+    let totalBusinesses = 0;
+    let totalCollections = 0;
+    
+    for (const businessDoc of businesses.docs) {
+      const businessId = businessDoc.id;
+      totalBusinesses++;
+      
+      logger.info(`Processing business: ${businessId}`);
+      
+      // Get all collections for this business
+      const allCollections = await businessDoc.ref.listCollections();
+      
+      for (const collection of allCollections) {
+        const collectionName = collection.id;
+        totalCollections++;
+        
+        logger.info(`  Deleting collection: ${collectionName}`);
+        
+        // Delete all documents in collection
+        const docs = await collection.get();
+        if (docs.size > 0) {
+          const batch = db.batch();
+          docs.forEach(doc => batch.delete(doc.ref));
+          await batch.commit();
+        }
+        
+        deletedItems.push(`${businessId}/${collectionName} (${docs.size} docs)`);
+      }
+    }
+    
+    logger.info("🧹 NUCLEAR CLEANUP COMPLETED", { 
+      totalBusinesses, 
+      totalCollections,
+      deletedItems: deletedItems.length 
+    });
+    
+    res.json({
+      success: true,
+      message: '🧹 NUCLEAR CLEANUP COMPLETED - All collections deleted',
+      summary: {
+        totalBusinesses,
+        totalCollections,
+        deletedItems: deletedItems.slice(0, 20), // Show first 20
+        totalDeleted: deletedItems.length
+      }
+    });
+
+  } catch (error) {
+    logger.error("❌ Nuclear cleanup failed", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Nuclear cleanup failed'
+    });
+  }
+});
+
+/**
+ * 🏗️ RECREATE UNIFIED ARCHITECTURE FOR ALL BUSINESSES
+ */
+exports.recreateUnifiedArchitecture = onRequest(async (req, res) => {
+  try {
+    const { confirm } = req.query;
+    
+    if (confirm !== 'RECREATE_CONFIRMED') {
+      return res.status(400).json({ 
+        error: 'Use ?confirm=RECREATE_CONFIRMED to recreate collections'
+      });
+    }
+
+    logger.info("🏗️ RECREATING UNIFIED ARCHITECTURE FOR ALL BUSINESSES");
+    
+    const businessesRef = db.collection('businesses');
+    const businesses = await businessesRef.get();
+    
+    const recreatedItems = [];
+    let totalBusinesses = 0;
+    
+    for (const businessDoc of businesses.docs) {
+      const businessId = businessDoc.id;
+      const businessData = businessDoc.data();
+      totalBusinesses++;
+      
+      logger.info(`Recreating collections for: ${businessId}`);
+      
+      // Get plan info
+      const planName = businessData.plan || 'Basic';
+      const planLimits = {
+        'Basic': 5,
+        'Standard': 10, 
+        'Professional': 20,
+        'Premium': 30,
+        'Enterprise': 50
+      };
+      const maxEmployees = planLimits[planName] || 5;
+      
+      // 1. Create STAFF collection (employee management)
+      const staffRef = businessDoc.ref.collection('staff');
+      for (let i = 1; i <= maxEmployees; i++) {
+        await staffRef.doc(i.toString()).set({
+          employeeId: i.toString(),
+          employeeName: `Employee ${i}`,
+          active: false,
+          slotNumber: i,
+          badgeNumber: i.toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deviceId: ""
+        });
+      }
+      
+      // 2. Create STATUS collection (real-time monitoring)  
+      const statusRef = businessDoc.ref.collection('status');
+      for (let i = 1; i <= maxEmployees; i++) {
+        await statusRef.doc(i.toString()).set({
+          employeeId: i.toString(),
+          employeeName: `Employee ${i}`,
+          badgeNumber: i.toString(),
+          attendanceStatus: 'out',
+          lastClockStatus: 'out',
+          lastClockTime: new Date().toISOString(),
+          lastEventType: 'checkout',
+          isActive: false,
+          slotNumber: i,
+          updatedAt: new Date().toISOString(),
+          deviceId: ""
+        });
+      }
+      
+      // 3. Create ATTENDANCE_EVENTS collection (unified data storage)
+      const attendanceRef = businessDoc.ref.collection('attendance_events');
+      // Create a ready marker without reserved name
+      await attendanceRef.doc('ready_marker').set({
+        message: 'Attendance events collection ready for unified architecture',
+        businessId: businessId,
+        maxEmployees: maxEmployees,
+        plan: planName,
+        createdAt: new Date().toISOString(),
+        structure: 'unified_architecture_v1'
+      });
+      
+      recreatedItems.push(`${businessId}: staff(${maxEmployees}), status(${maxEmployees}), attendance_events`);
+    }
+    
+    logger.info("🏗️ UNIFIED ARCHITECTURE RECREATION COMPLETED", { 
+      totalBusinesses,
+      recreatedItems: recreatedItems.length
+    });
+    
+    res.json({
+      success: true,
+      message: '🏗️ UNIFIED ARCHITECTURE RECREATED FOR ALL BUSINESSES',
+      summary: {
+        totalBusinesses,
+        collectionsPerBusiness: ['staff', 'status', 'attendance_events'],
+        recreatedItems
+      }
+    });
+
+  } catch (error) {
+    logger.error("❌ Architecture recreation failed", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Architecture recreation failed'
+    });
+  }
+});
+
+/**
+ * 🔍 DEEP INSPECTION - Shows REAL nested structure 
+ */
+exports.deepInspection = onRequest(async (req, res) => {
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId' });
+    }
+
+    const businessRef = db.collection('businesses').doc(businessId);
+    const report = {
+      businessId,
+      timestamp: new Date().toISOString(),
+      collections: {},
+      nestedStructures: {}
+    };
+
+    // Get all top-level collections
+    const allCollections = await businessRef.listCollections();
+    
+    for (const collection of allCollections) {
+      const collectionName = collection.id;
+      const docs = await collection.get();
+      
+      report.collections[collectionName] = {
+        documentCount: docs.size,
+        sampleDocuments: []
+      };
+
+      // Check each document for subcollections (nested structure)
+      let docCount = 0;
+      for (const doc of docs.docs) {
+        if (docCount < 5) { // Sample first 5 docs
+          const docData = doc.data();
+          const subcollections = await doc.ref.listCollections();
+          
+          const docInfo = {
+            docId: doc.id,
+            hasData: Object.keys(docData).length > 0,
+            subcollections: subcollections.map(sub => sub.id)
+          };
+
+          // If this doc has subcollections, dive deeper
+          if (subcollections.length > 0) {
+            docInfo.nestedData = {};
+            for (const subcol of subcollections) {
+              const subDocs = await subcol.get();
+              docInfo.nestedData[subcol.id] = {
+                count: subDocs.size,
+                sampleIds: subDocs.docs.slice(0, 3).map(d => d.id)
+              };
+            }
+          }
+          
+          report.collections[collectionName].sampleDocuments.push(docInfo);
+          docCount++;
+        }
+      }
+    }
+
+    // Specifically check attendance_events structure
+    const attendanceRef = businessRef.collection('attendance_events');
+    const attendanceDocs = await attendanceRef.get();
+    
+    report.attendanceEventsStructure = {
+      topLevelDocs: attendanceDocs.size,
+      structure: []
+    };
+    
+    // Check first few attendance docs for nested structure
+    for (let i = 0; i < Math.min(5, attendanceDocs.size); i++) {
+      const doc = attendanceDocs.docs[i];
+      const subcollections = await doc.ref.listCollections();
+      
+      if (subcollections.length > 0) {
+        const structureInfo = {
+          docId: doc.id,
+          subcollections: []
+        };
+        
+        for (const subcol of subcollections) {
+          const subDocs = await subcol.get();
+          structureInfo.subcollections.push({
+            name: subcol.id,
+            count: subDocs.size
+          });
+        }
+        
+        report.attendanceEventsStructure.structure.push(structureInfo);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Deep inspection completed - showing REAL structure',
+      report: report
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🔍 INSPECT DATABASE STATE
+ * Shows current state of all collections for debugging
+ */
+exports.inspectDatabaseState = onRequest(async (req, res) => {
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ 
+        error: 'Missing required parameter: businessId' 
+      });
+    }
+
+    logger.info("🔍 Inspecting database state", { businessId });
+    
+    const businessRef = db.collection('businesses').doc(businessId);
+    const report = {
+      businessId,
+      timestamp: new Date().toISOString(),
+      collections: {}
+    };
+
+    // Get all collections for this business
+    const allCollections = await businessRef.listCollections();
+    
+    for (const collection of allCollections) {
+      const collectionName = collection.id;
+      const docs = await collection.get();
+      
+      report.collections[collectionName] = {
+        exists: true,
+        documentCount: docs.size,
+        sampleDocs: []
+      };
+
+      // Sample first 3 documents
+      let count = 0;
+      docs.forEach(doc => {
+        if (count < 3) {
+          const data = doc.data();
+          report.collections[collectionName].sampleDocs.push({
+            id: doc.id,
+            hasTimestamp: !!(data.timestamp || data.lastUpdate || data.createdAt)
+          });
+          count++;
+        }
+      });
+    }
+
+    // Check attendance_events specifically
+    try {
+      const attendanceEventsRef = businessRef.collection('attendance_events');
+      const attendanceEventsDocs = await attendanceEventsRef.limit(10).get();
+      
+      report.attendanceEventsDetails = {
+        totalCount: attendanceEventsDocs.size,
+        hasEvents: attendanceEventsDocs.size > 0
+      };
+    } catch (e) {
+      report.attendanceEventsDetails = { error: e.message };
+    }
+
+    logger.info("Database inspection completed", { 
+      collectionsFound: Object.keys(report.collections),
+      attendanceEventsCount: report.attendanceEventsDetails?.totalCount || 0
+    });
+
+    res.json({
+      success: true,
+      summary: `Found ${Object.keys(report.collections).length} collections, ${report.attendanceEventsDetails?.totalCount || 0} attendance events`,
+      collectionsPresent: Object.keys(report.collections),
+      attendanceEventsCount: report.attendanceEventsDetails?.totalCount || 0,
+      fullReport: report
+    });
+
+  } catch (error) {
+    logger.error("❌ Inspection failed", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Inspection failed'
+    });
+  }
+});
+
+/**
+ * Hard Reset Business Data - Admin Tool
+ * Completely wipes and recreates a business's data with clean structure
+ */
+exports.hardResetBusinessData = onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ success: false, error: 'Only POST method allowed' });
+    return;
+  }
+
+  const { businessId, adminKey } = req.body;
+
+  // Basic admin authentication
+  if (adminKey !== 'Azam198419880001#') {
+    logger.warn("❌ Unauthorized hard reset attempt", { businessId });
+    res.status(403).json({ success: false, error: 'Unauthorized access' });
+    return;
+  }
+
+  if (!businessId) {
+    res.status(400).json({ success: false, error: 'Business ID is required' });
+    return;
+  }
+
+  try {
+    logger.info(`🔄 Starting hard reset for business: ${businessId}`);
+    
+    // Step 1: Get business document to preserve essential settings
+    const businessRef = db.collection('businesses').doc(businessId);
+    const businessDoc = await businessRef.get();
+    
+    if (!businessDoc.exists) {
+      res.status(404).json({ success: false, error: 'Business not found' });
+      return;
+    }
+
+    const businessData = businessDoc.data();
+    const slotsAllowed = businessData.slotsAllowed || 10;
+    
+    logger.info(`📊 Business has ${slotsAllowed} slots allowed`);
+
+    // Step 2: Nuclear cleanup - Delete ALL subcollections
+    const collectionsToClean = ['staff', 'status', 'attendance_events', 'employees', 'timecards', 'timecard_data', 'employee_status'];
+    let deletedCount = 0;
+
+    for (const collectionName of collectionsToClean) {
+      const collectionRef = businessRef.collection(collectionName);
+      const snapshot = await collectionRef.get();
+      
+      for (const doc of snapshot.docs) {
+        await doc.ref.delete();
+        deletedCount++;
+      }
+      
+      logger.info(`🗑️ Deleted ${snapshot.size} documents from ${collectionName}`);
+    }
+
+    // Step 3: Create clean unified structure
+    const staffBatch = db.batch();
+    const statusBatch = db.batch();
+    
+    for (let slot = 1; slot <= slotsAllowed; slot++) {
+      // Create clean staff record
+      const staffRef = businessRef.collection('staff').doc(slot.toString());
+      staffBatch.set(staffRef, {
+        slot: slot,
+        employeeId: slot,
+        employeeName: `Employee ${slot}`,
+        badgeNumber: slot.toString(),
+        active: true,
+        phone: null,
+        email: null,
+        position: null,
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      });
+
+      // Create clean status record
+      const statusRef = businessRef.collection('status').doc(slot.toString());
+      statusBatch.set(statusRef, {
+        employeeId: slot,
+        attendanceStatus: 'unknown',
+        lastClockTime: null,
+        lastClockType: null,
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      });
+    }
+
+    // Commit batches
+    await staffBatch.commit();
+    await statusBatch.commit();
+
+    // Step 4: Update business document timestamp
+    await businessRef.update({
+      lastHardReset: new Date().toISOString(),
+      lastUpdated: new Date().toISOString()
+    });
+
+    const summary = {
+      businessId,
+      slotsRecreated: slotsAllowed,
+      documentsDeleted: deletedCount,
+      collectionsProcessed: collectionsToClean,
+      resetTimestamp: new Date().toISOString()
+    };
+
+    logger.info("✅ Hard reset completed successfully", summary);
+    
+    res.json({
+      success: true,
+      message: `Hard reset completed for ${businessId}`,
+      summary
+    });
+
+  } catch (error) {
+    logger.error("❌ Hard reset failed", { businessId, error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Hard reset operation failed'
+    });
+  }
+});
+
+/**
+ * Restore Point Function - Reset All Businesses to Clean State
+ * Creates blank employee slots for all businesses based on their slotsAllowed setting
+ */
+exports.restoreCleanDatabase = onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ success: false, error: 'Only POST method allowed' });
+    return;
+  }
+
+  const { adminKey } = req.body;
+
+  // Admin authentication
+  if (adminKey !== 'Azam198419880001#') {
+    logger.warn("❌ Unauthorized restore attempt");
+    res.status(403).json({ success: false, error: 'Unauthorized access' });
+    return;
+  }
+
+  try {
+    logger.info('🔄 Starting database restore to clean state');
+    
+    // Get all businesses
+    const businessesRef = db.collection('businesses');
+    const businessesSnap = await businessesRef.get();
+    
+    const results = [];
+    
+    for (const businessDoc of businessesSnap.docs) {
+      const businessId = businessDoc.id;
+      const businessData = businessDoc.data();
+      const slotsAllowed = businessData.slotsAllowed || 10;
+      
+      logger.info(`🧹 Cleaning business: ${businessId} (${slotsAllowed} slots)`);
+      
+      // Delete all subcollections
+      const collectionsToClean = ['staff', 'status', 'attendance_events', 'employees', 'timecards', 'timecard_data', 'employee_status'];
+      let deletedCount = 0;
+
+      for (const collectionName of collectionsToClean) {
+        const collectionRef = businessDoc.ref.collection(collectionName);
+        const snapshot = await collectionRef.get();
+        
+        for (const doc of snapshot.docs) {
+          await doc.ref.delete();
+          deletedCount++;
+        }
+      }
+
+      // Create clean blank slots
+      const staffBatch = db.batch();
+      const statusBatch = db.batch();
+      
+      for (let slot = 1; slot <= slotsAllowed; slot++) {
+        // Create blank staff record
+        const staffRef = businessDoc.ref.collection('staff').doc(slot.toString());
+        staffBatch.set(staffRef, {
+          slot: slot,
+          employeeId: slot,
+          employeeName: `Employee ${slot}`,
+          badgeNumber: slot.toString(),
+          active: true,
+          phone: null,
+          email: null,
+          position: null,
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        });
+
+        // Create blank status record
+        const statusRef = businessDoc.ref.collection('status').doc(slot.toString());
+        statusBatch.set(statusRef, {
+          employeeId: slot,
+          attendanceStatus: 'unknown',
+          lastClockTime: null,
+          lastClockType: null,
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        });
+      }
+
+      await staffBatch.commit();
+      await statusBatch.commit();
+
+      // Update business document
+      await businessDoc.ref.update({
+        lastRestorePoint: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      });
+
+      results.push({
+        businessId,
+        slotsCreated: slotsAllowed,
+        documentsDeleted: deletedCount
+      });
+    }
+
+    const summary = {
+      businessesProcessed: results.length,
+      totalSlotsCreated: results.reduce((sum, r) => sum + r.slotsCreated, 0),
+      totalDocumentsDeleted: results.reduce((sum, r) => sum + r.documentsDeleted, 0),
+      restoreTimestamp: new Date().toISOString()
+    };
+
+    logger.info("✅ Database restore completed successfully", summary);
+    
+    res.json({
+      success: true,
+      message: 'Database restored to clean state with blank slots',
+      summary,
+      businessResults: results
+    });
+
+  } catch (error) {
+    logger.error("❌ Database restore failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      message: 'Database restore operation failed'
+    });
+  }
+});
+
+/**
+ * Check what device IDs are actually being received by webhooks
+ */
+exports.inspectWebhookData = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    logger.info("📊 WEBHOOK INSPECTION", { 
+      method: req.method, 
+      headers: req.headers,
+      contentType: req.get('content-type'),
+      query: req.query,
+      body: req.body,
+      rawBody: req.rawBody ? req.rawBody.toString('utf8', 0, 200) : null
+    });
+    
+    res.json({
+      success: true,
+      message: "Webhook data logged",
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      contentType: req.get('content-type'),
+      hasRawBody: !!req.rawBody,
+      bodySize: req.rawBody ? req.rawBody.length : 0
+    });
+
+  } catch (error) {
+    logger.error("Webhook inspection error", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * 📊 ASSESSMENT CACHE UPDATER
+ * Triggers assessment calculation when attendance events change
+ * Called automatically on clock-in/out or manually via HTTP request
+ */
+exports.updateAssessmentCache = onRequest({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, month, requiredHours } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ 
+        error: 'Missing required parameter: businessId',
+        usage: '/updateAssessmentCache?businessId=biz_machine_2&month=2026-02&requiredHours=176'
+      });
+    }
+
+    const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM format
+    const requiredHoursPerMonth = requiredHours ? parseInt(requiredHours) : 176;
+    
+    logger.info("📊 Updating assessment cache", { businessId, targetMonth, requiredHoursPerMonth });
+    
+    const result = await calculateAndCacheAssessment(businessId, targetMonth, requiredHoursPerMonth);
+    
+    res.json({
+      success: true,
+      message: 'Assessment cache updated successfully',
+      businessId,
+      month: targetMonth,
+      requiredHours: requiredHoursPerMonth,
+      ...result
+    });
+
+  } catch (error) {
+    logger.error("❌ Assessment cache update failed", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * Update assessment cache for a single employee (called after clock in/out)
+ * Uses EXACT same calculation logic as timecard
+ */
+async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
+  try {
+    const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM format
+    console.log(`🔄 Updating cache for employee ${employeeId} in ${businessId}, month: ${targetMonth}`);
+    
+    // Get employee info
+    const staffDoc = await db.collection("businesses").doc(businessId).collection("staff").doc(employeeId).get();
+    if (!staffDoc.exists) {
+      console.log(`⚠️ Employee ${employeeId} not found in staff`);
+      return;
+    }
+    
+    const employee = staffDoc.data();
+    const payRate = employee.payRate || 0;
+    const slot = employee.slot || 0;
+    
+    // Get business settings (for break duration and schedule)
+    const businessDoc = await db.collection("businesses").doc(businessId).get();
+    const businessData = businessDoc.data();
+    const breakMinutes = businessData?.breakDuration || 60;
+    const schedule = businessData?.schedule || {};
+    
+    // Get default work times
+    let defaultScheduledWorkHours = 8;
+    let defaultScheduledStartTime = '08:30';
+    let defaultScheduledEndTime = '17:30';
+    
+    if (businessData?.workStartTime && businessData?.workEndTime) {
+      defaultScheduledStartTime = businessData.workStartTime;
+      defaultScheduledEndTime = businessData.workEndTime;
+      const [startH, startM] = defaultScheduledStartTime.split(':').map(Number);
+      const [endH, endM] = defaultScheduledEndTime.split(':').map(Number);
+      const shiftDuration = (endH + endM/60) - (startH + startM/60);
+      defaultScheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
+    }
+    
+    // Parse month for date range
+    const [year, monthNum] = targetMonth.split('-');
+    const daysInMonth = new Date(year, monthNum, 0).getDate();
+    const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(monthNum).padStart(2, '0')}-${daysInMonth}`;
+    
+    // ⚡ Get attendance events for this employee (TIMECARD LOGIC)
+    const eventsByDate = {};
+    const attendanceRef = db.collection("businesses").doc(businessId).collection("attendance_events");
+    
+    // Query nested structure: attendance_events/{date}/{employeeId}/*
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      try {
+        const dayEventsRef = attendanceRef.doc(dateStr).collection(employeeId);
+        const dayEventsSnap = await dayEventsRef.get();
+        
+        dayEventsSnap.forEach(doc => {
+          const event = doc.data();
+          
+          // Skip test events
+          if (event.testMode) return;
+          
+          if (event.timestamp) {
+            const timestamp = event.timestamp.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
+            
+            // Skip pending unresolved punches
+            if (event.status === 'pending' && !event.resolvedManually) return;
+            
+            // Determine event type
+            let eventType = null;
+            if (event.type) eventType = event.type;
+            else if (event.attendanceStatus) {
+              eventType = event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out';
+            }
+            
+            if (eventType) {
+              if (!eventsByDate[dateStr]) {
+                eventsByDate[dateStr] = [];
+              }
+              
+              eventsByDate[dateStr].push({
+                type: eventType,
+                timestamp: timestamp,
+                dateStr: dateStr
+              });
+            }
+          }
+        });
+      } catch (dayError) {
+        // Day might not exist - that's ok
+      }
+    }
+    
+    // Calculate payable hours (EXACT TIMECARD LOGIC)
+    let totalPayableHours = 0;
+    let workingDays = 0;
+    
+    Object.keys(eventsByDate).forEach(dateStr => {
+      const dayEvents = eventsByDate[dateStr].sort((a, b) => a.timestamp - b.timestamp);
+      
+      // Find first clock-in and last clock-out
+      const firstClockIn = dayEvents.find(e => e.type === 'clock-in');
+      const lastClockOut = dayEvents.filter(e => e.type === 'clock-out').pop();
+      
+      if (firstClockIn && lastClockOut) {
+        const actualStart = firstClockIn.timestamp;
+        const actualEnd = lastClockOut.timestamp;
+        
+        // Get scheduled times for this day
+        const date = new Date(dateStr);
+        const fullDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        const daySchedule = schedule[fullDayName];
+        
+        let scheduledStartTime = defaultScheduledStartTime;
+        let scheduledEndTime = defaultScheduledEndTime;
+        let scheduledWorkHours = defaultScheduledWorkHours;
+        
+        if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
+          scheduledStartTime = daySchedule.startTime;
+          scheduledEndTime = daySchedule.endTime;
+          const [startH, startM] = scheduledStartTime.split(':').map(Number);
+          const [endH, endM] = scheduledEndTime.split(':').map(Number);
+          const shiftDuration = (endH + endM/60) - (startH + startM/60);
+          scheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
+        }
+        
+        // Create scheduled start/end times
+        const [schedStartH, schedStartM] = scheduledStartTime.split(':').map(Number);
+        const [schedEndH, schedEndM] = scheduledEndTime.split(':').map(Number);
+        
+        const schedStart = new Date(actualStart);
+        schedStart.setHours(schedStartH, schedStartM, 0, 0);
+        
+        const schedEnd = new Date(actualStart);
+        schedEnd.setHours(schedEndH, schedEndM, 0, 0);
+        
+        // Calculate payable start/end (cap at scheduled times)
+        const payableStart = new Date(Math.max(actualStart.getTime(), schedStart.getTime()));
+        const payableEnd = new Date(Math.min(actualEnd.getTime(), schedEnd.getTime()));
+        
+        // Calculate duration
+        const payableDuration = Math.max(0, (payableEnd.getTime() - payableStart.getTime()) / (1000 * 60 * 60));
+        
+        // Subtract lunch break and cap at scheduled work hours
+        let dayPayableHours = Math.max(0, payableDuration - (breakMinutes / 60));
+        dayPayableHours = Math.min(dayPayableHours, scheduledWorkHours);
+        
+        totalPayableHours += dayPayableHours;
+        workingDays++;
+      }
+    });
+    
+    const currentHours = Math.round(totalPayableHours * 100) / 100;
+    const requiredHours = 176; // Standard monthly hours
+    const hoursShort = Math.max(0, requiredHours - currentHours);
+    const currentIncomeDue = currentHours * payRate;
+    const potentialIncome = requiredHours * payRate;
+    
+    // Determine status
+    let status = 'On Track';
+    if (hoursShort > 40) status = 'Critical';
+    else if (hoursShort > 0) status = 'Behind';
+    
+    // Update cache in Firestore
+    const cacheRef = db.collection("businesses").doc(businessId).collection("assessment_cache").doc(targetMonth);
+    
+    // Get existing cache or create new
+    const cacheDoc = await cacheRef.get();
+    let cacheData = cacheDoc.exists ? cacheDoc.data() : {
+      month: targetMonth,
+      summary: {
+        totalEmployees: 0,
+        totalHoursWorked: 0,
+        totalHoursShort: 0,
+        totalAmountDue: 0
+      },
+      employees: []
+    };
+    
+    // Update or add this employee's data
+    const employeeIndex = cacheData.employees.findIndex(e => e.employeeId === employeeId);
+    const employeeData = {
+      employeeId: employeeId,
+      employeeIndex: slot,
+      employeeName: employee.employeeName || employee.name || `Slot ${slot}`,
+      currentHours: currentHours,
+      requiredHours: requiredHours,
+      hoursShort: hoursShort,
+      pastDueHours: 0,
+      workingDays: workingDays,
+      payRate: payRate,
+      currentIncomeDue: Math.round(currentIncomeDue * 100) / 100,
+      potentialIncome: Math.round(potentialIncome * 100) / 100,
+      status: status,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    if (employeeIndex >= 0) {
+      cacheData.employees[employeeIndex] = employeeData;
+    } else {
+      cacheData.employees.push(employeeData);
+    }
+    
+    // Sort by slot
+    cacheData.employees.sort((a, b) => a.employeeIndex - b.employeeIndex);
+    
+    // Recalculate summary
+    cacheData.summary = {
+      totalEmployees: cacheData.employees.length,
+      totalHoursWorked: cacheData.employees.reduce((sum, e) => sum + e.currentHours, 0),
+      totalHoursShort: cacheData.employees.reduce((sum, e) => sum + e.hoursShort, 0),
+      totalAmountDue: cacheData.employees.reduce((sum, e) => sum + e.currentIncomeDue, 0)
+    };
+    cacheData.lastUpdated = new Date().toISOString();
+    
+    await cacheRef.set(cacheData);
+    
+    console.log(`✅ Updated cache for employee ${employeeId}: ${currentHours}h (${workingDays} days)`);
+    
+    return { employeeId, currentHours, workingDays };
+    
+  } catch (error) {
+    console.error(`❌ Failed to update cache for employee ${employeeId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Calculate and cache assessment data for a business and month
+ * This now processes each employee individually using timecard logic
+ */
+async function calculateAndCacheAssessment(businessId, month, requiredHoursPerMonth = 176) {
+  try {
+    console.log('📊 Starting assessment calculation for:', { businessId, month, requiredHoursPerMonth });
+    
+    // 1. Get all staff members
+    const staffRef = db.collection("businesses").doc(businessId).collection("staff");
+    const staffSnap = await staffRef.get();
+    
+    console.log(`👥 Found ${staffSnap.size} staff members`);
+    
+    if (staffSnap.empty) {
+      console.log('⚠️ No staff members found');
+      return { totalEmployees: 0, message: 'No staff members found' };
+    }
+    
+    // 2. Update cache for each employee individually (reusing timecard logic)
+    const updatePromises = [];
+    staffSnap.forEach(doc => {
+      const employeeId = doc.id;
+      updatePromises.push(updateSingleEmployeeCache(businessId, employeeId, month));
+    });
+    
+    await Promise.all(updatePromises);
+    
+    console.log(`✅ Assessment cache updated for ${staffSnap.size} employees`);
+    
+    return {
+      totalEmployees: staffSnap.size,
+      message: `Successfully updated cache for ${staffSnap.size} employees`
+    };
+    
+  } catch (error) {
+    console.error('❌ Assessment calculation failed:', error);
+    throw error;
+  }
+}
+    
+    const employees = [];
+    let employeeIndex = 1;
+    
+    staffSnap.forEach(doc => {
+      const staff = doc.data();
+      const slot = parseInt(staff.slot || doc.id);
+      
+      // Skip empty slots or deleted employees
+      if (!staff.employeeName || staff.employeeName.startsWith('Deleted')) {
+        return;
+      }
+      
+      const payRate = parseFloat(staff.payRate || staff.hourlyRate || 0);
+      
+      employees.push({
+        slot,
+        employeeId: doc.id,
+        employeeName: staff.employeeName,
+        payRate: isNaN(payRate) ? 0 : payRate,
+        phone: staff.phone || '',
+        email: staff.email || '',
+        position: staff.position || '',
+        active: staff.active !== false
+      });
+    });
+    
+    // Sort by slot number
+    employees.sort((a, b) => a.slot - b.slot);
+    
+    // 2. Get attendance events for this month
+    const [year, monthNum] = month.split('-');
+    const monthStart = new Date(year, monthNum - 1, 1);
+    const monthEnd = new Date(year, monthNum, 0);
+    
+    console.log(`📅 Calculating for period: ${monthStart.toISOString()} to ${monthEnd.toISOString()}`);
+    
+    // 3. Process attendance events using nested structure: attendance_events/{date}/{employeeId}/{eventId}
+    const employeeAttendance = {};
+    
+    // Initialize all employees with zero data
+    employees.forEach(emp => {
+      employeeAttendance[emp.employeeId] = {
+        totalMinutes: 0,
+        totalHours: 0,
+        attendanceDays: 0,
+        events: []
+      };
+    });
+    
+    const attendanceRef = db.collection("businesses").doc(businessId).collection("attendance_events");
+    const datesSnap = await attendanceRef.get();
+    
+    console.log(`📋 Found ${datesSnap.size} date documents to process`);
+    
+    let totalEventsProcessed = 0;
+    
+    // Iterate through each date in attendance_events
+    for (const dateDoc of datesSnap.docs) {
+      const dateStr = dateDoc.id; // e.g., "2026-02-05"
+      const eventDate = new Date(dateStr);
+      
+      // Skip dates outside the target month
+      if (eventDate < monthStart || eventDate > monthEnd) {
+        continue;
+      }
+      
+      console.log(`📅 Processing date: ${dateStr}`);
+      
+      // List all employee subcollections under this date
+      const dateDocRef = attendanceRef.doc(dateStr);
+      const employeeCollections = await dateDocRef.listCollections();
+      
+      console.log(`   Found ${employeeCollections.length} employee collections`);
+      
+      // Process each employee's events
+      for (const employeeCollection of employeeCollections) {
+        const employeeId = employeeCollection.id;
+        
+        // Get events for this employee
+        const eventsSnap = await employeeCollection.get();
+        
+        console.log(`   👤 Employee ${employeeId}: ${eventsSnap.size} events`);
+        
+        // Initialize employee if not already tracked
+        if (!employeeAttendance[employeeId]) {
+          console.log(`   ⚠️  Employee ${employeeId} not in staff list, skipping`);
+          continue;
+        }
+        
+        eventsSnap.forEach(eventDoc => {
+          const event = eventDoc.data();
+          
+          // Skip test/demo events
+          if (event.testMode === true || event.source === 'demo') {
+            return;
+          }
+          
+          const timestamp = event.timestamp?.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
+          
+          // Convert attendanceStatus to clock-in/clock-out format (same as timecard)
+          const eventType = event.type || (event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out');
+          
+          employeeAttendance[employeeId].events.push({
+            timestamp: timestamp,
+            type: eventType,
+            eventDate: dateStr
+          });
+          
+          totalEventsProcessed++;
+        });
+      }
+    }
+    
+    console.log(`📊 Total events processed: ${totalEventsProcessed}`);
+    
+    // Get business settings for payroll calculation (SAME AS TIMECARD)
+    const businessDoc = await db.collection("businesses").doc(businessId).get();
+    const businessData = businessDoc.data();
+    const breakMinutes = businessData?.breakDuration || 60; // Default 60 min lunch break
+    const schedule = businessData?.schedule || {};
+    
+    // Get default work times from business settings
+    let defaultScheduledWorkHours = 8; // Default
+    let defaultScheduledStartTime = '08:30';
+    let defaultScheduledEndTime = '17:30';
+    
+    if (businessData?.workStartTime && businessData?.workEndTime) {
+      defaultScheduledStartTime = businessData.workStartTime;
+      defaultScheduledEndTime = businessData.workEndTime;
+      const [startH, startM] = defaultScheduledStartTime.split(':').map(Number);
+      const [endH, endM] = defaultScheduledEndTime.split(':').map(Number);
+      const shiftDuration = (endH + endM/60) - (startH + startM/60);
+      defaultScheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
+    }
+    
+    console.log(`⚙️  Business Settings: ${defaultScheduledStartTime}-${defaultScheduledEndTime}, Break: ${breakMinutes}min, Scheduled: ${defaultScheduledWorkHours}h`);
+    
+    // 4. Calculate PAYABLE hours using EXACT SAME LOGIC AS TIMECARD
+    Object.keys(employeeAttendance).forEach(empId => {
+      const attendance = employeeAttendance[empId];
+      const events = attendance.events;
+      
+      console.log(`📊 Processing ${events.length} events for employee: ${empId}`);
+      
+      if (events.length === 0) {
+        attendance.totalHours = 0;
+        attendance.attendanceDays = 0;
+        return;
+      }
+      
+      // Group events by date
+      const eventsByDate = {};
+      events.forEach(event => {
+        const dateStr = event.eventDate;
+        if (!eventsByDate[dateStr]) {
+          eventsByDate[dateStr] = [];
+        }
+        eventsByDate[dateStr].push(event);
+      });
+      
+      let totalPayableHours = 0;
+      let workingDays = 0;
+      
+      // Process each day separately (LIKE TIMECARD DOES)
+      Object.keys(eventsByDate).forEach(dateStr => {
+        const dayEvents = eventsByDate[dateStr].sort((a, b) => a.timestamp - b.timestamp);
+        
+        // Find first clock-in and last clock-out
+        const firstClockIn = dayEvents.find(e => e.type.toLowerCase().includes('in'));
+        const lastClockOut = dayEvents.filter(e => e.type.toLowerCase().includes('out')).pop();
+        
+        if (firstClockIn && lastClockOut) {
+          const actualStart = firstClockIn.timestamp;
+          const actualEnd = lastClockOut.timestamp;
+          
+          // Get scheduled times for this day
+          const date = new Date(dateStr);
+          const fullDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+          const daySchedule = schedule[fullDayName];
+          
+          let scheduledStartTime = defaultScheduledStartTime;
+          let scheduledEndTime = defaultScheduledEndTime;
+          let scheduledWorkHours = defaultScheduledWorkHours;
+          
+          if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
+            scheduledStartTime = daySchedule.startTime;
+            scheduledEndTime = daySchedule.endTime;
+            const [startH, startM] = scheduledStartTime.split(':').map(Number);
+            const [endH, endM] = scheduledEndTime.split(':').map(Number);
+            const shiftDuration = (endH + endM/60) - (startH + startM/60);
+            scheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
+          }
+          
+          // Create scheduled start/end times for this specific day
+          const [schedStartH, schedStartM] = scheduledStartTime.split(':').map(Number);
+          const [schedEndH, schedEndM] = scheduledEndTime.split(':').map(Number);
+          
+          const schedStart = new Date(actualStart);
+          schedStart.setHours(schedStartH, schedStartM, 0, 0);
+          
+          const schedEnd = new Date(actualStart);
+          schedEnd.setHours(schedEndH, schedEndM, 0, 0);
+          
+          // Calculate payable start (later of actual or scheduled)
+          const payableStart = new Date(Math.max(actualStart.getTime(), schedStart.getTime()));
+          
+          // Calculate payable end (earlier of actual or scheduled)
+          const payableEnd = new Date(Math.min(actualEnd.getTime(), schedEnd.getTime()));
+          
+          // Calculate duration between payable start and end
+          const payableDuration = Math.max(0, (payableEnd.getTime() - payableStart.getTime()) / (1000 * 60 * 60));
+          
+          // Subtract lunch break
+          let dayPayableHours = Math.max(0, payableDuration - (breakMinutes / 60));
+          
+          // Cap at scheduled work hours
+          dayPayableHours = Math.min(dayPayableHours, scheduledWorkHours);
+          
+          totalPayableHours += dayPayableHours;
+          workingDays++;
+          
+          console.log(`   ${dateStr}: Actual ${actualStart.toLocaleTimeString('en-US')}-${actualEnd.toLocaleTimeString('en-US')} → Payable ${dayPayableHours.toFixed(2)}h`);
+        }
+      });
+      
+      attendance.totalHours = Math.round(totalPayableHours * 100) / 100;
+      attendance.attendanceDays = workingDays;
+      attendance.totalMinutes = totalPayableHours * 60;
+      
+      console.log(`✅ Employee ${empId} total: ${attendance.totalHours}h over ${attendance.attendanceDays} days`);
+    });
+    
+    // 5. Generate assessment records
+    const assessmentRecords = [];
+    let totalEmployees = 0;
+    let totalHoursWorked = 0;
+    let totalHoursShort = 0;
+    let totalAmountDue = 0;
+    let totalPotentialPayroll = 0;
+    
+    employees.forEach(emp => {
+      const attendance = employeeAttendance[emp.employeeId] || { totalHours: 0, attendanceDays: 0 };
+      
+      const currentHours = Math.round(attendance.totalHours * 100) / 100; // Round to 2 decimal places
+      const hoursShort = Math.max(0, requiredHoursPerMonth - currentHours);
+      const pastDueHours = 0; // Calculate based on business logic
+      const currentIncomeDue = currentHours * emp.payRate;
+      const potentialIncome = requiredHoursPerMonth * emp.payRate;
+      
+      // Determine status
+      let status = 'On Track';
+      let statusColor = '#28a745';
+      
+      if (hoursShort > 40) {
+        status = 'Critical';
+        statusColor = '#dc3545';
+      } else if (hoursShort > 0) {
+        status = 'Behind';
+        statusColor = '#fd7e14';
+      }
+      
+      const record = {
+        employeeIndex: totalEmployees + 1,
+        employeeId: emp.employeeId,
+        employeeName: emp.employeeName,
+        slot: emp.slot,
+        requiredHours: requiredHoursPerMonth,
+        currentHours: currentHours,
+        pastDueHours: pastDueHours,
+        hoursShort: hoursShort,
+        payRate: emp.payRate,
+        currentIncomeDue: Math.round(currentIncomeDue * 100) / 100,
+        potentialIncome: Math.round(potentialIncome * 100) / 100,
+        status: status,
+        statusColor: statusColor,
+        attendanceDays: attendance.attendanceDays,
+        attendanceStatus: emp.active ? 'active' : 'inactive',
+        calculatedAt: new Date().toISOString(),
+        month: month
+      };
+      
+      assessmentRecords.push(record);
+      
+      // Update totals
+      totalEmployees++;
+      totalHoursWorked += currentHours;
+      totalHoursShort += hoursShort;
+      totalAmountDue += currentIncomeDue;
+      totalPotentialPayroll += potentialIncome;
+    });
+    
+    // 6. Calculate summary data
+    const averageAttendance = totalEmployees > 0 ? 
+      Math.round((totalHoursWorked / (requiredHoursPerMonth * totalEmployees)) * 10000) / 100 : 0;
+    
+    const summary = {
+      totalEmployees,
+      totalHoursWorked: Math.round(totalHoursWorked * 100) / 100,
+      totalHoursShort: Math.round(totalHoursShort * 100) / 100,
+      totalAmountDue: Math.round(totalAmountDue * 100) / 100,
+      totalPotentialPayroll: Math.round(totalPotentialPayroll * 100) / 100,
+      averageAttendance: averageAttendance,
+      requiredHoursPerMonth,
+      calculatedAt: new Date().toISOString(),
+      month: month
+    };
+    
+    console.log('📈 Assessment Summary:', summary);
+    console.log(`👥 Generated ${assessmentRecords.length} employee records`);
+    
+    // 7. Store in cache collection
+    const cacheRef = db.collection("businesses").doc(businessId).collection("assessment_cache").doc(month);
+    await cacheRef.set({
+      summary,
+      employees: assessmentRecords,
+      lastUpdated: new Date(),
+      calculationVersion: "1.0"
+    });
+    
+    console.log('✅ Assessment data cached successfully');
+    
+    return {
+      success: true,
+      summary,
+      employeeCount: assessmentRecords.length,
+      cached: true
+    };
+    
+  } catch (error) {
+    console.error('❌ Error calculating assessment:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 }
