@@ -3576,6 +3576,34 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
     const currentIncomeDue = currentHours * payRate;
     const potentialIncome = requiredHours * payRate;
     
+    // 📅 Calculate Past Due Hours (based on working days passed in the month)
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1; // 1-indexed
+    const currentDay = today.getDate();
+    
+    let pastDueHours = 0;
+    
+    // Only calculate past due if we're in the target month
+    if (year == currentYear && monthNum == currentMonth) {
+      // Count working days (Mon-Fri) from start of month until TODAY (not including today if it's incomplete)
+      let workingDaysPassed = 0;
+      
+      for (let day = 1; day < currentDay; day++) { // Note: < currentDay (not <=) to exclude today
+        const checkDate = new Date(year, monthNum - 1, day);
+        const dayOfWeek = checkDate.getDay(); // 0=Sunday, 6=Saturday
+        
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday-Friday
+          workingDaysPassed++;
+        }
+      }
+      
+      const requiredHoursSoFar = workingDaysPassed * defaultScheduledWorkHours;
+      pastDueHours = Math.max(0, requiredHoursSoFar - currentHours);
+      
+      console.log(`📅 Past Due Calculation: ${workingDaysPassed} working days passed, should have ${requiredHoursSoFar.toFixed(1)}h, actual ${currentHours}h → Past Due: ${pastDueHours.toFixed(1)}h`);
+    }
+    
     // Determine status
     let status = 'On Track';
     if (hoursShort > 40) status = 'Critical';
@@ -3606,7 +3634,7 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
       currentHours: currentHours,
       requiredHours: requiredHours,
       hoursShort: hoursShort,
-      pastDueHours: 0,
+      pastDueHours: Math.round(pastDueHours * 100) / 100,
       workingDays: workingDays,
       payRate: payRate,
       currentIncomeDue: Math.round(currentIncomeDue * 100) / 100,
