@@ -93,9 +93,12 @@ export async function calculateAndCacheAssessment(businessId, month, requiredHou
         const employeeId = event.employeeId;
         
         if (employeeAttendance[employeeId]) {
+          // Convert attendanceStatus to clock-in/clock-out format (same as timecard)
+          const eventType = event.type || (event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out');
+          
           employeeAttendance[employeeId].events.push({
             timestamp: eventDate,
-            type: event.attendanceStatus,
+            type: eventType,
             eventDate: event.eventDate || eventDate.toISOString().split('T')[0]
           });
         }

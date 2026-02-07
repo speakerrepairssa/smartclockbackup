@@ -273,20 +273,20 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
 
     await Promise.all(processPromises);
 
-    // 🚀 AUTO-UPDATE ASSESSMENT CACHE after processing attendance
+    // 🚀 AUTO-UPDATE ASSESSMENT CACHE for this specific employee
     try {
       const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM format
       
-      // Update cache for all affected businesses  
+      // Update cache for only this employee in all affected businesses
       const cachePromises = businessIds.map(async (businessId) => {
-        logger.info(`🔄 Auto-updating assessment cache for business: ${businessId}, month: ${currentMonth}`);
-        return calculateAndCacheAssessment(businessId, currentMonth, 176);
+        logger.info(`🔄 Updating assessment cache for employee ${employeeId} in business ${businessId}`);
+        return updateSingleEmployeeCache(businessId, employeeId, currentMonth);
       });
       
       await Promise.all(cachePromises);
-      logger.info("✅ Assessment cache auto-update completed for all businesses");
+      logger.info(`✅ Assessment cache updated for employee ${employeeId}`);
     } catch (cacheError) {
-      logger.warn("⚠️ Assessment cache auto-update failed (non-critical)", { error: cacheError.message });
+      logger.warn("⚠️ Assessment cache update failed (non-critical)", { error: cacheError.message });
       // Don't fail the main webhook - cache update is optional
     }
 
@@ -3385,251 +3385,304 @@ exports.updateAssessmentCache = onRequest({ invoker: 'public' }, async (req, res
 });
 
 /**
+ * Update assessment cache for a single employee (called after clock in/out)
+ * Uses EXACT same calculation logic as timecard
+ */
+async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
+  try {
+    const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM format
+    console.log(`🔄 Updating cache for employee ${employeeId} in ${businessId}, month: ${targetMonth}`);
+    
+    // Get employee info
+    const staffDoc = await db.collection("businesses").doc(businessId).collection("staff").doc(employeeId).get();
+    if (!staffDoc.exists) {
+      console.log(`⚠️ Employee ${employeeId} not found in staff`);
+      return;
+    }
+    
+    const employee = staffDoc.data();
+    const payRate = parseFloat(employee.payRate || employee.hourlyRate || 0);
+    const slot = employee.slot || 0;
+    
+    // Get business settings (for break duration and schedule)
+    const businessDoc = await db.collection("businesses").doc(businessId).get();
+    const businessData = businessDoc.data();
+    const breakMinutes = businessData?.breakDuration || 60;
+    const schedule = businessData?.schedule || {};
+    
+    // Get default work times
+    let defaultScheduledWorkHours = 9; // Default 9h shift (08:30-17:30)
+    let defaultScheduledStartTime = '08:30';
+    let defaultScheduledEndTime = '17:30';
+    
+    if (businessData?.workStartTime && businessData?.workEndTime) {
+      defaultScheduledStartTime = businessData.workStartTime;
+      defaultScheduledEndTime = businessData.workEndTime;
+      const [startH, startM] = defaultScheduledStartTime.split(':').map(Number);
+      const [endH, endM] = defaultScheduledEndTime.split(':').map(Number);
+      defaultScheduledWorkHours = (endH + endM/60) - (startH + startM/60);
+    }
+    
+    console.log(`⚙️  Business Settings: ${defaultScheduledStartTime}-${defaultScheduledEndTime} (${defaultScheduledWorkHours}h shift), Break: ${breakMinutes}min`);
+    
+    // Parse month for date range
+    const [year, monthNum] = targetMonth.split('-');
+    const daysInMonth = new Date(year, monthNum, 0).getDate();
+    const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(monthNum).padStart(2, '0')}-${daysInMonth}`;
+    
+    // ⚡ Get attendance events for this employee (TIMECARD LOGIC)
+    const eventsByDate = {};
+    const attendanceRef = db.collection("businesses").doc(businessId).collection("attendance_events");
+    
+    console.log(`🔍 Searching events for employee ${employeeId} in month ${targetMonth}`);
+    
+    // Query nested structure: attendance_events/{date}/{employeeId}/*
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      try {
+        const dayEventsRef = attendanceRef.doc(dateStr).collection(employeeId);
+        const dayEventsSnap = await dayEventsRef.get();
+        
+        if (dayEventsSnap.size > 0) {
+          console.log(`   Found ${dayEventsSnap.size} events on ${dateStr}`);
+        }
+        
+        dayEventsSnap.forEach(doc => {
+          const event = doc.data();
+          
+          // Skip test events
+          if (event.testMode) return;
+          
+          if (event.timestamp) {
+            const timestamp = event.timestamp.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
+            
+            // Skip pending unresolved punches
+            if (event.status === 'pending' && !event.resolvedManually) return;
+            
+            // Determine event type
+            let eventType = null;
+            if (event.type) eventType = event.type;
+            else if (event.attendanceStatus) {
+              eventType = event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out';
+            }
+            
+            if (eventType) {
+              if (!eventsByDate[dateStr]) {
+                eventsByDate[dateStr] = [];
+              }
+              
+              eventsByDate[dateStr].push({
+                type: eventType,
+                timestamp: timestamp,
+                dateStr: dateStr
+              });
+              
+              console.log(`      Added: ${eventType} at ${timestamp.toLocaleTimeString('en-US')}`);
+            }
+          }
+        });
+      } catch (dayError) {
+        // Day might not exist - that's ok
+      }
+    }
+    
+    // Calculate payable hours (EXACT TIMECARD LOGIC)
+    let totalPayableHours = 0;
+    let workingDays = 0;
+    
+    console.log(`📊 Employee ${employeeId}: Found ${Object.keys(eventsByDate).length} days with events`);
+    
+    Object.keys(eventsByDate).forEach(dateStr => {
+      const dayEvents = eventsByDate[dateStr].sort((a, b) => a.timestamp - b.timestamp);
+      
+      console.log(`   ${dateStr}: ${dayEvents.length} events - ${dayEvents.map(e => e.type).join(', ')}`);
+      
+      // Find first clock-in and last clock-out (flexible type matching like timecard)
+      const firstClockIn = dayEvents.find(e => e.type.toLowerCase().includes('in'));
+      const lastClockOut = dayEvents.filter(e => e.type.toLowerCase().includes('out')).pop();
+      
+      if (firstClockIn && lastClockOut) {
+        const actualStart = firstClockIn.timestamp;
+        const actualEnd = lastClockOut.timestamp;
+        
+        // Get scheduled times for this day
+        const date = new Date(dateStr);
+        const fullDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        const daySchedule = schedule[fullDayName];
+        
+        let scheduledStartTime = defaultScheduledStartTime;
+        let scheduledEndTime = defaultScheduledEndTime;
+        let scheduledWorkHours = defaultScheduledWorkHours;
+        
+        if (daySchedule && daySchedule.enabled && daySchedule.startTime && daySchedule.endTime) {
+          scheduledStartTime = daySchedule.startTime;
+          scheduledEndTime = daySchedule.endTime;
+          // Calculate ACTUAL scheduled hours (WITHOUT lunch deduction for now)
+          const [startH, startM] = scheduledStartTime.split(':').map(Number);
+          const [endH, endM] = scheduledEndTime.split(':').map(Number);
+          const shiftDuration = (endH + endM/60) - (startH + startM/60);
+          // Don't subtract lunch here - we'll do it from actual hours worked
+          scheduledWorkHours = shiftDuration;
+        } else {
+          // For default, calculate shift duration without lunch subtraction
+          const [startH, startM] = defaultScheduledStartTime.split(':').map(Number);
+          const [endH, endM] = defaultScheduledEndTime.split(':').map(Number);
+          scheduledWorkHours = (endH + endM/60) - (startH + startM/60);
+        }
+        
+        console.log(`      Schedule: ${scheduledStartTime}-${scheduledEndTime}, Shift: ${scheduledWorkHours}h, Break: ${breakMinutes}min`);
+        
+        // Create scheduled start/end times
+        const [schedStartH, schedStartM] = scheduledStartTime.split(':').map(Number);
+        const [schedEndH, schedEndM] = scheduledEndTime.split(':').map(Number);
+        
+        const schedStart = new Date(actualStart);
+        schedStart.setHours(schedStartH, schedStartM, 0, 0);
+        
+        const schedEnd = new Date(actualStart);
+        schedEnd.setHours(schedEndH, schedEndM, 0, 0);
+        
+        // Calculate payable start/end (cap at scheduled times)
+        const payableStart = new Date(Math.max(actualStart.getTime(), schedStart.getTime()));
+        const payableEnd = new Date(Math.min(actualEnd.getTime(), schedEnd.getTime()));
+        
+        // Calculate duration between payable times
+        const payableDuration = Math.max(0, (payableEnd.getTime() - payableStart.getTime()) / (1000 * 60 * 60));
+        
+        console.log(`      Raw duration: ${payableDuration.toFixed(2)}h, Break: ${breakMinutes}min, Max shift: ${scheduledWorkHours}h`);
+        
+        // Subtract lunch break (match timecard: always subtract if > 0)
+        let dayPayableHours = Math.max(0, payableDuration - (breakMinutes / 60));
+        
+        // Cap at scheduled work hours AFTER lunch has been subtracted
+        const maxPayableHours = Math.max(0, scheduledWorkHours - (breakMinutes / 60));
+        dayPayableHours = Math.min(dayPayableHours, maxPayableHours);
+        
+        totalPayableHours += dayPayableHours;
+        workingDays++;
+        
+        console.log(`   → Payable: ${dayPayableHours.toFixed(2)}h (capped at ${maxPayableHours.toFixed(2)}h)`);
+      } else {
+        console.log(`   → Skipped (incomplete: clockIn=${!!firstClockIn}, clockOut=${!!lastClockOut})`);
+      }
+    });
+    
+    const currentHours = Math.round(totalPayableHours * 100) / 100;
+    console.log(`✅ Employee ${employeeId}: Total ${currentHours}h over ${workingDays} days`);
+    const requiredHours = 176; // Standard monthly hours
+    const hoursShort = Math.max(0, requiredHours - currentHours);
+    const currentIncomeDue = currentHours * payRate;
+    const potentialIncome = requiredHours * payRate;
+    
+    // Determine status
+    let status = 'On Track';
+    if (hoursShort > 40) status = 'Critical';
+    else if (hoursShort > 0) status = 'Behind';
+    
+    // Update cache in Firestore
+    const cacheRef = db.collection("businesses").doc(businessId).collection("assessment_cache").doc(targetMonth);
+    
+    // Get existing cache or create new
+    const cacheDoc = await cacheRef.get();
+    let cacheData = cacheDoc.exists ? cacheDoc.data() : {
+      month: targetMonth,
+      summary: {
+        totalEmployees: 0,
+        totalHoursWorked: 0,
+        totalHoursShort: 0,
+        totalAmountDue: 0
+      },
+      employees: []
+    };
+    
+    // Update or add this employee's data
+    const employeeIndex = cacheData.employees.findIndex(e => e.employeeId === employeeId);
+    const employeeData = {
+      employeeId: employeeId,
+      employeeIndex: slot,
+      employeeName: employee.employeeName || employee.name || `Slot ${slot}`,
+      currentHours: currentHours,
+      requiredHours: requiredHours,
+      hoursShort: hoursShort,
+      pastDueHours: 0,
+      workingDays: workingDays,
+      payRate: payRate,
+      currentIncomeDue: Math.round(currentIncomeDue * 100) / 100,
+      potentialIncome: Math.round(potentialIncome * 100) / 100,
+      status: status,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    if (employeeIndex >= 0) {
+      cacheData.employees[employeeIndex] = employeeData;
+    } else {
+      cacheData.employees.push(employeeData);
+    }
+    
+    // Sort by slot
+    cacheData.employees.sort((a, b) => a.employeeIndex - b.employeeIndex);
+    
+    // Recalculate summary
+    cacheData.summary = {
+      totalEmployees: cacheData.employees.length,
+      totalHoursWorked: cacheData.employees.reduce((sum, e) => sum + e.currentHours, 0),
+      totalHoursShort: cacheData.employees.reduce((sum, e) => sum + e.hoursShort, 0),
+      totalAmountDue: cacheData.employees.reduce((sum, e) => sum + e.currentIncomeDue, 0)
+    };
+    cacheData.lastUpdated = new Date().toISOString();
+    
+    await cacheRef.set(cacheData);
+    
+    console.log(`✅ Updated cache for employee ${employeeId}: ${currentHours}h (${workingDays} days)`);
+    
+    return { employeeId, currentHours, workingDays };
+    
+  } catch (error) {
+    console.error(`❌ Failed to update cache for employee ${employeeId}:`, error);
+    throw error;
+  }
+}
+
+/**
  * Calculate and cache assessment data for a business and month
+ * This now processes each employee individually using timecard logic
  */
 async function calculateAndCacheAssessment(businessId, month, requiredHoursPerMonth = 176) {
   try {
     console.log('📊 Starting assessment calculation for:', { businessId, month, requiredHoursPerMonth });
     
-    // 1. Get all staff members with their pay rates
+    // 1. Get all staff members
     const staffRef = db.collection("businesses").doc(businessId).collection("staff");
     const staffSnap = await staffRef.get();
     
     console.log(`👥 Found ${staffSnap.size} staff members`);
     
-    const employees = [];
-    let employeeIndex = 1;
+    if (staffSnap.empty) {
+      console.log('⚠️ No staff members found');
+      return { totalEmployees: 0, message: 'No staff members found' };
+    }
     
+    // 2. Update cache for each employee individually (reusing timecard logic)
+    const updatePromises = [];
     staffSnap.forEach(doc => {
-      const staff = doc.data();
-      const slot = parseInt(staff.slot || doc.id);
-      
-      // Skip empty slots or deleted employees
-      if (!staff.employeeName || staff.employeeName.startsWith('Deleted')) {
-        return;
-      }
-      
-      const payRate = parseFloat(staff.payRate || staff.hourlyRate || 0);
-      
-      employees.push({
-        slot,
-        employeeId: doc.id,
-        employeeName: staff.employeeName,
-        payRate: isNaN(payRate) ? 0 : payRate,
-        phone: staff.phone || '',
-        email: staff.email || '',
-        position: staff.position || '',
-        active: staff.active !== false
-      });
+      const employeeId = doc.id;
+      updatePromises.push(updateSingleEmployeeCache(businessId, employeeId, month));
     });
     
-    // Sort by slot number
-    employees.sort((a, b) => a.slot - b.slot);
+    await Promise.all(updatePromises);
     
-    // 2. Get attendance events for this month
-    const [year, monthNum] = month.split('-');
-    const monthStart = new Date(year, monthNum - 1, 1);
-    const monthEnd = new Date(year, monthNum, 0);
-    
-    console.log(`📅 Calculating for period: ${monthStart.toISOString()} to ${monthEnd.toISOString()}`);
-    
-    const attendanceRef = db.collection("businesses").doc(businessId).collection("attendance_events");
-    const attendanceSnap = await attendanceRef.get();
-    
-    console.log(`📋 Processing ${attendanceSnap.size} attendance events`);
-    
-    // 3. Process attendance events and calculate actual hours
-    const employeeAttendance = {};
-    
-    // Initialize all employees with zero data
-    employees.forEach(emp => {
-      employeeAttendance[emp.employeeId] = {
-        totalMinutes: 0,
-        totalHours: 0,
-        attendanceDays: 0,
-        events: []
-      };
-    });
-    
-    attendanceSnap.forEach(doc => {
-      const event = doc.data();
-      const eventDate = event.timestamp?.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
-      
-      // Filter events for this month
-      if (eventDate >= monthStart && eventDate <= monthEnd) {
-        const employeeId = event.employeeId;
-        
-        if (employeeAttendance[employeeId]) {
-          employeeAttendance[employeeId].events.push({
-            timestamp: eventDate,
-            type: event.attendanceStatus,
-            eventDate: event.eventDate || eventDate.toISOString().split('T')[0]
-          });
-        }
-      }
-    });
-    
-    // 4. Calculate actual working hours using SAME LOGIC AS TIMECARD
-    // Use chronological event pairing with clock-in → clock-out matching
-    Object.keys(employeeAttendance).forEach(empId => {
-      const attendance = employeeAttendance[empId];
-      
-      // Sort events chronologically (CRITICAL for accurate pairing)
-      const events = attendance.events.sort((a, b) => a.timestamp - b.timestamp);
-      
-      let totalMinutes = 0;
-      let currentClockIn = null;
-      let workingDays = new Set();
-      
-      console.log(`📊 Processing ${events.length} events for employee:`, empId);
-      
-      // CHRONOLOGICAL PAIRING: Match each clock-in with next clock-out
-      for (let i = 0; i < events.length; i++) {
-        const event = events[i];
-        const eventTime = event.timestamp;
-        const eventDate = event.eventDate;
-        
-        // Normalize event type (handle variations: 'in', 'clock-in', 'out', 'clock-out')
-        const eventType = event.type.toLowerCase().includes('in') ? 'clock-in' : 'clock-out';
-        
-        if (eventType === 'clock-in') {
-          if (currentClockIn) {
-            console.log('⚠️ Found clock-in while already clocked in - treating as new session');
-          }
-          currentClockIn = eventTime;
-          workingDays.add(eventDate);
-          
-        } else if (eventType === 'clock-out') {
-          if (currentClockIn) {
-            // Calculate work period
-            const diffMs = eventTime.getTime() - currentClockIn.getTime();
-            const diffMinutes = Math.max(0, diffMs / (1000 * 60)); // Ensure positive
-            
-            console.log(`⏱️ Work period: ${currentClockIn.toLocaleTimeString()} → ${eventTime.toLocaleTimeString()} = ${(diffMinutes/60).toFixed(2)}h`);
-            
-            totalMinutes += diffMinutes;
-            currentClockIn = null; // Reset for next period
-            workingDays.add(eventDate);
-            
-          } else {
-            console.log('⚠️ Clock-out without matching clock-in - skipping');
-          }
-        }
-      }
-      
-      // Handle incomplete day (ended with clock-in, no clock-out)
-      if (currentClockIn) {
-        console.log('⚠️ Incomplete period (no clock-out) - not counting');
-      }
-      
-      attendance.totalMinutes = totalMinutes;
-      attendance.totalHours = Math.round((totalMinutes / 60) * 100) / 100; // Round to 2 decimals
-      attendance.attendanceDays = workingDays.size;
-      
-      console.log(`✅ Employee ${empId} total: ${attendance.totalHours}h over ${attendance.attendanceDays} days`);
-    });
-    
-    // 5. Generate assessment records
-    const assessmentRecords = [];
-    let totalEmployees = 0;
-    let totalHoursWorked = 0;
-    let totalHoursShort = 0;
-    let totalAmountDue = 0;
-    let totalPotentialPayroll = 0;
-    
-    employees.forEach(emp => {
-      const attendance = employeeAttendance[emp.employeeId] || { totalHours: 0, attendanceDays: 0 };
-      
-      const currentHours = Math.round(attendance.totalHours * 100) / 100; // Round to 2 decimal places
-      const hoursShort = Math.max(0, requiredHoursPerMonth - currentHours);
-      const pastDueHours = 0; // Calculate based on business logic
-      const currentIncomeDue = currentHours * emp.payRate;
-      const potentialIncome = requiredHoursPerMonth * emp.payRate;
-      
-      // Determine status
-      let status = 'On Track';
-      let statusColor = '#28a745';
-      
-      if (hoursShort > 40) {
-        status = 'Critical';
-        statusColor = '#dc3545';
-      } else if (hoursShort > 0) {
-        status = 'Behind';
-        statusColor = '#fd7e14';
-      }
-      
-      const record = {
-        employeeIndex: totalEmployees + 1,
-        employeeId: emp.employeeId,
-        employeeName: emp.employeeName,
-        slot: emp.slot,
-        requiredHours: requiredHoursPerMonth,
-        currentHours: currentHours,
-        pastDueHours: pastDueHours,
-        hoursShort: hoursShort,
-        payRate: emp.payRate,
-        currentIncomeDue: Math.round(currentIncomeDue * 100) / 100,
-        potentialIncome: Math.round(potentialIncome * 100) / 100,
-        status: status,
-        statusColor: statusColor,
-        attendanceDays: attendance.attendanceDays,
-        attendanceStatus: emp.active ? 'active' : 'inactive',
-        calculatedAt: new Date().toISOString(),
-        month: month
-      };
-      
-      assessmentRecords.push(record);
-      
-      // Update totals
-      totalEmployees++;
-      totalHoursWorked += currentHours;
-      totalHoursShort += hoursShort;
-      totalAmountDue += currentIncomeDue;
-      totalPotentialPayroll += potentialIncome;
-    });
-    
-    // 6. Calculate summary data
-    const averageAttendance = totalEmployees > 0 ? 
-      Math.round((totalHoursWorked / (requiredHoursPerMonth * totalEmployees)) * 10000) / 100 : 0;
-    
-    const summary = {
-      totalEmployees,
-      totalHoursWorked: Math.round(totalHoursWorked * 100) / 100,
-      totalHoursShort: Math.round(totalHoursShort * 100) / 100,
-      totalAmountDue: Math.round(totalAmountDue * 100) / 100,
-      totalPotentialPayroll: Math.round(totalPotentialPayroll * 100) / 100,
-      averageAttendance: averageAttendance,
-      requiredHoursPerMonth,
-      calculatedAt: new Date().toISOString(),
-      month: month
-    };
-    
-    console.log('📈 Assessment Summary:', summary);
-    console.log(`👥 Generated ${assessmentRecords.length} employee records`);
-    
-    // 7. Store in cache collection
-    const cacheRef = db.collection("businesses").doc(businessId).collection("assessment_cache").doc(month);
-    await cacheRef.set({
-      summary,
-      employees: assessmentRecords,
-      lastUpdated: new Date(),
-      calculationVersion: "1.0"
-    });
-    
-    console.log('✅ Assessment data cached successfully');
+    console.log(`✅ Assessment cache updated for ${staffSnap.size} employees`);
     
     return {
-      success: true,
-      summary,
-      employeeCount: assessmentRecords.length,
-      cached: true
+      totalEmployees: staffSnap.size,
+      message: `Successfully updated cache for ${staffSnap.size} employees`
     };
     
   } catch (error) {
-    console.error('❌ Error calculating assessment:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    console.error('❌ Assessment calculation failed:', error);
+    throw error;
   }
 }
+    
