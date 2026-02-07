@@ -3654,7 +3654,7 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
       const rateForThisMultiplier = payRate * parseFloat(multiplier);
       const incomeForThisRate = hours * rateForThisMultiplier;
       totalIncome += incomeForThisRate;
-      console.log(`💰 ${hours.toFixed(1)}h @ R${rateForThisRate.toFixed(2)}/h (${multiplier}x) = R${incomeForThisRate.toFixed(2)}`);
+      console.log(`💰 ${hours.toFixed(1)}h @ R${rateForThisMultiplier.toFixed(2)}/h (${multiplier}x) = R${incomeForThisRate.toFixed(2)}`);
     });
     
     const currentIncomeDue = totalIncome;
