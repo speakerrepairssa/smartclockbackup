@@ -3471,9 +3471,9 @@ async function updateSingleEmployeeCache(businessId, employeeId, month = null) {
     }
     
     const calculatedRequiredHours = (monthlyWeekdays * (defaultScheduledWorkHours - 1)) + (monthlySaturdays * saturdayScheduledHours);
-    const requiredHours = parseFloat(employee.requiredHoursPerMonth) || calculatedRequiredHours;
+    const requiredHours = calculatedRequiredHours; // 🚀 AUTO-ONLY: Use calendar-based calculation
     
-    console.log(`📅 Calendar: ${monthlyWeekdays} weekdays × ${defaultScheduledWorkHours-1}h + ${monthlySaturdays} Saturdays × ${saturdayScheduledHours}h = ${calculatedRequiredHours.toFixed(1)}h (Employee required: ${requiredHours}h)`);
+    console.log(`📅 Auto-calculated: ${monthlyWeekdays} weekdays × ${defaultScheduledWorkHours-1}h + ${monthlySaturdays} Saturdays × ${saturdayScheduledHours}h = ${requiredHours.toFixed(1)}h required hours`);
     
     // ⚡ Get attendance events for this employee (TIMECARD LOGIC)
     const eventsByDate = {};
