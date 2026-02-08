@@ -79,19 +79,93 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
     const [year, monthNum] = targetMonth.split('-');
     const daysInMonth = new Date(year, monthNum, 0).getDate();
 
-    // Calculate required hours
-    let monthlyWeekdays = 0;
-    let monthlySaturdays = 0;
+    // ========================================
+    // SHIFT-BASED REQUIRED HOURS CALCULATION
+    // Optimized: Count each day type, then multiply by shift hours
+    // ========================================
+    let requiredHours = 0;
+    let usingShift = false;
+    let shiftSchedule = null; // Store shift schedule for actual hours calculation
 
-    for (let day = 1; day <= daysInMonth; day++) {
-      const checkDate = new Date(year, monthNum - 1, day);
-      const dayOfWeek = checkDate.getDay();
+    // Check if employee has a shift assigned
+    if (employee.shiftId) {
+      try {
+        console.log(`🔄 Loading shift for employee ${employeeId}: ${employee.shiftId}`);
+        const shiftDoc = await db.collection("businesses").doc(businessId)
+          .collection("shifts").doc(employee.shiftId).get();
 
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) monthlyWeekdays++;
-      else if (dayOfWeek === 6) monthlySaturdays++;
+        if (shiftDoc.exists && shiftDoc.data().active) {
+          const shift = shiftDoc.data();
+          shiftSchedule = shift; // Store for actual hours calculation
+          usingShift = true;
+          console.log(`✅ Using shift "${shift.shiftName}" for ${employeeName}`);
+
+          // Step 1: Count how many times each day of week appears in the month
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const dayCounts = { sunday: 0, monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0 };
+
+          for (let day = 1; day <= daysInMonth; day++) {
+            const checkDate = new Date(year, monthNum - 1, day);
+            const dayOfWeek = checkDate.getDay(); // 0=Sunday, 6=Saturday
+            const dayName = dayNames[dayOfWeek];
+            dayCounts[dayName]++;
+          }
+
+          // Step 2: For each day type, calculate hours and multiply by count
+          dayNames.forEach(dayName => {
+            const daySchedule = shift.schedule[dayName];
+
+            if (daySchedule && daySchedule.enabled && dayCounts[dayName] > 0) {
+              // Calculate hours for this day type
+              const [startH, startM] = daySchedule.startTime.split(':').map(Number);
+              const [endH, endM] = daySchedule.endTime.split(':').map(Number);
+
+              let startDecimal = startH + startM / 60;
+              let endDecimal = endH + endM / 60;
+
+              // Handle overnight shifts (crossing midnight)
+              if (endDecimal < startDecimal) {
+                endDecimal += 24;
+              }
+
+              const totalHours = endDecimal - startDecimal;
+              const breakDuration = daySchedule.breakDuration || shift.defaultBreakDuration || 0;
+              const dayHours = Math.max(0, totalHours - (breakDuration / 60));
+
+              // Multiply by number of times this day appears in the month
+              const dayTotalHours = dayHours * dayCounts[dayName];
+              requiredHours += dayTotalHours;
+
+              console.log(`  ${dayName}: ${dayCounts[dayName]} days × ${dayHours.toFixed(2)}h = ${dayTotalHours.toFixed(2)}h`);
+            }
+          });
+
+          console.log(`📊 Shift-based required hours for ${employeeName}: ${requiredHours.toFixed(2)}h`);
+        } else {
+          console.log(`⚠️ Shift ${employee.shiftId} not found or inactive for ${employeeName}, using business default`);
+        }
+      } catch (shiftError) {
+        console.error(`❌ Error loading shift for ${employeeId}:`, shiftError);
+        console.log(`⚠️ Falling back to business default schedule`);
+      }
     }
 
-    const requiredHours = (monthlyWeekdays * (defaultScheduledWorkHours - 1)) + (monthlySaturdays * saturdayScheduledHours);
+    // Fall back to business-wide schedule if no shift or shift loading failed
+    if (!usingShift) {
+      let monthlyWeekdays = 0;
+      let monthlySaturdays = 0;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const checkDate = new Date(year, monthNum - 1, day);
+        const dayOfWeek = checkDate.getDay();
+
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) monthlyWeekdays++;
+        else if (dayOfWeek === 6) monthlySaturdays++;
+      }
+
+      requiredHours = (monthlyWeekdays * (defaultScheduledWorkHours - 1)) + (monthlySaturdays * saturdayScheduledHours);
+      console.log(`📊 Business-default required hours for ${employeeName}: ${requiredHours.toFixed(2)}h`);
+    }
 
     // Get attendance events
     const eventsByDate = {};
@@ -142,48 +216,91 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
 
     Object.keys(eventsByDate).forEach(dateStr => {
       const dayEvents = eventsByDate[dateStr].sort((a, b) => a.timestamp - b.timestamp);
-      const firstClockIn = dayEvents.find(e => e.type.toLowerCase().includes('in'));
-      const lastClockOut = dayEvents.filter(e => e.type.toLowerCase().includes('out')).pop();
 
-      if (firstClockIn && lastClockOut) {
-        const actualStart = firstClockIn.timestamp;
-        const actualEnd = lastClockOut.timestamp;
-        const date = new Date(dateStr);
-        const dayOfWeek = date.getDay();
-        const dayMultiplier = dailyMultipliers[dayOfWeek];
+      // NEW: Chronological pairing logic (matching timecard)
+      let totalMinutes = 0;
+      let currentClockIn = null;
 
-        let scheduledStartTime = defaultScheduledStartTime;
-        let scheduledEndTime = defaultScheduledEndTime;
-        let scheduledWorkHours = defaultScheduledWorkHours;
+      for (let i = 0; i < dayEvents.length; i++) {
+        const event = dayEvents[i];
+        const eventTime = event.timestamp;
 
+        if (event.type.toLowerCase().includes('in')) {
+          // Reset to new clock-in (handles duplicate clock-ins)
+          currentClockIn = eventTime;
+        } else if (event.type.toLowerCase().includes('out')) {
+          if (currentClockIn) {
+            // Calculate work period
+            const diffMs = eventTime.getTime() - currentClockIn.getTime();
+            const diffMinutes = Math.max(0, diffMs / (1000 * 60));
+            totalMinutes += diffMinutes;
+            currentClockIn = null;
+          }
+        }
+      }
+
+      // If there are no complete periods, don't count this day
+      if (totalMinutes === 0) {
+        console.log(`⏭️ Skipping ${dateStr} - no complete clock-in/out pairs`);
+        return;
+      }
+
+      const actualHours = totalMinutes / 60;
+      console.log(`📅 ${dateStr}: Raw time worked: ${actualHours.toFixed(2)}h (${totalMinutes.toFixed(0)} minutes)`);
+
+      const date = new Date(dateStr);
+      const dayOfWeek = date.getDay();
+      const dayMultiplier = dailyMultipliers[dayOfWeek];
+
+      // Get day-specific schedule (from shift if available, otherwise business default)
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[dayOfWeek];
+
+      let scheduledStartTime, scheduledEndTime, breakDuration;
+
+      if (shiftSchedule && shiftSchedule.schedule[dayName] && shiftSchedule.schedule[dayName].enabled) {
+        // Use shift-based schedule for this day
+        const daySchedule = shiftSchedule.schedule[dayName];
+        scheduledStartTime = daySchedule.startTime;
+        scheduledEndTime = daySchedule.endTime;
+        breakDuration = daySchedule.breakDuration || shiftSchedule.defaultBreakDuration || 60;
+      } else {
+        // Fall back to business default schedule
         if (dayOfWeek === 6) {
           scheduledStartTime = saturdayStartTime;
           scheduledEndTime = saturdayEndTime;
-          scheduledWorkHours = saturdayScheduledHours;
+          breakDuration = breakMinutes;
+        } else {
+          scheduledStartTime = defaultScheduledStartTime;
+          scheduledEndTime = defaultScheduledEndTime;
+          breakDuration = breakMinutes;
         }
-
-        const [schedStartH, schedStartM] = scheduledStartTime.split(':').map(Number);
-        const [schedEndH, schedEndM] = scheduledEndTime.split(':').map(Number);
-
-        const schedStart = new Date(actualStart);
-        schedStart.setHours(schedStartH, schedStartM, 0, 0);
-        const schedEnd = new Date(actualStart);
-        schedEnd.setHours(schedEndH, schedEndM, 0, 0);
-
-        const payableStart = new Date(Math.max(actualStart.getTime(), schedStart.getTime()));
-        const payableEnd = new Date(Math.min(actualEnd.getTime(), schedEnd.getTime()));
-        const payableDuration = Math.max(0, (payableEnd.getTime() - payableStart.getTime()) / (1000 * 60 * 60));
-
-        const needsLunchBreak = dayOfWeek >= 1 && dayOfWeek <= 5;
-        let dayPayableHours = needsLunchBreak ? Math.max(0, payableDuration - (breakMinutes / 60)) : payableDuration;
-        const maxPayableHours = needsLunchBreak ? Math.max(0, scheduledWorkHours - (breakMinutes / 60)) : scheduledWorkHours;
-        dayPayableHours = Math.min(dayPayableHours, maxPayableHours);
-
-        if (!dailyHoursByMultiplier[dayMultiplier]) dailyHoursByMultiplier[dayMultiplier] = 0;
-        dailyHoursByMultiplier[dayMultiplier] += dayPayableHours;
-        totalPayableHours += dayPayableHours;
-        workingDays++;
       }
+
+      // Calculate scheduled hours
+      const [schedStartH, schedStartM] = scheduledStartTime.split(':').map(Number);
+      const [schedEndH, schedEndM] = scheduledEndTime.split(':').map(Number);
+      let schedStart = schedStartH + schedStartM / 60;
+      let schedEnd = schedEndH + schedEndM / 60;
+
+      // Handle overnight shifts
+      if (schedEnd < schedStart) {
+        schedEnd += 24;
+      }
+
+      const scheduledHours = schedEnd - schedStart;
+      const maxPayableHours = Math.max(0, scheduledHours - (breakDuration / 60));
+
+      // Deduct break and cap at max payable hours
+      let dayPayableHours = Math.max(0, actualHours - (breakDuration / 60));
+      dayPayableHours = Math.min(dayPayableHours, maxPayableHours);
+
+      console.log(`  Break: ${breakDuration}min | Max payable: ${maxPayableHours.toFixed(2)}h | Payable: ${dayPayableHours.toFixed(2)}h`);
+
+      if (!dailyHoursByMultiplier[dayMultiplier]) dailyHoursByMultiplier[dayMultiplier] = 0;
+      dailyHoursByMultiplier[dayMultiplier] += dayPayableHours;
+      totalPayableHours += dayPayableHours;
+      workingDays++;
     });
 
     const currentHours = Math.round(totalPayableHours * 100) / 100;

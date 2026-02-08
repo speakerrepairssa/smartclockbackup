@@ -16,6 +16,19 @@ exports.debugWebhook = debugWebhook;
 // Import cache calculation functions (isolated module)
 const { calculateAndCacheAssessment } = require('./cacheCalculation.js');
 
+// Import shift management functions (isolated module)
+const {
+  getShifts,
+  getShift,
+  getDefaultShift,
+  createShift,
+  updateShift,
+  deleteShift,
+  calculateRequiredHoursForShift,
+  getEmployeesOnShift,
+  assignShiftToEmployee
+} = require('./shiftModule.js');
+
 /**
  * Cloud Function to handle attendance webhooks from Hikvision devices
  * Dynamically maps deviceId to the correct business
@@ -3390,4 +3403,234 @@ exports.updateAssessmentCache = onRequest({ invoker: 'public' }, async (req, res
 // OLD ASSESSMENT FUNCTIONS REMOVED - Now using isolated cacheCalculation.js module
 // This prevents accidental modifications to other functions in index.js
 
-    
+/**
+ * ========================================
+ * SHIFT MANAGEMENT MODULE ENDPOINTS
+ * ========================================
+ */
+
+/**
+ * 🔄 SHIFT MANAGEMENT - Get all shifts
+ * GET /getShifts?businessId=xxx
+ */
+exports.getShifts = onRequest({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId } = req.query;
+
+    if (!businessId) {
+      return res.status(400).json({
+        error: 'Missing required parameter: businessId'
+      });
+    }
+
+    const result = await getShifts(businessId);
+    res.json(result);
+
+  } catch (error) {
+    logger.error("❌ Get shifts failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🔄 SHIFT MANAGEMENT - Get single shift
+ * GET /getShift?businessId=xxx&shiftId=xxx
+ */
+exports.getShift = onRequest({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, shiftId } = req.query;
+
+    if (!businessId || !shiftId) {
+      return res.status(400).json({
+        error: 'Missing required parameters: businessId, shiftId'
+      });
+    }
+
+    const result = await getShift(businessId, shiftId);
+    res.json(result);
+
+  } catch (error) {
+    logger.error("❌ Get shift failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🔄 SHIFT MANAGEMENT - Create new shift
+ * POST /createShift with JSON body
+ */
+exports.createShift = onRequest({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, shiftData } = req.body;
+
+    if (!businessId || !shiftData) {
+      return res.status(400).json({
+        error: 'Missing required parameters: businessId, shiftData'
+      });
+    }
+
+    const result = await createShift(businessId, shiftData);
+    res.json(result);
+
+  } catch (error) {
+    logger.error("❌ Create shift failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🔄 SHIFT MANAGEMENT - Update existing shift
+ * POST /updateShift with JSON body
+ */
+exports.updateShift = onRequest({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, shiftId, shiftData } = req.body;
+
+    if (!businessId || !shiftId || !shiftData) {
+      return res.status(400).json({
+        error: 'Missing required parameters: businessId, shiftId, shiftData'
+      });
+    }
+
+    const result = await updateShift(businessId, shiftId, shiftData);
+    res.json(result);
+
+  } catch (error) {
+    logger.error("❌ Update shift failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🔄 SHIFT MANAGEMENT - Delete shift
+ * POST /deleteShift with JSON body
+ */
+exports.deleteShift = onRequest({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, shiftId } = req.body;
+
+    if (!businessId || !shiftId) {
+      return res.status(400).json({
+        error: 'Missing required parameters: businessId, shiftId'
+      });
+    }
+
+    const result = await deleteShift(businessId, shiftId);
+    res.json(result);
+
+  } catch (error) {
+    logger.error("❌ Delete shift failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🔄 SHIFT MANAGEMENT - Get employees on shift
+ * GET /getEmployeesOnShift?businessId=xxx&shiftId=xxx
+ */
+exports.getEmployeesOnShift = onRequest ({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, shiftId } = req.query;
+
+    if (!businessId || !shiftId) {
+      return res.status(400).json({
+        error: 'Missing required parameters: businessId, shiftId'
+      });
+    }
+
+    const result = await getEmployeesOnShift(businessId, shiftId);
+    res.json(result);
+
+  } catch (error) {
+    logger.error("❌ Get employees on shift failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 🔄 SHIFT MANAGEMENT - Assign shift to employee
+ * POST /assignShiftToEmployee with JSON body
+ */
+exports.assignShiftToEmployee = onRequest({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, employeeId, shiftId } = req.body;
+
+    if (!businessId || !employeeId) {
+      return res.status(400).json({
+        error: 'Missing required parameters: businessId, employeeId'
+      });
+    }
+
+    const result = await assignShiftToEmployee(businessId, employeeId, shiftId);
+    res.json(result);
+
+  } catch (error) {
+    logger.error("❌ Assign shift to employee failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
