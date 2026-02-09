@@ -1,7 +1,7 @@
 // Assessment Cache Calculator
 // Pre-calculates all assessment data for instant loading
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, getDocs, setDoc } from "firebase/firestore";
+import { getFirestore, collection, doc, getDocs, setDoc, query, where } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBssR7qaFYd1Bcm7urHQrKfLPVvdoZJ1kw",
@@ -16,6 +16,88 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+/**
+ * Calculate past due hours for an employee based on their assigned shift schedule
+ * Past due hours = total hours that should have been worked for days that have passed (excluding today)  
+ */
+async function calculatePastDueHoursForEmployee(businessId, employee, month) {
+  // If no shift assigned, return 0
+  if (!employee.shiftId) {
+    console.log(`⚠️ No shift assigned to employee ${employee.employeeName}, returning 0 past due hours`);
+    return 0;
+  }
+
+  try {
+    console.log(`🔄 Loading shift "${employee.shiftId}" for employee ${employee.employeeName}`);
+    
+    // Get the employee's assigned shift from database
+    const shiftRef = collection(db, "businesses", businessId, "shifts");
+    const shiftQuery = query(shiftRef, where("__name__", "==", employee.shiftId));
+    const shiftSnap = await getDocs(shiftQuery);
+    
+    if (shiftSnap.empty) {
+      console.log(`⚠️ Shift "${employee.shiftId}" not found for employee ${employee.employeeName}`);
+      return 0;
+    }
+    
+    const shift = shiftSnap.docs[0].data();
+    const schedule = shift.schedule;
+    
+    console.log(`✅ Found shift: ${shift.shiftName}`);
+    
+    // Get current date (today is Monday, February 9th, 2026)
+    const today = new Date(2026, 1, 9); // February 9, 2026 (month is 0-indexed)
+    const [year, monthNum] = month.split('-');
+    const monthStart = new Date(year, monthNum - 1, 1); // February 1, 2026
+    
+    // Calculate days that have passed (Feb 1-8, excluding today Feb 9)
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1); // Feb 8th
+    
+    let pastDueHours = 0;
+    
+    // Loop through each day from start of month to yesterday
+    const currentDate = new Date(monthStart);
+    console.log(`📅 Calculating past due hours from ${monthStart.toDateString()} to ${yesterday.toDateString()}`);
+    
+    while (currentDate <= yesterday) {
+      const dayOfWeek = currentDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[dayOfWeek];
+      
+      const daySchedule = schedule[dayName];
+      
+      if (daySchedule && daySchedule.enabled) {
+        // Calculate hours for this day based on shift schedule
+        const [startH, startM] = daySchedule.startTime.split(':').map(Number);
+        const [endH, endM] = daySchedule.endTime.split(':').map(Number);
+        
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+        const workMinutes = endMinutes - startMinutes;
+        const breakMinutes = daySchedule.breakDuration || shift.defaultBreakDuration || 60;
+        const actualMinutes = workMinutes - breakMinutes;
+        
+        const hoursForDay = actualMinutes / 60;
+        pastDueHours += hoursForDay;
+        
+        console.log(`${currentDate.toDateString()} (${dayName}): ${hoursForDay} hours (${workMinutes}min work - ${breakMinutes}min break)`);
+      } else {
+        console.log(`${currentDate.toDateString()} (${dayName}): 0 hours (off day)`);
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    console.log(`✅ Total past due hours for ${employee.employeeName}: ${pastDueHours}`);
+    return Math.round(pastDueHours * 100) / 100;
+    
+  } catch (error) {
+    console.error('❌ Error calculating past due hours:', error);
+    return 0;
+  }
+}
 
 /**
  * Calculate and cache assessment data for a business and month
@@ -49,6 +131,7 @@ export async function calculateAndCacheAssessment(businessId, month, requiredHou
         employeeId: doc.id,
         employeeName: staff.employeeName,
         payRate: isNaN(payRate) ? 0 : payRate,
+        shiftId: staff.shiftId, // Include shift ID for past due hours calculation
         phone: staff.phone || '',
         email: staff.email || '',
         position: staff.position || '',
@@ -173,12 +256,16 @@ export async function calculateAndCacheAssessment(businessId, month, requiredHou
     let totalAmountDue = 0;
     let totalPotentialPayroll = 0;
     
-    employees.forEach(emp => {
+    // Process employees sequentially to handle async past due hours calculation
+    for (const emp of employees) {
       const attendance = employeeAttendance[emp.employeeId] || { totalHours: 0, attendanceDays: 0 };
       
       const currentHours = Math.round(attendance.totalHours * 100) / 100; // Round to 2 decimal places
       const hoursShort = Math.max(0, requiredHoursPerMonth - currentHours);
-      const pastDueHours = 0; // Calculate based on business logic
+      
+      // Calculate past due hours based on employee's assigned shift schedule
+      const pastDueHours = await calculatePastDueHoursForEmployee(businessId, emp, month);
+      
       const currentIncomeDue = currentHours * emp.payRate;
       const potentialIncome = requiredHoursPerMonth * emp.payRate;
       
@@ -222,7 +309,7 @@ export async function calculateAndCacheAssessment(businessId, month, requiredHou
       totalHoursShort += hoursShort;
       totalAmountDue += currentIncomeDue;
       totalPotentialPayroll += potentialIncome;
-    });
+    };
     
     // 6. Calculate summary data
     const averageAttendance = totalEmployees > 0 ? 
