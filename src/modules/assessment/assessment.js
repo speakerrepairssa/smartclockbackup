@@ -94,14 +94,16 @@ class AssessmentModule {
           // 🔧 DATA VALIDATION: Ensure proper field mapping
           employeeAssessments = employeeAssessments.map(emp => {
             console.log('🔍 Processing employee:', emp.employeeName, 'currentHours:', emp.currentHours);
-            
+
             return {
               index: emp.employeeIndex || emp.index,
               employeeIndex: emp.employeeIndex || emp.index,
               name: emp.employeeName || emp.name,
               employeeName: emp.employeeName || emp.name,
               employeeId: emp.employeeId,
-              requiredHours: emp.requiredHours || 176,
+              shiftId: emp.shiftId || null,
+              shiftName: emp.shiftName || 'No Shift Assigned',
+              requiredHours: emp.requiredHours || 0,
               currentHours: parseFloat(emp.currentHours) || 0,
               pastDueHours: emp.pastDueHours || 0,
               hoursShort: parseFloat(emp.hoursShort) || 0,
@@ -205,6 +207,7 @@ class AssessmentModule {
             <tr>
               <th style="padding: 1rem; text-align: center;"># </th>
               <th style="padding: 1rem;">Employee Name</th>
+              <th style="padding: 1rem;">Shift Name</th>
               <th style="padding: 1rem; text-align: center;">Required Hours</th>
               <th style="padding: 1rem; text-align: center;">Current Hours</th>
               <th style="padding: 1rem; text-align: center;">Past Due Hours</th>
@@ -219,6 +222,7 @@ class AssessmentModule {
               <tr style="border-bottom: 1px solid #e5e7eb;">
                 <td style="padding: 1rem; text-align: center; font-weight: bold;">${emp.index || emp.employeeIndex}</td>
                 <td style="padding: 1rem; font-weight: 600; color: #2c3e50;">${emp.employeeName || emp.name}</td>
+                <td style="padding: 1rem; color: #7f8c8d; font-style: italic;">${emp.shiftName || 'No Shift Assigned'}</td>
                 <td style="padding: 1rem; text-align: center;">${isNaN(emp.requiredHours) ? '-' : emp.requiredHours}</td>
                 <td style="padding: 1rem; text-align: center; font-weight: bold; color: #2c3e50;">${isNaN(emp.currentHours) ? '0.0' : emp.currentHours.toFixed(1)}</td>
                 <td style="padding: 1rem; text-align: center;">${isNaN(emp.pastDueHours) ? '-' : emp.pastDueHours}</td>
@@ -384,124 +388,10 @@ class AssessmentModule {
     messageDiv.textContent = message;
     
     document.body.appendChild(messageDiv);
-    
+
     setTimeout(() => {
       messageDiv.remove();
     }, 3000);
-  }
-          <thead class="table-dark">
-            <tr>
-              <th>#</th>
-              <th>Employee Name</th>
-              <th>Required Hours</th>
-              <th>Current Hours</th>
-              <th>Past Due Hours</th>
-              <th>Hours Short</th>
-              <th>Pay Rate</th>
-              <th>Current Income Due</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${employeeAssessments.map(emp => `
-              <tr>
-                <td><strong>${emp.index}</strong></td>
-                <td><strong>${emp.name}</strong></td>
-                <td>${emp.requiredHours}</td>
-                <td><span style="color: #17a2b8;">${emp.currentHours}</span></td>
-                <td><span style="color: #ffc107;">${emp.pastDueHours}</span></td>
-                <td><span style="color: #dc3545;">${emp.hoursShort}</span></td>
-                <td>R${emp.payRate.toFixed(2)}</td>
-                <td><strong style="color: #28a745;">R${emp.currentIncomeDue.toFixed(2)}</strong></td>
-                <td>
-                  <span class="badge" style="background-color: ${emp.statusColor}; color: white;">
-                    ${emp.status}
-                  </span>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Summary Cards -->
-      <div class="row g-3 mt-4">
-        <div class="col-lg-3 col-md-6">
-          <div class="summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalEmployees}</h3>
-                <p style="margin: 0; opacity: 0.9;">Total Employees</p>
-              </div>
-              <div style="font-size: 3rem; opacity: 0.3;">👥</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-          <div class="summary-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalHours.toFixed(1)}</h3>
-                <p style="margin: 0; opacity: 0.9;">Total Hours Worked</p>
-              </div>
-              <div style="font-size: 3rem; opacity: 0.3;">⏰</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-          <div class="summary-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 1.5rem; border-radius: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalHoursShort.toFixed(1)}</h3>
-                <p style="margin: 0; opacity: 0.9;">Total Hours Short</p>
-              </div>
-              <div style="font-size: 3rem; opacity: 0.3;">⚠️</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6">
-          <div class="summary-card" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; padding: 1.5rem; border-radius: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">R${totalIncomeDue.toFixed(2)}</h3>
-                <p style="margin: 0; opacity: 0.8;">Total Amount Due</p>
-              </div>
-              <div style="font-size: 3rem; opacity: 0.3;">💰</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Additional Summary Cards -->
-      <div class="row g-3 mt-3">
-        <div class="col-lg-6 col-md-12">
-          <div class="summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">R${(totalIncomeDue * 1.1).toFixed(2)}</h3>
-                <p style="margin: 0; opacity: 0.9;">Potential Payroll (100%)</p>
-              </div>
-              <div style="font-size: 3rem; opacity: 0.3;">📊</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-6 col-md-12">
-          <div class="summary-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 1.5rem; border-radius: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalEmployees === 0 ? 'NaN' : ((totalHours / (totalEmployees * 176)) * 100).toFixed(1)}%</h3>
-                <p style="margin: 0; opacity: 0.9;">Average Attendance</p>
-              </div>
-              <div style="font-size: 3rem; opacity: 0.3;">📈</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
   }
 
   // Calculate assessment data from attendance events

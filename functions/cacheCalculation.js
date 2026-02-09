@@ -322,6 +322,9 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth() + 1;
     const currentDay = today.getDate();
+    const currentHour = today.getHours();
+    const currentMinute = today.getMinutes();
+    const currentTimeDecimal = currentHour + currentMinute / 60;
     let pastDueHours = 0;
 
     if (year == currentYear && monthNum == currentMonth) {
@@ -331,7 +334,24 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
       if (usingShift && shiftSchedule && shiftSchedule.schedule) {
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-        for (let day = 1; day < currentDay; day++) {
+        // Determine if today's shift is past due (current time is past shift end time)
+        let includeTodayInPastDue = false;
+        const todayDayOfWeek = today.getDay();
+        const todayDayName = dayNames[todayDayOfWeek];
+        const todaySchedule = shiftSchedule.schedule[todayDayName];
+
+        if (todaySchedule && todaySchedule.enabled) {
+          const [endH, endM] = todaySchedule.endTime.split(':').map(Number);
+          const endTimeDecimal = endH + endM / 60;
+          // If current time is past the shift end time, include today in past due
+          if (currentTimeDecimal >= endTimeDecimal) {
+            includeTodayInPastDue = true;
+          }
+        }
+
+        const lastDayToCount = includeTodayInPastDue ? currentDay : currentDay - 1;
+
+        for (let day = 1; day <= lastDayToCount; day++) {
           const checkDate = new Date(year, monthNum - 1, day);
           const dayOfWeek = checkDate.getDay();
           const dayName = dayNames[dayOfWeek];
@@ -359,10 +379,15 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
         }
       } else {
         // Fall back to business default schedule
+        // For fallback, assume standard shift end time of 17:30
+        const standardEndTime = 17.5; // 17:30 in decimal
+        const includeTodayInPastDue = currentTimeDecimal >= standardEndTime;
+        const lastDayToCount = includeTodayInPastDue ? currentDay : currentDay - 1;
+
         let weekdaysPassed = 0;
         let saturdaysPassed = 0;
 
-        for (let day = 1; day < currentDay; day++) {
+        for (let day = 1; day <= lastDayToCount; day++) {
           const checkDate = new Date(year, monthNum - 1, day);
           const dayOfWeek = checkDate.getDay();
           if (dayOfWeek >= 1 && dayOfWeek <= 5) weekdaysPassed++;
@@ -372,7 +397,9 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
         requiredHoursSoFar = (weekdaysPassed * (defaultScheduledWorkHours - 1)) + (saturdaysPassed * saturdayScheduledHours);
       }
 
-      pastDueHours = Math.max(0, requiredHoursSoFar - currentHours);
+      // Past due hours = total hours that SHOULD have been worked by yesterday
+      // NOT the shortfall (that's what hoursShort is for)
+      pastDueHours = requiredHoursSoFar;
     }
 
     // Determine status
@@ -387,6 +414,8 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
       employeeId: employeeId,
       employeeIndex: slot,
       employeeName: employeeName,
+      shiftId: employee.shiftId || null,
+      shiftName: shiftSchedule ? shiftSchedule.shiftName : 'No Shift Assigned',
       currentHours: currentHours,
       dailyHoursBreakdown: dailyHoursByMultiplier,
       requiredHours: requiredHours,
