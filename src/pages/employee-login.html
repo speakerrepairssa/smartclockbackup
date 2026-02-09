@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>Employee Clock In - AiClock</title>
   <style>
     * {
@@ -70,8 +70,10 @@
       padding: 0.85rem;
       border: 2px solid #e0e0e0;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 16px; /* Minimum 16px to prevent iOS zoom */
       transition: all 0.3s ease;
+      -webkit-appearance: none; /* Remove iOS styling */
+      appearance: none;
     }
 
     .form-group input:focus {
@@ -87,11 +89,13 @@
       color: white;
       border: none;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 16px; /* Minimum 16px for mobile */
       font-weight: 700;
       cursor: pointer;
       transition: all 0.3s ease;
       margin-top: 0.5rem;
+      min-height: 48px; /* iOS recommended minimum touch target */
+      -webkit-tap-highlight-color: transparent;
     }
 
     .btn:hover {
@@ -174,8 +178,11 @@
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
+      font-size: 16px; /* Prevent iOS zoom */
       color: #666;
       transition: all 0.3s ease;
+      min-height: 48px; /* iOS recommended minimum touch target */
+      -webkit-tap-highlight-color: transparent;
     }
 
     .tab-btn.active {
@@ -212,6 +219,38 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+
+    /* Mobile Optimizations */
+    @media (max-width: 480px) {
+      body {
+        padding: 0.5rem;
+      }
+
+      .login-container {
+        padding: 2rem 1.5rem;
+      }
+
+      .login-title {
+        font-size: 1.5rem;
+      }
+
+      .form-group input {
+        padding: 1rem 0.85rem; /* Larger tap targets */
+        font-size: 16px;
+      }
+
+      .btn {
+        padding: 1rem;
+        font-size: 16px;
+        min-height: 48px;
+      }
+
+      .tab-btn {
+        padding: 1rem 0.5rem;
+        font-size: 14px;
+        min-height: 48px;
+      }
     }
   </style>
 </head>

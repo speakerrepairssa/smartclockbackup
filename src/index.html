@@ -3,110 +3,659 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AiClock - Multi-Tenant Attendance System</title>
+  <title>AiClock - AI Employee Payroll & Clocking System | Industry-Standard Hikvision Integration</title>
+  <meta name="description" content="AI-powered employee payroll and clocking system with Hikvision integration. Auto month-end payslip generator, monitor from anywhere, self-serve employee portal. Free 1-month trial for up to 10 employees.">
   <link rel="stylesheet" href="/styles/main.css">
   <style>
-    .landing-container {
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 2rem;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    .landing-card {
-      background-color: white;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      padding: 3rem;
-      max-width: 600px;
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #1a1a1a;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Navigation */
+    .navbar {
+      position: fixed;
+      top: 0;
       width: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 2px 20px rgba(16, 185, 129, 0.3);
+      border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+      z-index: 1000;
+      padding: 1rem 0;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #10b981;
+      text-decoration: none;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: #d1fae5;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .nav-links a:hover {
+      color: #10b981;
+      text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    }
+
+    .nav-cta {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white !important;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+
+    .nav-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.8);
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #10b981;
+      z-index: 1001;
+    }
+
+    .mobile-menu {
+      display: none;
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 80%;
+      max-width: 300px;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.98);
+      backdrop-filter: blur(10px);
+      padding: 80px 2rem 2rem;
+      transition: right 0.3s ease;
+      z-index: 999;
+      box-shadow: -5px 0 20px rgba(16, 185, 129, 0.3);
+      border-left: 2px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .mobile-menu.active {
+      right: 0;
+    }
+
+    .mobile-menu a {
+      display: block;
+      color: #d1fae5;
+      text-decoration: none;
+      font-weight: 500;
+      padding: 1rem 0;
+      border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+      transition: all 0.3s;
+    }
+
+    .mobile-menu a:hover {
+      color: #10b981;
+      text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+      padding-left: 0.5rem;
+    }
+
+    .mobile-menu .nav-cta {
+      margin-top: 1rem;
       text-align: center;
-      animation: slideUp 0.4s ease;
-    }
-
-    .landing-logo {
-      font-size: 5rem;
-      margin-bottom: 1rem;
-    }
-
-    .landing-title {
-      font-size: 2.5rem;
-      color: var(--primary-color);
-      margin-bottom: 1rem;
-    }
-
-    .landing-subtitle {
-      font-size: 1.125rem;
-      color: var(--text-secondary);
-      margin-bottom: 2rem;
-    }
-
-    .landing-features {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-      margin: 2rem 0;
-      text-align: left;
-    }
-
-    .feature-item {
+      border: none;
       padding: 1rem;
-      background-color: var(--bg-secondary);
-      border-radius: var(--border-radius);
-      transition: transform 0.2s ease;
     }
 
-    .feature-item:hover {
+    .mobile-menu-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 998;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .mobile-menu-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 140px 2rem 100px;
+      background: linear-gradient(135deg, #000000 0%, #0a3d2e 50%, #000000 100%);
+      color: white;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(5, 150, 105, 0.15) 0%, transparent 50%);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(16, 185, 129, 0.03) 2px,
+        rgba(16, 185, 129, 0.03) 4px
+      );
+      animation: scan 8s linear infinite;
+    }
+
+    @keyframes scan {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(50%); }
+    }
+
+    .hero-content {
+      max-width: 900px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      line-height: 1.2;
+      text-shadow: 0 0 20px rgba(16, 185, 129, 0.8), 0 0 40px rgba(16, 185, 129, 0.4);
+      background: linear-gradient(135deg, #10b981 0%, #34d399 50%, #10b981 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: glow 3s ease-in-out infinite;
+    }
+
+    @keyframes glow {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.3); }
+    }
+
+    .hero-subtitle {
+      font-size: 1.35rem;
+      margin-bottom: 2.5rem;
+      opacity: 0.95;
+      line-height: 1.6;
+      color: #d1fae5;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 3rem;
+    }
+
+    .btn {
+      padding: 1rem 2.5rem;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      display: inline-block;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.6);
+      border: 2px solid #10b981;
+    }
+
+    .btn-primary:hover {
       transform: translateY(-3px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 50px rgba(16, 185, 129, 1), 0 0 100px rgba(16, 185, 129, 0.5);
+      border-color: #34d399;
+    }
+
+    .btn-secondary {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+      border: 2px solid #10b981;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(16, 185, 129, 0.2);
+      transform: translateY(-3px);
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.6);
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.2);
+      padding: 0.5rem 1.5rem;
+      border-radius: 50px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      backdrop-filter: blur(10px);
+      margin-bottom: 1rem;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+
+    /* Features Section */
+    .features {
+      padding: 100px 2rem;
+      background: linear-gradient(180deg, #000000 0%, #0a1f1a 100%);
+    }
+
+    .section-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .section-title {
+      font-size: 2.75rem;
+      font-weight: 800;
+      color: #10b981;
+      margin-bottom: 1rem;
+      text-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+    }
+
+    .section-subtitle {
+      font-size: 1.25rem;
+      color: #d1fae5;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+
+    .feature-card {
+      background: rgba(10, 31, 26, 0.6);
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.6);
+      border-color: #10b981;
+      background: rgba(10, 31, 26, 0.8);
     }
 
     .feature-icon {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      display: block;
+      filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6));
     }
 
-    .feature-text {
-      font-size: 0.95rem;
-      color: var(--text-primary);
-      font-weight: 500;
+    .feature-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #10b981;
+      margin-bottom: 0.75rem;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
     }
 
-    .landing-actions {
+    .feature-description {
+      color: #a7f3d0;
+      line-height: 1.7;
+    }
+
+    /* Benefits Section */
+    .benefits {
+      padding: 100px 2rem;
+      background: #000000;
+    }
+
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 3rem;
+      margin-top: 3rem;
+    }
+
+    .benefit-item {
       display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-top: 2rem;
+      gap: 1.5rem;
+      align-items: flex-start;
     }
 
-    .action-section {
-      padding: 1.5rem;
-      background-color: var(--bg-secondary);
-      border-radius: var(--border-radius);
+    .benefit-icon {
+      font-size: 2.5rem;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6));
+    }
+
+    .benefit-content h3 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: #10b981;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+    }
+
+    .benefit-content p {
+      color: #a7f3d0;
+      line-height: 1.7;
+    }
+
+    /* Trial Section */
+    .trial {
+      padding: 100px 2rem;
+      background: linear-gradient(135deg, #000000 0%, #0a3d2e 50%, #000000 100%);
+      color: white;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      border-top: 2px solid rgba(16, 185, 129, 0.3);
+      border-bottom: 2px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .trial::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        radial-gradient(circle at 30% 50%, rgba(16, 185, 129, 0.2) 0%, transparent 50%),
+        radial-gradient(circle at 70% 50%, rgba(5, 150, 105, 0.2) 0%, transparent 50%);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    .trial-content {
+      max-width: 700px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .trial h2 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      color: #10b981;
+      text-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+    }
+
+    .trial p {
+      font-size: 1.35rem;
+      margin-bottom: 2.5rem;
+      opacity: 0.95;
+      color: #d1fae5;
+    }
+
+    .trial-features {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin: 2rem 0 3rem;
+    }
+
+    .trial-feature {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #34d399;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Login Section */
+    .login-section {
+      padding: 80px 2rem;
+      background: linear-gradient(180deg, #0a1f1a 0%, #000000 100%);
+    }
+
+    .login-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      max-width: 1000px;
+      margin: 3rem auto 0;
+    }
+
+    .login-card {
+      background: rgba(10, 31, 26, 0.6);
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      transition: all 0.3s;
+      border: 2px solid rgba(16, 185, 129, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .login-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.6);
+      border-color: #10b981;
+      background: rgba(10, 31, 26, 0.8);
+    }
+
+    .login-card-icon {
+      font-size: 3.5rem;
+      margin-bottom: 1rem;
+      filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6));
+    }
+
+    .login-card h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: #10b981;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+    }
+
+    .login-card p {
+      color: #a7f3d0;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+
+    .login-card .btn {
+      width: 100%;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+
+    .login-card .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.8);
+    }
+
+    /* Footer */
+    .footer {
+      background: #000000;
+      color: #a7f3d0;
+      padding: 3rem 2rem;
+      text-align: center;
+      border-top: 2px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .footer p {
       margin-bottom: 1rem;
     }
 
-    .action-section h3 {
-      margin: 0 0 1rem 0;
-      color: var(--text-primary);
-      font-size: 1.125rem;
-    }
-
-    .action-section p {
-      margin: 0 0 1rem 0;
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-    }
-
-    .action-buttons {
+    .footer-tech {
       display: flex;
-      gap: 0.75rem;
       justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(16, 185, 129, 0.2);
     }
 
-    @keyframes slideUp {
+    .footer-tech span {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #10b981;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 968px) {
+      .nav-links {
+        display: none;
+      }
+
+      .mobile-menu-btn {
+        display: block;
+      }
+
+      .mobile-menu {
+        display: block;
+      }
+
+      .mobile-menu-overlay {
+        display: block;
+      }
+
+      .hero h1 {
+        font-size: 2.5rem;
+      }
+
+      .hero-subtitle {
+        font-size: 1.15rem;
+      }
+
+      .section-title {
+        font-size: 2rem;
+      }
+
+      .trial h2 {
+        font-size: 2.25rem;
+      }
+
+      .hero-cta {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .btn {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .nav-container {
+        padding: 0 1rem;
+      }
+
+      .hero {
+        padding: 120px 1rem 80px;
+      }
+
+      .hero h1 {
+        font-size: 2rem;
+      }
+
+      .features, .benefits, .trial, .login-section {
+        padding: 60px 1rem;
+      }
+
+      .features-grid, .login-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .trial-features {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
       from {
         opacity: 0;
         transform: translateY(30px);
@@ -117,97 +666,278 @@
       }
     }
 
-    @media (max-width: 768px) {
-      .landing-card {
-        padding: 2rem;
-      }
-
-      .landing-title {
-        font-size: 2rem;
-      }
-
-      .landing-features {
-        grid-template-columns: 1fr;
-      }
-
-      .action-buttons {
-        flex-direction: column;
-      }
+    .animate-fade-in {
+      animation: fadeInUp 0.6s ease-out;
     }
   </style>
 </head>
 <body>
-  <div class="landing-container">
-    <div class="landing-card">
-      <div class="landing-logo">🕐</div>
-      <h1 class="landing-title">AiClock</h1>
-      <p class="landing-subtitle">
-        Multi-Tenant Attendance Tracking System
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="/" class="logo">
+        <span>🕐</span>
+        <span>AiClock</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#benefits">Benefits</a>
+        <a href="#trial">Free Trial</a>
+        <a href="#login">Login</a>
+        <a href="#trial" class="nav-cta">Start Free Trial</a>
+      </div>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu Overlay -->
+  <div class="mobile-menu-overlay" onclick="toggleMobileMenu()"></div>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#features">Features</a>
+    <a href="#benefits">Benefits</a>
+    <a href="#trial">Free Trial</a>
+    <a href="#login">Login</a>
+    <a href="#trial" class="nav-cta">Start Free Trial</a>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content animate-fade-in">
+      <div class="hero-badge">⚡ AI-Powered | Industry-Standard Hikvision Integration</div>
+      <h1>AI Employee Payroll & Clocking System</h1>
+      <p class="hero-subtitle">
+        Affordable, intelligent solution to monitor staff from anywhere in the world.
+        Handle hundreds of employees with ease. Self-serve portal for employees with Android app support.
       </p>
-
-      <div class="landing-features">
-        <div class="feature-item">
-          <div class="feature-icon">👤</div>
-          <div class="feature-text">Face Recognition</div>
-        </div>
-        <div class="feature-item">
-          <div class="feature-icon">📊</div>
-          <div class="feature-text">Real-Time Monitoring</div>
-        </div>
-        <div class="feature-item">
-          <div class="feature-icon">🏢</div>
-          <div class="feature-text">Multi-Business Support</div>
-        </div>
-        <div class="feature-item">
-          <div class="feature-icon">💰</div>
-          <div class="feature-text">Slot-Based Pricing</div>
-        </div>
+      <div class="hero-cta">
+        <a href="#trial" class="btn btn-primary">🚀 Start Free 1-Month Trial</a>
+        <a href="#features" class="btn btn-secondary">📖 Learn More</a>
       </div>
-
-      <div class="landing-actions">
-        <!-- Admin Section -->
-        <div class="action-section">
-          <h3>🔐 System Administrator</h3>
-          <p>Manage businesses, monitor system, and control access</p>
-          <div class="action-buttons">
-            <a href="/pages/login.html" class="btn btn-primary">
-              Admin Login
-            </a>
-          </div>
-        </div>
-
-        <!-- Employee Section -->
-        <div class="action-section">
-          <h3>⏰ Employee</h3>
-          <p>Clock in/out and manage your attendance</p>
-          <div class="action-buttons">
-            <a href="/pages/employee-login.html" class="btn btn-primary">
-              Clock In/Out
-            </a>
-          </div>
-        </div>
-
-        <!-- Business Section -->
-        <div class="action-section">
-          <h3>🏢 Business Owner</h3>
-          <p>Track employees, view reports, and manage attendance</p>
-          <div class="action-buttons">
-            <a href="/pages/login.html" class="btn btn-primary">
-              Business Login
-            </a>
-            <a href="/pages/admin-register.html" class="btn btn-secondary">
-              Register Business
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border-color);">
-        <p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0;">
-          Powered by Firebase & Hikvision Technology
-        </p>
+      <div class="trial-features">
+        <div class="trial-feature">✓ No Credit Card Required</div>
+        <div class="trial-feature">✓ Up to 10 Employees Free</div>
+        <div class="trial-feature">✓ No Obligations</div>
       </div>
     </div>
-  </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="features">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Everything You Need to Manage Your Workforce</h2>
+        <p class="section-subtitle">Comprehensive payroll and attendance tracking with real-time insights</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon">🌍</span>
+          <h3 class="feature-title">Monitor From Anywhere</h3>
+          <p class="feature-description">Access your employee data from any device, anywhere in the world. Real-time monitoring keeps you connected.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">📱</span>
+          <h3 class="feature-title">Android App for Employees</h3>
+          <p class="feature-description">Self-serve mobile app for employees to view payslips, submit sick notes, clock in/out, and manage their profile.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">📄</span>
+          <h3 class="feature-title">Auto Month-End Payslip Generator</h3>
+          <p class="feature-description">Automated payslip generation at month-end with intelligent calculations, deductions, and PDF export for instant distribution.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">🏢</span>
+          <h3 class="feature-title">Hikvision Integration</h3>
+          <p class="feature-description">Industry-standard Hikvision hardware integration for reliable facial recognition and attendance tracking.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">⏰</span>
+          <h3 class="feature-title">Timecard View</h3>
+          <p class="feature-description">Clear, detailed timecard reports showing clock-in/out times, breaks, and total hours worked per employee.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">📊</span>
+          <h3 class="feature-title">Assessment Dashboard</h3>
+          <p class="feature-description">Comprehensive assessment view showing employee performance, hours worked vs required, and income calculations.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">💰</span>
+          <h3 class="feature-title">Payrun Management</h3>
+          <p class="feature-description">Streamlined payrun processing with automatic calculations, deductions, and customizable pay rates.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">🚨</span>
+          <h3 class="feature-title">Employee Health Status</h3>
+          <p class="feature-description">Instant visibility into late arrivals and attendance patterns. Identify problem employees at a glance.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">👥</span>
+          <h3 class="feature-title">Handle 100s of Employees</h3>
+          <p class="feature-description">Scalable solution designed to manage hundreds of staff members with zero performance degradation.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">💵</span>
+          <h3 class="feature-title">Affordable Pricing</h3>
+          <p class="feature-description">Rental system with flexible, affordable pricing that scales with your business needs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Benefits Section -->
+  <section id="benefits" class="benefits">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Why Choose AiClock?</h2>
+        <p class="section-subtitle">Built for modern businesses that need reliable, scalable attendance management</p>
+      </div>
+      <div class="benefits-grid">
+        <div class="benefit-item">
+          <div class="benefit-icon">⚡</div>
+          <div class="benefit-content">
+            <h3>Save Time & Money</h3>
+            <p>Automate payroll calculations, eliminate manual timesheets, and reduce administrative overhead by up to 80%.</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">🎯</div>
+          <div class="benefit-content">
+            <h3>Instant Insights</h3>
+            <p>See who's late, who's absent, and who's performing well - all at a glance. Make informed decisions quickly.</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">🔒</div>
+          <div class="benefit-content">
+            <h3>Secure & Reliable</h3>
+            <p>Enterprise-grade security with Firebase backend and industry-standard Hikvision hardware integration.</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">📈</div>
+          <div class="benefit-content">
+            <h3>Scalable Solution</h3>
+            <p>Start with 10 employees on our free trial and scale to 1000+ as your business grows. No limits.</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">🤝</div>
+          <div class="benefit-content">
+            <h3>Employee Empowerment</h3>
+            <p>Self-serve portal gives employees access to payslips, leave requests, and sick notes - reducing HR workload.</p>
+          </div>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">🌐</div>
+          <div class="benefit-content">
+            <h3>Work From Anywhere</h3>
+            <p>Cloud-based system accessible from any device. Manage your workforce whether you're in the office or on vacation.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trial Section -->
+  <section id="trial" class="trial">
+    <div class="trial-content">
+      <h2>Start Your Free 1-Month Trial Today</h2>
+      <p>No credit card required. No obligations. Cancel anytime.<br>Experience the full power of AiClock with up to 10 employees absolutely free.</p>
+      <div class="trial-features">
+        <div class="trial-feature">✓ Full Access</div>
+        <div class="trial-feature">✓ All Features Included</div>
+        <div class="trial-feature">✓ Up to 10 Employees</div>
+        <div class="trial-feature">✓ 30 Days Free</div>
+      </div>
+      <a href="/pages/admin-register.html" class="btn btn-primary">🚀 Book Your Free Trial Now</a>
+    </div>
+  </section>
+
+  <!-- Login Section -->
+  <section id="login" class="login-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Access Your Account</h2>
+        <p class="section-subtitle">Choose your portal to get started</p>
+      </div>
+      <div class="login-grid">
+        <div class="login-card">
+          <div class="login-card-icon">👤</div>
+          <h3>Employee Portal</h3>
+          <p>Clock in/out, view payslips, submit sick notes, and manage your attendance</p>
+          <a href="/pages/employee-login.html" class="btn">Employee Login</a>
+        </div>
+        <div class="login-card">
+          <div class="login-card-icon">🏢</div>
+          <h3>Business Owner</h3>
+          <p>Manage employees, view reports, process payroll, and monitor attendance</p>
+          <a href="/pages/login.html" class="btn">Business Login</a>
+        </div>
+        <div class="login-card">
+          <div class="login-card-icon">🔐</div>
+          <h3>System Admin</h3>
+          <p>Manage businesses, configure systems, and control access permissions</p>
+          <a href="/pages/login.html" class="btn">Admin Login</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2025 AiClock. All rights reserved.</p>
+      <p>Professional Employee Payroll & Clocking System with Industry-Standard Technology</p>
+      <div class="footer-tech">
+        <span>🔥 <strong>Firebase</strong></span>
+        <span>📷 <strong>Hikvision</strong></span>
+        <span>🌐 <strong>Cloud-Based</strong></span>
+        <span>📱 <strong>Mobile Ready</strong></span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function toggleMobileMenu() {
+      const mobileMenu = document.getElementById('mobileMenu');
+      const overlay = document.querySelector('.mobile-menu-overlay');
+
+      mobileMenu.classList.toggle('active');
+      overlay.classList.toggle('active');
+
+      // Prevent body scroll when menu is open
+      if (mobileMenu.classList.contains('active')) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    }
+
+    // Close menu when clicking on links with smooth scroll
+    document.querySelectorAll('.mobile-menu a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          toggleMobileMenu();
+          setTimeout(() => {
+            target.scrollIntoView({ behavior: 'smooth' });
+          }, 300);
+        }
+      });
+    });
+
+    // Also add smooth scroll for desktop nav links
+    document.querySelectorAll('.nav-links a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+  </script>
 </body>
 </html>
