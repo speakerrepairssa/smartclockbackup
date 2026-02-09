@@ -3848,7 +3848,14 @@
         } else {
           inEmployees.forEach(emp => {
             const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-            const lastTime = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString() : 'N/A';
+            // Safely format date - check if valid before formatting
+            let lastTime = 'N/A';
+            if (emp.lastClockTime) {
+              const date = new Date(emp.lastClockTime);
+              if (!isNaN(date.getTime())) {
+                lastTime = date.toLocaleTimeString();
+              }
+            }
             inHtml += `
               <div class="employee-item">
                 <div>
@@ -3869,7 +3876,14 @@
         } else {
           outEmployees.forEach(emp => {
             const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-            const lastTime = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString() : 'N/A';
+            // Safely format date - check if valid before formatting
+            let lastTime = 'N/A';
+            if (emp.lastClockTime) {
+              const date = new Date(emp.lastClockTime);
+              if (!isNaN(date.getTime())) {
+                lastTime = date.toLocaleTimeString();
+              }
+            }
             outHtml += `
               <div class="employee-item">
                 <div>
@@ -4073,7 +4087,14 @@
             const isIn = employee.currentStatus === 'in';
             const statusClass = isIn ? 'clocked-in' : 'clocked-out';
             const statusText = isIn ? '● Clocked In' : '○ Clocked Out';
-            const lastTime = employee.lastClockTime ? new Date(employee.lastClockTime).toLocaleString() : 'Never clocked in';
+            // Safely format date - check if valid before formatting
+            let lastTime = 'Never clocked in';
+            if (employee.lastClockTime) {
+              const date = new Date(employee.lastClockTime);
+              if (!isNaN(date.getTime())) {
+                lastTime = date.toLocaleString();
+              }
+            }
             
             slotCards.push(`
               <div class="employee-card ${employee.active ? '' : 'inactive'}">
