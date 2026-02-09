@@ -134,6 +134,70 @@ class AdminDashboardController {
         }
       });
     }
+
+    // Admin Tools Event Listeners
+    // Restore Employee Status
+    const restoreEmployeeStatusBtn = document.getElementById("restoreEmployeeStatusBtn");
+    if (restoreEmployeeStatusBtn) {
+      restoreEmployeeStatusBtn.addEventListener("click", () => this.openRestoreEmployeeModal());
+    }
+
+    const closeRestoreEmployeeModalBtn = document.getElementById("closeRestoreEmployeeModalBtn");
+    if (closeRestoreEmployeeModalBtn) {
+      closeRestoreEmployeeModalBtn.addEventListener("click", () => this.closeRestoreEmployeeModal());
+    }
+
+    const cancelRestoreEmployeeBtn = document.getElementById("cancelRestoreEmployeeBtn");
+    if (cancelRestoreEmployeeBtn) {
+      cancelRestoreEmployeeBtn.addEventListener("click", () => this.closeRestoreEmployeeModal());
+    }
+
+    const runRestoreEmployeeBtn = document.getElementById("runRestoreEmployeeBtn");
+    if (runRestoreEmployeeBtn) {
+      runRestoreEmployeeBtn.addEventListener("click", () => this.restoreEmployeeStatus());
+    }
+
+    // Recalculate Assessment
+    const recalculateAssessmentBtn = document.getElementById("recalculateAssessmentBtn");
+    if (recalculateAssessmentBtn) {
+      recalculateAssessmentBtn.addEventListener("click", () => this.openRecalculateModal());
+    }
+
+    const closeRecalculateModalBtn = document.getElementById("closeRecalculateModalBtn");
+    if (closeRecalculateModalBtn) {
+      closeRecalculateModalBtn.addEventListener("click", () => this.closeRecalculateModal());
+    }
+
+    const cancelRecalcBtn = document.getElementById("cancelRecalcBtn");
+    if (cancelRecalcBtn) {
+      cancelRecalcBtn.addEventListener("click", () => this.closeRecalculateModal());
+    }
+
+    const runRecalcBtn = document.getElementById("runRecalcBtn");
+    if (runRecalcBtn) {
+      runRecalcBtn.addEventListener("click", () => this.recalculateAssessment());
+    }
+
+    // View Shift Config
+    const viewShiftConfigBtn = document.getElementById("viewShiftConfigBtn");
+    if (viewShiftConfigBtn) {
+      viewShiftConfigBtn.addEventListener("click", () => this.openShiftModal());
+    }
+
+    const closeShiftModalBtn = document.getElementById("closeShiftModalBtn");
+    if (closeShiftModalBtn) {
+      closeShiftModalBtn.addEventListener("click", () => this.closeShiftModal());
+    }
+
+    const closeShiftBtn = document.getElementById("closeShiftBtn");
+    if (closeShiftBtn) {
+      closeShiftBtn.addEventListener("click", () => this.closeShiftModal());
+    }
+
+    const loadShiftConfigBtn = document.getElementById("loadShiftConfigBtn");
+    if (loadShiftConfigBtn) {
+      loadShiftConfigBtn.addEventListener("click", () => this.loadShiftConfig());
+    }
   }
 
   /**
@@ -927,7 +991,321 @@ class AdminDashboardController {
       console.error('Hard reset error:', error);
       showNotification(`Hard reset failed: ${error.message}`, 'error');
     }
-  }}
+  }
+
+  // ===== Admin Tools Methods =====
+
+  /**
+   * Open Restore Employee Status Modal
+   */
+  openRestoreEmployeeModal() {
+    const modal = document.getElementById('restoreEmployeeModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      //Pre-fill with srcomponents if empty
+      const businessIdInput = document.getElementById('restoreBusinessId');
+      if (businessIdInput && !businessIdInput.value) {
+        businessIdInput.value = 'srcomponents';
+      }
+      // Hide results
+      document.getElementById('restoreResults').style.display = 'none';
+    }
+  }
+
+  /**
+   * Close Restore Employee Status Modal
+   */
+  closeRestoreEmployeeModal() {
+    const modal = document.getElementById('restoreEmployeeModal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Restore Employee Status
+   */
+  async restoreEmployeeStatus() {
+    const businessId = document.getElementById('restoreBusinessId')?.value?.trim();
+
+    if (!businessId) {
+      showNotification('Please enter a business ID', 'error');
+      return;
+    }
+
+    try {
+      showLoader('Restoring employee status...');
+
+      const businessRef = doc(db, 'businesses', businessId);
+      const businessSnap = await getDoc(businessRef);
+
+      if (!businessSnap.exists()) {
+        hideLoader();
+        showNotification(`Business ${businessId} not found`, 'error');
+        return;
+      }
+
+      const slotsRef = collection(db, 'businesses', businessId, 'slots');
+      const slotsSnap = await getDocs(slotsRef);
+
+      let fixed = 0;
+      let skipped = 0;
+      const now = new Date().toISOString();
+
+      for (const slotDoc of slotsSnap.docs) {
+        const slotData = slotDoc.data();
+
+        // Check if lastClockTime is invalid
+        if (slotData.lastClockTime) {
+          const testDate = new Date(slotData.lastClockTime);
+          if (isNaN(testDate.getTime())) {
+            // Invalid date - fix it
+            await updateDoc(slotDoc.ref, {
+              lastClockTime: now,
+              clockStatus: 'out'
+            });
+            fixed++;
+          } else {
+            skipped++;
+          }
+        } else {
+          // No lastClockTime - set it
+          await updateDoc(slotDoc.ref, {
+            lastClockTime: now,
+            clockStatus: 'out'
+          });
+          fixed++;
+        }
+      }
+
+      hideLoader();
+
+      const resultsDiv = document.getElementById('restoreResults');
+      const resultsContent = document.getElementById('restoreResultsContent');
+
+      resultsContent.innerHTML = `
+        <p style="margin: 0.5rem 0;"><strong>Business:</strong> ${businessId}</p>
+        <p style="margin: 0.5rem 0;"><strong>Total slots processed:</strong> ${slotsSnap.size}</p>
+        <p style="margin: 0.5rem 0; color: #16a34a;"><strong>Fixed:</strong> ${fixed}</p>
+        <p style="margin: 0.5rem 0; color: #6b7280;"><strong>Already valid:</strong> ${skipped}</p>
+      `;
+      resultsDiv.style.display = 'block';
+
+      showNotification(`Successfully restored ${fixed} employee status records`, 'success');
+
+    } catch (error) {
+      hideLoader();
+      console.error('Restore employee status error:', error);
+      showNotification(`Error: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Open Recalculate Assessment Modal
+   */
+  openRecalculateModal() {
+    const modal = document.getElementById('recalculateAssessmentModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Pre-fill with srcomponents and current month
+      const businessIdInput = document.getElementById('recalcBusinessId');
+      if (businessIdInput && !businessIdInput.value) {
+        businessIdInput.value = 'srcomponents';
+      }
+      const monthInput = document.getElementById('recalcMonth');
+      if (monthInput && !monthInput.value) {
+        const now = new Date();
+        monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      }
+      // Hide results
+      document.getElementById('recalcResults').style.display = 'none';
+    }
+  }
+
+  /**
+   * Close Recalculate Assessment Modal
+   */
+  closeRecalculateModal() {
+    const modal = document.getElementById('recalculateAssessmentModal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Recalculate Assessment Cache
+   */
+  async recalculateAssessment() {
+    const businessId = document.getElementById('recalcBusinessId')?.value?.trim();
+    const month = document.getElementById('recalcMonth')?.value;
+
+    if (!businessId || !month) {
+      showNotification('Please enter business ID and select a month', 'error');
+      return;
+    }
+
+    try {
+      showLoader('Recalculating assessment cache...');
+
+      // Call the cloud function to recalculate
+      const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/recalculateAssessmentCache', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessId,
+          month
+        })
+      });
+
+      const result = await response.json();
+      hideLoader();
+
+      if (result.success) {
+        const resultsDiv = document.getElementById('recalcResults');
+        const resultsContent = document.getElementById('recalcResultsContent');
+
+        resultsContent.innerHTML = `
+          <p style="margin: 0.5rem 0;"><strong>Business:</strong> ${businessId}</p>
+          <p style="margin: 0.5rem 0;"><strong>Month:</strong> ${month}</p>
+          <p style="margin: 0.5rem 0; color: #16a34a;"><strong>Status:</strong> Cache recalculated successfully</p>
+          ${result.employeesProcessed ? `<p style="margin: 0.5rem 0;"><strong>Employees processed:</strong> ${result.employeesProcessed}</p>` : ''}
+        `;
+        resultsDiv.style.display = 'block';
+
+        showNotification('Assessment cache recalculated successfully', 'success');
+      } else {
+        showNotification(`Recalculation failed: ${result.error || 'Unknown error'}`, 'error');
+      }
+
+    } catch (error) {
+      hideLoader();
+      console.error('Recalculate assessment error:', error);
+      showNotification(`Error: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Open View Shift Config Modal
+   */
+  openShiftModal() {
+    const modal = document.getElementById('viewShiftModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Pre-fill with srcomponents
+      const businessIdInput = document.getElementById('shiftBusinessId');
+      if (businessIdInput && !businessIdInput.value) {
+        businessIdInput.value = 'srcomponents';
+      }
+      // Hide results
+      document.getElementById('shiftConfigResults').style.display = 'none';
+    }
+  }
+
+  /**
+   * Close View Shift Config Modal
+   */
+  closeShiftModal() {
+    const modal = document.getElementById('viewShiftModal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Load Shift Configuration
+   */
+  async loadShiftConfig() {
+    const businessId = document.getElementById('shiftBusinessId')?.value?.trim();
+
+    if (!businessId) {
+      showNotification('Please enter a business ID', 'error');
+      return;
+    }
+
+    try {
+      showLoader('Loading shift configuration...');
+
+      const businessRef = doc(db, 'businesses', businessId);
+      const businessSnap = await getDoc(businessRef);
+
+      if (!businessSnap.exists()) {
+        hideLoader();
+        showNotification(`Business ${businessId} not found`, 'error');
+        return;
+      }
+
+      const businessData = businessSnap.data();
+      const shifts = businessData.shifts || {};
+
+      hideLoader();
+
+      const resultsDiv = document.getElementById('shiftConfigResults');
+      const resultsContent = document.getElementById('shiftConfigContent');
+
+      let html = `<h4 style="margin: 1rem 0 0.5rem 0;">Shifts for ${businessId}</h4>`;
+
+      if (Object.keys(shifts).length === 0) {
+        html += '<p style="color: #6b7280;">No shifts configured</p>';
+      } else {
+        Object.entries(shifts).forEach(([shiftId, shift]) => {
+          html += `
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem; margin: 1rem 0;">
+              <h5 style="margin: 0 0 0.5rem 0; color: #1f2937;">${shift.name || shiftId}</h5>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                <thead>
+                  <tr style="background: #f9fafb;">
+                    <th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Day</th>
+                    <th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Start</th>
+                    <th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">End</th>
+                    <th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Break (min)</th>
+                    <th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Net Hours</th>
+                  </tr>
+                </thead>
+                <tbody>
+          `;
+
+          const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          days.forEach(day => {
+            const schedule = shift.schedule?.[day];
+            if (schedule && schedule.isWorkingDay) {
+              const breakMin = schedule.breakDuration || shift.defaultBreakDuration || 0;
+              const startDate = new Date(`2000-01-01T${schedule.startTime || '00:00'}:00`);
+              const endDate = new Date(`2000-01-01T${schedule.endTime || '00:00'}:00`);
+              const totalHours = (endDate - startDate) / (1000 * 60 * 60);
+              const netHours = Math.max(0, totalHours - (breakMin / 60));
+
+              html += `
+                <tr>
+                  <td style="padding: 0.5rem; border: 1px solid #e5e7eb; text-transform: capitalize;">${day}</td>
+                  <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">${schedule.startTime || 'N/A'}</td>
+                  <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">${schedule.endTime || 'N/A'}</td>
+                  <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">${breakMin}</td>
+                  <td style="padding: 0.5rem; border: 1px solid #e5e7eb; font-weight: 600;">${netHours.toFixed(2)}h</td>
+                </tr>
+              `;
+            }
+          });
+
+          html += `
+                </tbody>
+              </table>
+            </div>
+          `;
+        });
+      }
+
+      resultsContent.innerHTML = html;
+      resultsDiv.style.display = 'block';
+
+    } catch (error) {
+      hideLoader();
+      console.error('Load shift config error:', error);
+      showNotification(`Error: ${error.message}`, 'error');
+    }
+  }
+}
 
 // Initialize and export
 let adminDashboard;
