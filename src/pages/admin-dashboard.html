@@ -169,11 +169,11 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th>Business ID</th>
               <th>Business Name</th>
               <th>Email</th>
               <th>Plan</th>
               <th>Slots</th>
-
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -221,6 +221,13 @@
           <h3 style="margin: 0 0 0.5rem 0; color: #1f2937; font-size: 1rem;">⏰ View Shift Config</h3>
           <p style="color: #6b7280; font-size: 0.875rem; margin: 0 0 1rem 0;">View shift schedules and break configurations</p>
           <button id="viewShiftConfigBtn" class="btn btn-primary" style="width: 100%;">Run Tool</button>
+        </div>
+
+        <!-- Debug Collections Tool -->
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem;">
+          <h3 style="margin: 0 0 0.5rem 0; color: #1f2937; font-size: 1rem;">🔍 Debug Collections</h3>
+          <p style="color: #6b7280; font-size: 0.875rem; margin: 0 0 1rem 0;">List all subcollections for a business</p>
+          <button id="debugCollectionsBtn" class="btn btn-primary" style="width: 100%;">Run Tool</button>
         </div>
       </div>
 
@@ -529,9 +536,33 @@
     </div>
   </div>
 
+  <!-- Debug Collections Modal -->
+  <div id="debugCollectionsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3>🔍 Debug Collections</h3>
+        <button type="button" class="modal-close" id="closeDebugModalBtn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="debugBusinessId">Business ID *</label>
+          <input type="text" id="debugBusinessId" required placeholder="e.g., biz_srcomponents" />
+          <button type="button" class="btn btn-primary" id="loadDebugBtn" style="margin-top: 0.5rem;">Load Collections</button>
+        </div>
+
+        <div id="debugResults" style="display: none; margin-top: 1rem;">
+          <div id="debugContent" style="font-size: 0.875rem;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="closeDebugBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Import as ES Module -->
   <script type="module">
-    import { initAdminDashboard } from '../modules/admin/dashboard.js';
+    import { initAdminDashboard } from '../modules/admin/dashboard.js?v=2';
 
     // Initialize admin dashboard
     document.addEventListener('DOMContentLoaded', () => {

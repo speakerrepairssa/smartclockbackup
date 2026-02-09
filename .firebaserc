@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "aiclock-82608"
-  }
+    "default": "aiclock-82608",
+    "aiclock": "aiclock-82608"
+  },
+  "targets": {},
+  "etags": {}
 }

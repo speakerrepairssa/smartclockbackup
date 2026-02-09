@@ -135,11 +135,54 @@ class AdminDashboardController {
       });
     }
 
+    // Close admin tool modals on outside click
+    const restoreModal = document.getElementById("restoreEmployeeModal");
+    if (restoreModal) {
+      restoreModal.addEventListener("click", (e) => {
+        if (e.target === restoreModal) {
+          this.closeRestoreEmployeeModal();
+        }
+      });
+    }
+
+    const recalcModal = document.getElementById("recalculateAssessmentModal");
+    if (recalcModal) {
+      recalcModal.addEventListener("click", (e) => {
+        if (e.target === recalcModal) {
+          this.closeRecalculateModal();
+        }
+      });
+    }
+
+    const shiftModal = document.getElementById("viewShiftModal");
+    if (shiftModal) {
+      shiftModal.addEventListener("click", (e) => {
+        if (e.target === shiftModal) {
+          this.closeShiftModal();
+        }
+      });
+    }
+
+    const debugModal = document.getElementById("debugCollectionsModal");
+    if (debugModal) {
+      debugModal.addEventListener("click", (e) => {
+        if (e.target === debugModal) {
+          this.closeDebugModal();
+        }
+      });
+    }
+
     // Admin Tools Event Listeners
     // Restore Employee Status
     const restoreEmployeeStatusBtn = document.getElementById("restoreEmployeeStatusBtn");
     if (restoreEmployeeStatusBtn) {
-      restoreEmployeeStatusBtn.addEventListener("click", () => this.openRestoreEmployeeModal());
+      console.log('Restore Employee Status button found');
+      restoreEmployeeStatusBtn.addEventListener("click", () => {
+        console.log('Restore Employee Status button clicked');
+        this.openRestoreEmployeeModal();
+      });
+    } else {
+      console.log('Restore Employee Status button NOT found');
     }
 
     const closeRestoreEmployeeModalBtn = document.getElementById("closeRestoreEmployeeModalBtn");
@@ -160,7 +203,13 @@ class AdminDashboardController {
     // Recalculate Assessment
     const recalculateAssessmentBtn = document.getElementById("recalculateAssessmentBtn");
     if (recalculateAssessmentBtn) {
-      recalculateAssessmentBtn.addEventListener("click", () => this.openRecalculateModal());
+      console.log('Recalculate Assessment button found');
+      recalculateAssessmentBtn.addEventListener("click", () => {
+        console.log('Recalculate Assessment button clicked');
+        this.openRecalculateModal();
+      });
+    } else {
+      console.log('Recalculate Assessment button NOT found');
     }
 
     const closeRecalculateModalBtn = document.getElementById("closeRecalculateModalBtn");
@@ -181,7 +230,13 @@ class AdminDashboardController {
     // View Shift Config
     const viewShiftConfigBtn = document.getElementById("viewShiftConfigBtn");
     if (viewShiftConfigBtn) {
-      viewShiftConfigBtn.addEventListener("click", () => this.openShiftModal());
+      console.log('View Shift Config button found');
+      viewShiftConfigBtn.addEventListener("click", () => {
+        console.log('View Shift Config button clicked');
+        this.openShiftModal();
+      });
+    } else {
+      console.log('View Shift Config button NOT found');
     }
 
     const closeShiftModalBtn = document.getElementById("closeShiftModalBtn");
@@ -197,6 +252,33 @@ class AdminDashboardController {
     const loadShiftConfigBtn = document.getElementById("loadShiftConfigBtn");
     if (loadShiftConfigBtn) {
       loadShiftConfigBtn.addEventListener("click", () => this.loadShiftConfig());
+    }
+
+    // Debug Collections
+    const debugCollectionsBtn = document.getElementById("debugCollectionsBtn");
+    if (debugCollectionsBtn) {
+      console.log('Debug Collections button found');
+      debugCollectionsBtn.addEventListener("click", () => {
+        console.log('Debug Collections button clicked');
+        this.openDebugModal();
+      });
+    } else {
+      console.log('Debug Collections button NOT found');
+    }
+
+    const closeDebugModalBtn = document.getElementById("closeDebugModalBtn");
+    if (closeDebugModalBtn) {
+      closeDebugModalBtn.addEventListener("click", () => this.closeDebugModal());
+    }
+
+    const closeDebugBtn = document.getElementById("closeDebugBtn");
+    if (closeDebugBtn) {
+      closeDebugBtn.addEventListener("click", () => this.closeDebugModal());
+    }
+
+    const loadDebugBtn = document.getElementById("loadDebugBtn");
+    if (loadDebugBtn) {
+      loadDebugBtn.addEventListener("click", () => this.loadDebugCollections());
     }
   }
 
@@ -249,6 +331,7 @@ class AdminDashboardController {
 
     tbody.innerHTML = this.businesses.map(business => `
       <tr>
+        <td style="font-family: monospace; color: #3b82f6; font-weight: 600;">${business.id}</td>
         <td>${business.businessName}</td>
         <td>${business.email}</td>
         <td>${business.plan}</td>
@@ -256,8 +339,6 @@ class AdminDashboardController {
         <td>
           <span class="status-badge ${business.status}">
             ${business.status}
-          </span>
-        </td>
           </span>
         </td>
         <td>
@@ -999,7 +1080,9 @@ class AdminDashboardController {
    * Open Restore Employee Status Modal
    */
   openRestoreEmployeeModal() {
+    console.log('openRestoreEmployeeModal called');
     const modal = document.getElementById('restoreEmployeeModal');
+    console.log('Modal element:', modal);
     if (modal) {
       modal.style.display = 'flex';
       //Pre-fill with srcomponents if empty
@@ -1045,8 +1128,33 @@ class AdminDashboardController {
         return;
       }
 
-      const slotsRef = collection(db, 'businesses', businessId, 'slots');
-      const slotsSnap = await getDocs(slotsRef);
+      // Try 'staff', 'slots', and 'employees' collections
+      let slotsSnap = await getDocs(collection(db, 'businesses', businessId, 'staff'));
+      let collectionName = 'staff';
+
+      if (slotsSnap.size === 0) {
+        slotsSnap = await getDocs(collection(db, 'businesses', businessId, 'slots'));
+        collectionName = 'slots';
+      }
+
+      if (slotsSnap.size === 0) {
+        slotsSnap = await getDocs(collection(db, 'businesses', businessId, 'employees'));
+        collectionName = 'employees';
+      }
+
+      if (slotsSnap.size === 0) {
+        hideLoader();
+        showNotification(`No employees found in business ${businessId}`, 'error');
+
+        const resultsDiv = document.getElementById('restoreResults');
+        const resultsContent = document.getElementById('restoreResultsContent');
+        resultsContent.innerHTML = `
+          <p style="margin: 0.5rem 0;"><strong>Business:</strong> ${businessId}</p>
+          <p style="margin: 0.5rem 0; color: #dc3545;"><strong>Error:</strong> No employees found in 'staff', 'slots', or 'employees' collections</p>
+        `;
+        resultsDiv.style.display = 'block';
+        return;
+      }
 
       let fixed = 0;
       let skipped = 0;
@@ -1085,7 +1193,8 @@ class AdminDashboardController {
 
       resultsContent.innerHTML = `
         <p style="margin: 0.5rem 0;"><strong>Business:</strong> ${businessId}</p>
-        <p style="margin: 0.5rem 0;"><strong>Total slots processed:</strong> ${slotsSnap.size}</p>
+        <p style="margin: 0.5rem 0;"><strong>Collection:</strong> ${collectionName}</p>
+        <p style="margin: 0.5rem 0;"><strong>Total employees processed:</strong> ${slotsSnap.size}</p>
         <p style="margin: 0.5rem 0; color: #16a34a;"><strong>Fixed:</strong> ${fixed}</p>
         <p style="margin: 0.5rem 0; color: #6b7280;"><strong>Already valid:</strong> ${skipped}</p>
       `;
@@ -1305,6 +1414,111 @@ class AdminDashboardController {
       showNotification(`Error: ${error.message}`, 'error');
     }
   }
+
+  /**
+   * Open Debug Collections Modal
+   */
+  openDebugModal() {
+    const modal = document.getElementById('debugCollectionsModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Pre-fill with biz_srcomponents
+      const businessIdInput = document.getElementById('debugBusinessId');
+      if (businessIdInput && !businessIdInput.value) {
+        businessIdInput.value = 'biz_srcomponents';
+      }
+      // Hide results
+      document.getElementById('debugResults').style.display = 'none';
+    }
+  }
+
+  /**
+   * Close Debug Collections Modal
+   */
+  closeDebugModal() {
+    const modal = document.getElementById('debugCollectionsModal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Load Debug Collections
+   */
+  async loadDebugCollections() {
+    const businessId = document.getElementById('debugBusinessId')?.value?.trim();
+
+    if (!businessId) {
+      showNotification('Please enter a business ID', 'error');
+      return;
+    }
+
+    try {
+      showLoader('Loading collections...');
+
+      // Try common collection names
+      const collectionsToCheck = [
+        'staff',
+        'slots',
+        'employees',
+        'attendance_events',
+        'assessment_cache',
+        'shifts',
+        'devices'
+      ];
+
+      let html = `<h4 style="margin: 1rem 0 0.5rem 0;">Collections for ${businessId}</h4>`;
+      html += '<div style="background: #f9fafb; padding: 1rem; border-radius: 6px;">';
+
+      for (const collectionName of collectionsToCheck) {
+        try {
+          const collectionRef = collection(db, 'businesses', businessId, collectionName);
+          const snapshot = await getDocs(collectionRef);
+
+          if (snapshot.size > 0) {
+            html += `
+              <div style="margin: 0.5rem 0; padding: 0.75rem; background: white; border-left: 4px solid #16a34a; border-radius: 4px;">
+                <strong style="color: #16a34a;">${collectionName}</strong>
+                <span style="color: #6b7280; margin-left: 0.5rem;">(${snapshot.size} documents)</span>
+                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #374151;">
+                  Sample document IDs: ${snapshot.docs.slice(0, 3).map(d => d.id).join(', ')}
+                </div>
+              </div>
+            `;
+          } else {
+            html += `
+              <div style="margin: 0.5rem 0; padding: 0.75rem; background: white; border-left: 4px solid #9ca3af; border-radius: 4px;">
+                <strong style="color: #6b7280;">${collectionName}</strong>
+                <span style="color: #9ca3af; margin-left: 0.5rem;">(empty)</span>
+              </div>
+            `;
+          }
+        } catch (err) {
+          html += `
+            <div style="margin: 0.5rem 0; padding: 0.75rem; background: white; border-left: 4px solid #dc3545; border-radius: 4px;">
+              <strong style="color: #dc3545;">${collectionName}</strong>
+              <span style="color: #dc3545; margin-left: 0.5rem;">(error: ${err.message})</span>
+            </div>
+          `;
+        }
+      }
+
+      html += '</div>';
+
+      hideLoader();
+
+      const resultsDiv = document.getElementById('debugResults');
+      const resultsContent = document.getElementById('debugContent');
+
+      resultsContent.innerHTML = html;
+      resultsDiv.style.display = 'block';
+
+    } catch (error) {
+      hideLoader();
+      console.error('Load debug collections error:', error);
+      showNotification(`Error: ${error.message}`, 'error');
+    }
+  }
 }
 
 // Initialize and export
@@ -1314,3 +1528,4 @@ export function initAdminDashboard() {
   window.adminDashboard = adminDashboard; // Make available globally for onclick handlers
   return adminDashboard;
 }
+

@@ -325,17 +325,53 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
     let pastDueHours = 0;
 
     if (year == currentYear && monthNum == currentMonth) {
-      let weekdaysPassed = 0;
-      let saturdaysPassed = 0;
+      let requiredHoursSoFar = 0;
 
-      for (let day = 1; day < currentDay; day++) {
-        const checkDate = new Date(year, monthNum - 1, day);
-        const dayOfWeek = checkDate.getDay();
-        if (dayOfWeek >= 1 && dayOfWeek <= 5) weekdaysPassed++;
-        else if (dayOfWeek === 6) saturdaysPassed++;
+      // Calculate based on shift schedule if available
+      if (usingShift && shiftSchedule && shiftSchedule.schedule) {
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+        for (let day = 1; day < currentDay; day++) {
+          const checkDate = new Date(year, monthNum - 1, day);
+          const dayOfWeek = checkDate.getDay();
+          const dayName = dayNames[dayOfWeek];
+          const daySchedule = shiftSchedule.schedule[dayName];
+
+          if (daySchedule && daySchedule.enabled) {
+            // Calculate hours for this specific day
+            const [startH, startM] = daySchedule.startTime.split(':').map(Number);
+            const [endH, endM] = daySchedule.endTime.split(':').map(Number);
+
+            let startDecimal = startH + startM / 60;
+            let endDecimal = endH + endM / 60;
+
+            // Handle overnight shifts
+            if (endDecimal < startDecimal) {
+              endDecimal += 24;
+            }
+
+            const totalHours = endDecimal - startDecimal;
+            const breakDuration = daySchedule.breakDuration || shiftSchedule.defaultBreakDuration || 0;
+            const dayHours = Math.max(0, totalHours - (breakDuration / 60));
+
+            requiredHoursSoFar += dayHours;
+          }
+        }
+      } else {
+        // Fall back to business default schedule
+        let weekdaysPassed = 0;
+        let saturdaysPassed = 0;
+
+        for (let day = 1; day < currentDay; day++) {
+          const checkDate = new Date(year, monthNum - 1, day);
+          const dayOfWeek = checkDate.getDay();
+          if (dayOfWeek >= 1 && dayOfWeek <= 5) weekdaysPassed++;
+          else if (dayOfWeek === 6) saturdaysPassed++;
+        }
+
+        requiredHoursSoFar = (weekdaysPassed * (defaultScheduledWorkHours - 1)) + (saturdaysPassed * saturdayScheduledHours);
       }
 
-      const requiredHoursSoFar = (weekdaysPassed * (defaultScheduledWorkHours - 1)) + (saturdaysPassed * saturdayScheduledHours);
       pastDueHours = Math.max(0, requiredHoursSoFar - currentHours);
     }
 

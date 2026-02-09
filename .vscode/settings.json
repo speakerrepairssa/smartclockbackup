@@ -1,0 +1,6 @@
+{
+    "chat.agentSessionProjection.enabled": true,
+    "chat.tools.terminal.autoApprove": {
+        "git add": true
+    }
+}

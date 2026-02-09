@@ -182,14 +182,16 @@ class AuthService {
   }
 
   /**
-   * Initialize empty slots for a business
+   * Initialize empty slots for a business and create all required collections
    * @param {string} businessId 
    * @param {number} slotsAllowed 
    */
   async initializeBusinessSlots(businessId, slotsAllowed) {
     try {
-      console.log("Initializing slots for:", businessId);
+      console.log("Initializing complete business structure for:", businessId);
       
+      // 1. Create STAFF collection (Employee Management)
+      console.log("Creating staff collection...");
       const staffRef = collection(db, "businesses", businessId, "staff");
       for (let i = 1; i <= slotsAllowed; i++) {
         const slotRef = doc(staffRef, i.toString());
@@ -198,27 +200,140 @@ class AuthService {
           employeeName: `Employee ${i}`,
           badgeNumber: i.toString(),
           slotNumber: i,
+          slot: i,
           active: false,
           isActive: false,
           deviceId: "",
+          phone: "",
+          email: "",
+          position: "",
+          payRate: 0,
+          hourlyRate: 0,
           assignedAt: null,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         });
+      }
 
-        const statusRef = doc(collection(db, "businesses", businessId, "status"), i.toString());
+      // 2. Create STATUS collection (Real-time Monitoring)
+      console.log("Creating status collection...");
+      const statusCollectionRef = collection(db, "businesses", businessId, "status");
+      for (let i = 1; i <= slotsAllowed; i++) {
+        const statusRef = doc(statusCollectionRef, i.toString());
         await setDoc(statusRef, {
           employeeId: i.toString(),
           employeeName: `Employee ${i}`,
+          badgeNumber: i.toString(),
           attendanceStatus: "out",
-          lastClockTime: null,
+          lastClockStatus: "out",
+          lastClockTime: new Date().toISOString(),
+          lastEventType: "checkout",
           active: false,
-          deviceId: ""
+          isActive: false,
+          slotNumber: i,
+          deviceId: "",
+          updatedAt: new Date().toISOString()
         });
       }
+
+      // 3. Create ATTENDANCE_EVENTS collection (Event Storage)
+      console.log("Creating attendance_events collection...");
+      const attendanceEventsRef = collection(db, "businesses", businessId, "attendance_events");
+      const readyMarkerRef = doc(attendanceEventsRef, "_system_ready");
+      await setDoc(readyMarkerRef, {
+        message: "Attendance events collection ready for business operations",
+        businessId: businessId,
+        maxEmployees: slotsAllowed,
+        createdAt: new Date().toISOString(),
+        structure: "unified_attendance_events_v1",
+        note: "This placeholder ensures the collection is always visible in Firebase console"
+      });
+
+      // 4. Create DEVICES collection (Device Management)
+      console.log("Creating devices collection...");
+      const devicesRef = collection(db, "businesses", businessId, "devices");
+      const placeholderDeviceRef = doc(devicesRef, "_placeholder_device");
+      await setDoc(placeholderDeviceRef, {
+        deviceId: "_placeholder_device",
+        deviceName: "No devices configured yet",
+        deviceType: "placeholder",
+        status: "inactive",
+        isPlaceholder: true,
+        note: "Configure your first Hikvision device to replace this placeholder",
+        createdAt: new Date().toISOString()
+      });
+
+      // 5. Create ASSESSMENT_CACHE collection (Performance Analytics)
+      console.log("Creating assessment_cache collection...");
+      const assessmentCacheRef = collection(db, "businesses", businessId, "assessment_cache");
+      const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
+      const cacheRef = doc(assessmentCacheRef, currentMonth);
+      await setDoc(cacheRef, {
+        summary: {
+          totalEmployees: 0,
+          totalHoursWorked: 0,
+          totalHoursShort: 0,
+          totalAmountDue: 0,
+          averageAttendance: 0,
+          calculatedAt: new Date().toISOString()
+        },
+        employees: [],
+        lastUpdated: new Date().toISOString(),
+        calculationVersion: "1.0",
+        note: "Assessment cache will populate when employees start clocking in/out"
+      });
+
+      // 6. Create ASSESSMENTS_REALTIME collection (Live Data)
+      console.log("Creating assessments_realtime collection...");
+      const assessmentsRealtimeRef = collection(db, "businesses", businessId, "assessments_realtime");
+      const realtimeRef = doc(assessmentsRealtimeRef, currentMonth);
+      await setDoc(realtimeRef, {
+        summary: {
+          total: slotsAllowed,
+          present: 0,
+          percentage: 0,
+          last_calculated: Date.now(),
+          status: "ready"
+        },
+        employees: {},
+        lastUpdated: new Date().toISOString(),
+        note: "Real-time assessment data will populate automatically"
+      });
+
+      // 7. Create SETTINGS collection (Business Configuration)
+      console.log("Creating settings collection...");
+      const settingsRef = collection(db, "businesses", businessId, "settings");
+      const generalSettingsRef = doc(settingsRef, "general");
+      await setDoc(generalSettingsRef, {
+        businessName: "", // Will be filled from parent business doc
+        workStartTime: "08:30",
+        workEndTime: "17:30",
+        saturdayStartTime: "08:30",
+        saturdayEndTime: "14:30",
+        breakDuration: 60,
+        timezone: "Africa/Johannesburg",
+        currency: "R",
+        overtimeRate: 1.5,
+        createdAt: new Date().toISOString()
+      });
+
+      // 8. Create WHATSAPP_TEMPLATES collection (Notifications)
+      console.log("Creating whatsapp_templates collection...");
+      const whatsappTemplatesRef = collection(db, "businesses", businessId, "whatsapp_templates");
+      const clockOutTemplateRef = doc(whatsappTemplatesRef, "clock_out_template");
+      await setDoc(clockOutTemplateRef, {
+        trigger: "clock-out",
+        recipient: "employee",
+        active: false,
+        message: "Hi {{employeeName}}, you've clocked out. Today's hours: {{hoursWorked}}. Have a great day!",
+        createdAt: new Date().toISOString(),
+        note: "Configure WhatsApp settings to enable notifications"
+      });
       
-      console.log(`Created ${slotsAllowed} slots for business ${businessId}`);
+      console.log(`✅ Created complete business structure with ${slotsAllowed} employee slots for business ${businessId}`);
+      console.log("📊 Collections created: staff, status, attendance_events, devices, assessment_cache, assessments_realtime, settings, whatsapp_templates");
     } catch (error) {
-      console.error("Error initializing slots:", error);
+      console.error("Error initializing business structure:", error);
       throw error;
     }
   }
