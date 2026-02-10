@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Direct Device Data Extractor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .device-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #007bff;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+        }
+        
+        .results {
+            margin-top: 30px;
+        }
+        
+        .results-header {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .results-content {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 0 0 8px 8px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .employee-card {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .employee-card:last-child {
+            border-bottom: none;
+        }
+        
+        .employee-info {
+            flex: 1;
+        }
+        
+        .employee-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+        
+        .employee-details {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .badge {
+            background: #007bff;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        
+        .badge.success {
+            background: #28a745;
+        }
+        
+        .badge.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background: #28a745;
+        }
+        
+        .status-offline {
+            background: #dc3545;
+        }
+        
+        .status-testing {
+            background: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .endpoint-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .endpoint-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .endpoint-card.success {
+            border-left: 5px solid #28a745;
+        }
+        
+        .endpoint-card.failed {
+            border-left: 5px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Direct Device Data Extractor</h1>
+            <p>Test direct connections to Hikvision devices to extract employee data and events</p>
+        </div>
+        
+        <div class="content">
+            <div class="device-section">
+                <h2>🔗 Device Configuration</h2>
+                <p style="margin-bottom: 20px; color: #6c757d;">Configure your Hikvision device connection settings</p>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="deviceId">Device ID:</label>
+                        <input type="text" id="deviceId" value="FC4349999" placeholder="Enter device ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="businessId">Business ID:</label>
+                        <select id="businessId">
+                            <option value="biz_machine_2">BIZ Machine 2</option>
+                            <option value="biz_srcomponents">BIZ SR Components</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="deviceIp">Device IP Address:</label>
+                        <input type="text" id="deviceIp" value="192.168.0.114" placeholder="192.168.0.114">
+                    </div>
+                    <div class="form-group">
+                        <label for="devicePort">Port:</label>
+                        <input type="number" id="devicePort" value="443" placeholder="443">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="deviceUsername">Username:</label>
+                        <input type="text" id="deviceUsername" value="admin" placeholder="admin">
+                    </div>
+                    <div class="form-group">
+                        <label for="devicePassword">Password:</label>
+                        <input type="password" id="devicePassword" value="Azam198419880001" placeholder="Device password">
+                    </div>
+                </div>
+                
+                <div style="margin-top: 25px;">
+                    <button class="btn" onclick="registerDevice()">🔗 Register Device</button>
+                    <button class="btn btn-secondary" onclick="quickEmployeeTest()">🎯 Quick Employee Test</button>
+                    <button class="btn btn-warning" onclick="fullExtraction()">🔍 Full Data Extraction</button>
+                </div>
+            </div>
+            
+            <div id="statusSection" style="display: none;">
+                <div class="device-section">
+                    <h2>📊 Extraction Status</h2>
+                    <div id="deviceStatus">
+                        <span class="status-indicator status-offline"></span>
+                        <span id="statusText">Device not connected</span>
+                    </div>
+                    <div class="log-container" id="logContainer">
+                        <div>🔍 Direct Device Data Extractor initialized</div>
+                        <div>📋 Ready to connect to Hikvision devices...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="resultsSection" style="display: none;">
+                <div class="results">
+                    <div class="results-header">
+                        <h2>👥 Discovered Employees</h2>
+                        <div id="employeeCount">Found: <strong id="employeeCountNumber">0</strong> employees</div>
+                    </div>
+                    <div class="results-content" id="employeeResults">
+                        <div style="text-align: center; padding: 40px; color: #6c757d;">
+                            No employees discovered yet. Run an extraction to see results.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="results" style="margin-top: 30px;">
+                    <div class="results-header">
+                        <h2>🔌 Endpoint Test Results</h2>
+                        <div id="endpointSummary">Tested: <strong id="endpointCount">0</strong> endpoints</div>
+                    </div>
+                    <div class="endpoint-grid" id="endpointResults">
+                        <!-- Endpoint cards will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="direct-device-extractor.js"></script>
+    <script>
+        // Initialize extractor
+        const extractor = new DirectDeviceExtractor();
+        let currentDeviceId = null;
+        
+        // Log function
+        function log(message) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // Update status
+        function updateStatus(status, message) {
+            const statusIndicator = document.querySelector('.status-indicator');
+            const statusText = document.getElementById('statusText');
+            
+            statusIndicator.className = `status-indicator status-${status}`;
+            statusText.textContent = message;
+            
+            document.getElementById('statusSection').style.display = 'block';
+        }
+        
+        // Register device
+        async function registerDevice() {
+            const deviceId = document.getElementById('deviceId').value;
+            const businessId = document.getElementById('businessId').value;
+            const ip = document.getElementById('deviceIp').value;
+            const port = document.getElementById('devicePort').value;
+            const username = document.getElementById('deviceUsername').value;
+            const password = document.getElementById('devicePassword').value;
+            
+            if (!deviceId || !ip || !username || !password) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            updateStatus('testing', 'Registering device...');
+            log(`🔗 Registering device ${deviceId} (${ip}:${port})`);
+            
+            try {
+                const device = extractor.registerDevice(deviceId, {
+                    ip,
+                    port: parseInt(port),
+                    username,
+                    password,
+                    businessId,
+                    protocol: 'https'
+                });
+                
+                currentDeviceId = deviceId;
+                updateStatus('online', `Device ${deviceId} registered successfully`);
+                log(`✅ Device registered: ${JSON.stringify(device, null, 2)}`);
+                
+            } catch (error) {
+                updateStatus('offline', `Failed to register device: ${error.message}`);
+                log(`❌ Registration failed: ${error.message}`);
+            }
+        }
+        
+        // Quick employee test
+        async function quickEmployeeTest() {
+            if (!currentDeviceId) {
+                alert('Please register a device first');
+                return;
+            }
+            
+            updateStatus('testing', 'Running quick employee test...');
+            log('🎯 Starting quick employee test...');
+            
+            try {
+                const results = await extractor.quickEmployeeTest(currentDeviceId);
+                
+                updateStatus('online', `Found ${results.totalEmployees} employees`);
+                log(`🎯 Quick test complete: ${JSON.stringify(results, null, 2)}`);
+                
+                displayEmployees(results.results);
+                document.getElementById('resultsSection').style.display = 'block';
+                
+            } catch (error) {
+                updateStatus('offline', `Quick test failed: ${error.message}`);
+                log(`❌ Quick test failed: ${error.message}`);
+            }
+        }
+        
+        // Full extraction
+        async function fullExtraction() {
+            if (!currentDeviceId) {
+                alert('Please register a device first');
+                return;
+            }
+            
+            updateStatus('testing', 'Running full data extraction...');
+            log('🔍 Starting full data extraction...');
+            
+            try {
+                const results = await extractor.extractAllData(currentDeviceId);
+                
+                updateStatus('online', `Extraction complete: ${results.summary.employeesFound} employees, ${results.summary.eventsFound} events`);
+                log(`🔍 Full extraction complete: ${JSON.stringify(results.summary, null, 2)}`);
+                
+                displayFullResults(results);
+                document.getElementById('resultsSection').style.display = 'block';
+                
+            } catch (error) {
+                updateStatus('offline', `Full extraction failed: ${error.message}`);
+                log(`❌ Full extraction failed: ${error.message}`);
+            }
+        }
+        
+        // Display employees
+        function displayEmployees(results) {
+            const employeeResults = document.getElementById('employeeResults');
+            const employeeCountNumber = document.getElementById('employeeCountNumber');
+            
+            let totalEmployees = 0;
+            let html = '';
+            
+            results.forEach(result => {
+                totalEmployees += result.count;
+                
+                result.employees.forEach(emp => {
+                    html += `
+                        <div class="employee-card">
+                            <div class="employee-info">
+                                <div class="employee-name">${emp.name || 'Unknown Name'}</div>
+                                <div class="employee-details">
+                                    Employee #: ${emp.employeeNo || 'N/A'} | 
+                                    Card #: ${emp.cardNo || 'N/A'} | 
+                                    Source: ${result.endpoint}
+                                </div>
+                            </div>
+                            <div class="badge success">Active</div>
+                        </div>
+                    `;
+                });
+            });
+            
+            if (html === '') {
+                html = `
+                    <div style="text-align: center; padding: 40px; color: #6c757d;">
+                        No employees found on device. Device may not support employee data extraction via API.
+                    </div>
+                `;
+            }
+            
+            employeeResults.innerHTML = html;
+            employeeCountNumber.textContent = totalEmployees;
+        }
+        
+        // Display full results
+        function displayFullResults(results) {
+            displayEmployees([{ 
+                endpoint: 'Combined', 
+                employees: results.extraction.employees,
+                count: results.extraction.employees.length 
+            }]);
+            
+            // Display endpoint results
+            const endpointResults = document.getElementById('endpointResults');
+            const endpointCount = document.getElementById('endpointCount');
+            
+            let html = '';
+            
+            results.endpointResults.forEach(result => {
+                const cardClass = result.success ? 'success' : 'failed';
+                const statusBadge = result.success ? 
+                    `<span class="badge success">${result.status} OK</span>` : 
+                    `<span class="badge warning">${result.status || 'Error'}</span>`;
+                
+                html += `
+                    <div class="endpoint-card ${cardClass}">
+                        <h4>${result.endpoint}</h4>
+                        <p><strong>URL:</strong> ${result.url}</p>
+                        <p><strong>Method:</strong> ${result.method}</p>
+                        <p><strong>Response Time:</strong> ${result.responseTime}ms</p>
+                        <div style="margin-top: 10px;">
+                            ${statusBadge}
+                        </div>
+                        ${result.error ? `<p style="color: #dc3545; margin-top: 10px;"><strong>Error:</strong> ${result.error}</p>` : ''}
+                    </div>
+                `;
+            });
+            
+            endpointResults.innerHTML = html;
+            endpointCount.textContent = results.endpointResults.length;
+        }
+        
+        // Auto-populate based on business selection
+        document.getElementById('businessId').addEventListener('change', function() {
+            const businessId = this.value;
+            const deviceIpInput = document.getElementById('deviceIp');
+            
+            if (businessId === 'biz_machine_2') {
+                deviceIpInput.value = '192.168.0.114';
+            } else if (businessId === 'biz_srcomponents') {
+                deviceIpInput.value = '192.168.7.4';
+            }
+        });
+        
+        log('🔧 Direct Device Data Extractor ready');
+        log('📋 Select device configuration and click "Register Device" to begin');
+    </script>
+</body>
+</html>

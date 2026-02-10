@@ -3824,6 +3824,887 @@ exports.assignShiftToEmployee = onRequest({ invoker: 'public' }, async (req, res
   }
 });
 
+/**
+ * 🔧 ALIGN BUSINESS COLLECTIONS
+ * Ensures all businesses have the same standard collections structure
+ */
+exports.alignBusinessCollections = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, templateBusinessId, cleanup } = req.query;
+    const targetBusiness = businessId || "biz_srcomponents";
+    const templateBusiness = templateBusinessId || "biz_machine_2";
+    const shouldCleanup = cleanup === 'true';
+    
+    logger.info("🔧 Aligning business collections", { targetBusiness, templateBusiness });
+
+    // Standard collections that every business should have
+    const standardCollections = [
+      "assessment_cache",
+      "assessments_realtime", 
+      "attendance_events",
+      "devices",
+      "settings",
+      "shifts",
+      "staff",
+      "status",
+      "whatsapp_templates"
+    ];
+
+    const slotsAllowed = 20; // Standard 20 slots
+    const currentMonth = new Date().toISOString().substring(0, 7);
+
+    // Create missing collections for target business
+    for (const collectionName of standardCollections) {
+      const collectionRef = db.collection('businesses').doc(targetBusiness).collection(collectionName);
+      
+      try {
+        switch (collectionName) {
+          case 'devices':
+            const deviceDoc = await collectionRef.doc('admin').get();
+            if (!deviceDoc.exists) {
+              await collectionRef.doc('admin').set({
+                deviceId: "admin",
+                deviceName: "Admin Device", 
+                deviceType: "hikvision",
+                status: "active",
+                isPlaceholder: false,
+                createdAt: new Date().toISOString()
+              });
+            }
+            break;
+
+          case 'assessment_cache':
+            const cacheDoc = await collectionRef.doc(currentMonth).get();
+            if (!cacheDoc.exists) {
+              await collectionRef.doc(currentMonth).set({
+                summary: {
+                  totalEmployees: 0,
+                  totalHoursWorked: 0,
+                  totalHoursShort: 0,
+                  totalAmountDue: 0,
+                  averageAttendance: 0,
+                  calculatedAt: new Date().toISOString()
+                },
+                employees: [],
+                lastUpdated: new Date().toISOString(),
+                calculationVersion: "1.0"
+              });
+            }
+            break;
+
+          case 'assessments_realtime':
+            const realtimeDoc = await collectionRef.doc(currentMonth).get();
+            if (!realtimeDoc.exists) {
+              await collectionRef.doc(currentMonth).set({
+                summary: {
+                  total: slotsAllowed,
+                  present: 0,
+                  percentage: 0,
+                  last_calculated: Date.now(),
+                  status: "ready"
+                },
+                employees: {},
+                lastUpdated: new Date().toISOString()
+              });
+            }
+            break;
+
+          case 'settings':
+            const settingsDoc = await collectionRef.doc('general').get();
+            if (!settingsDoc.exists) {
+              await collectionRef.doc('general').set({
+                businessName: targetBusiness === "biz_srcomponents" ? "SR Components" : "Business Name",
+                workStartTime: "08:30",
+                workEndTime: "17:30",
+                saturdayStartTime: "08:30", 
+                saturdayEndTime: "14:30",
+                breakDuration: 60,
+                timezone: "Africa/Johannesburg",
+                currency: "R",
+                overtimeRate: 1.5,
+                createdAt: new Date().toISOString()
+              });
+            }
+            break;
+
+          case 'shifts':
+            const shiftsSnapshot = await collectionRef.limit(1).get();
+            if (shiftsSnapshot.empty) {
+              await collectionRef.doc('_placeholder').set({
+                shiftName: "No shifts configured yet",
+                isPlaceholder: true,
+                note: "Create shifts in the admin panel",
+                createdAt: new Date().toISOString()
+              });
+            }
+            break;
+
+          case 'whatsapp_templates':
+            const templateDoc = await collectionRef.doc('clock_out_template').get();
+            if (!templateDoc.exists) {
+              await collectionRef.doc('clock_out_template').set({
+                trigger: "clock-out",
+                recipient: "employee",
+                active: false,
+                message: "Hi {{employeeName}}, you've clocked out. Today's hours: {{hoursWorked}}. Have a great day!",
+                createdAt: new Date().toISOString()
+              });
+            }
+            break;
+
+          case 'attendance_events':
+            const eventsDoc = await collectionRef.doc('_system_ready').get();
+            if (!eventsDoc.exists) {
+              await collectionRef.doc('_system_ready').set({
+                message: "Attendance events collection ready",
+                businessId: targetBusiness,
+                maxEmployees: slotsAllowed,
+                createdAt: new Date().toISOString(),
+                structure: "unified_attendance_events_v1"
+              });
+            }
+            break;
+
+          case 'staff':
+            // Ensure we have 20 staff slots
+            for (let i = 1; i <= slotsAllowed; i++) {
+              const slotDoc = await collectionRef.doc(i.toString()).get();
+              if (!slotDoc.exists) {
+                await collectionRef.doc(i.toString()).set({
+                  employeeId: i.toString(),
+                  employeeName: `Employee ${i}`,
+                  badgeNumber: i.toString(),
+                  slotNumber: i,
+                  slot: i,
+                  active: false,
+                  isActive: false,
+                  deviceId: "",
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                });
+              }
+            }
+            break;
+
+          case 'status':
+            // Ensure we have 20 status slots
+            for (let i = 1; i <= slotsAllowed; i++) {
+              const statusDoc = await collectionRef.doc(i.toString()).get();
+              if (!statusDoc.exists) {
+                await collectionRef.doc(i.toString()).set({
+                  employeeId: i.toString(),
+                  employeeName: `Employee ${i}`,
+                  badgeNumber: i.toString(),
+                  attendanceStatus: "out",
+                  lastClockStatus: "out",
+                  lastClockTime: new Date().toISOString(),
+                  lastEventType: "checkout",
+                  active: false,
+                  isActive: false,
+                  slotNumber: i,
+                  deviceId: "",
+                  updatedAt: new Date().toISOString()
+                });
+              }
+            }
+            break;
+        }
+        
+        logger.info(`✅ Processed collection: ${collectionName}`);
+      } catch (error) {
+        logger.warn(`⚠️ Error processing ${collectionName}:`, error.message);
+      }
+    }
+
+    // Cleanup extra collections if requested
+    if (shouldCleanup) {
+      const extraCollections = [
+        'device_mappings',
+        'employee_last_checkout',
+        'employee_last_clockin', 
+        'employee_monthly_summary',
+        'employee_timesheets',
+        'payroll_reports',
+        'slots'
+      ];
+      
+      const businessRef = db.collection('businesses').doc(targetBusiness);
+      
+      for (const extraCollection of extraCollections) {
+        try {
+          const collectionRef = businessRef.collection(extraCollection);
+          const snapshot = await collectionRef.get();
+          
+          if (!snapshot.empty) {
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => {
+              batch.delete(doc.ref);
+            });
+            await batch.commit();
+            logger.info(`🗑️ Deleted ${snapshot.size} docs from ${extraCollection}`);
+          }
+          
+          // Force delete the collection by creating and deleting a dummy doc
+          await collectionRef.doc('_temp_delete').set({ temp: true });
+          await collectionRef.doc('_temp_delete').delete();
+          
+        } catch (error) {
+          logger.warn(`⚠️ Error cleaning ${extraCollection}:`, error.message);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Collections aligned for ${targetBusiness}${shouldCleanup ? ' with cleanup' : ''}`,
+      collectionsProcessed: standardCollections,
+      slotsCreated: slotsAllowed,
+      templateBusiness: templateBusiness,
+      cleanupPerformed: shouldCleanup
+    });
+
+  } catch (error) {
+    logger.error("Error aligning collections:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 🔄 AUTO SYNC ALL BUSINESSES
+ * Automatically synchronizes collections across all businesses
+ */
+exports.autoSyncAllBusinesses = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    logger.info("🔄 Starting auto-sync for all businesses");
+    
+    // Get all businesses
+    const businessesSnapshot = await db.collection('businesses').get();
+    const businesses = businessesSnapshot.docs.map(doc => doc.id);
+    
+    logger.info("📋 Found businesses:", businesses);
+
+    // Standard collections that every business should have
+    const standardCollections = [
+      "assessment_cache",
+      "assessments_realtime", 
+      "attendance_events",
+      "devices",
+      "settings",
+      "shifts",
+      "staff",
+      "status",
+      "whatsapp_templates"
+    ];
+
+    const results = {};
+    
+    // Sync each business
+    for (const businessId of businesses) {
+      try {
+        logger.info(`🔧 Syncing business: ${businessId}`);
+        
+        // Get existing collections for this business
+        const businessRef = db.collection('businesses').doc(businessId);
+        const collections = await businessRef.listCollections();
+        const existingCollections = collections.map(col => col.id);
+        
+        logger.info(`📁 ${businessId} has collections:`, existingCollections);
+        
+        // Find missing collections
+        const missingCollections = standardCollections.filter(std => 
+          !existingCollections.includes(std)
+        );
+        
+        // Find extra collections (not in standard list)
+        const extraCollections = existingCollections.filter(existing => 
+          !standardCollections.includes(existing) && 
+          !existing.startsWith('_') // Ignore system collections
+        );
+        
+        results[businessId] = {
+          existing: existingCollections.length,
+          missing: missingCollections,
+          extra: extraCollections,
+          synced: false
+        };
+        
+        // Create missing collections
+        if (missingCollections.length > 0) {
+          logger.info(`➕ Creating ${missingCollections.length} missing collections for ${businessId}`);
+          
+          const slotsAllowed = 20;
+          const currentMonth = new Date().toISOString().substring(0, 7);
+          
+          for (const collectionName of missingCollections) {
+            const collectionRef = businessRef.collection(collectionName);
+            
+            try {
+              switch (collectionName) {
+                case 'devices':
+                  await collectionRef.doc('admin').set({
+                    deviceId: "admin",
+                    deviceName: "Admin Device", 
+                    deviceType: "hikvision",
+                    status: "active",
+                    isPlaceholder: false,
+                    createdAt: new Date().toISOString()
+                  });
+                  break;
+
+                case 'assessment_cache':
+                  await collectionRef.doc(currentMonth).set({
+                    summary: {
+                      totalEmployees: 0,
+                      totalHoursWorked: 0,
+                      totalHoursShort: 0,
+                      totalAmountDue: 0,
+                      averageAttendance: 0,
+                      calculatedAt: new Date().toISOString()
+                    },
+                    employees: [],
+                    lastUpdated: new Date().toISOString(),
+                    calculationVersion: "1.0"
+                  });
+                  break;
+
+                case 'assessments_realtime':
+                  await collectionRef.doc(currentMonth).set({
+                    summary: {
+                      total: slotsAllowed,
+                      present: 0,
+                      percentage: 0,
+                      last_calculated: Date.now(),
+                      status: "ready"
+                    },
+                    employees: {},
+                    lastUpdated: new Date().toISOString()
+                  });
+                  break;
+
+                case 'settings':
+                  await collectionRef.doc('general').set({
+                    businessName: businessId.replace('biz_', '').replace('_', ' ').toUpperCase(),
+                    workStartTime: "08:30",
+                    workEndTime: "17:30",
+                    saturdayStartTime: "08:30", 
+                    saturdayEndTime: "14:30",
+                    breakDuration: 60,
+                    timezone: "Africa/Johannesburg",
+                    currency: "R",
+                    overtimeRate: 1.5,
+                    createdAt: new Date().toISOString()
+                  });
+                  break;
+
+                case 'shifts':
+                  await collectionRef.doc('_placeholder').set({
+                    shiftName: "No shifts configured yet",
+                    isPlaceholder: true,
+                    note: "Create shifts in the admin panel",
+                    createdAt: new Date().toISOString()
+                  });
+                  break;
+
+                case 'whatsapp_templates':
+                  await collectionRef.doc('clock_out_template').set({
+                    trigger: "clock-out",
+                    recipient: "employee",
+                    active: false,
+                    message: "Hi {{employeeName}}, you've clocked out. Today's hours: {{hoursWorked}}. Have a great day!",
+                    createdAt: new Date().toISOString()
+                  });
+                  break;
+
+                case 'attendance_events':
+                  await collectionRef.doc('_system_ready').set({
+                    message: "Attendance events collection ready",
+                    businessId: businessId,
+                    maxEmployees: slotsAllowed,
+                    createdAt: new Date().toISOString(),
+                    structure: "unified_attendance_events_v1"
+                  });
+                  break;
+
+                case 'staff':
+                  // Create all staff slots in batch
+                  const staffBatch = db.batch();
+                  for (let i = 1; i <= slotsAllowed; i++) {
+                    const docRef = collectionRef.doc(i.toString());
+                    staffBatch.set(docRef, {
+                      employeeId: i.toString(),
+                      employeeName: `Employee ${i}`,
+                      badgeNumber: i.toString(),
+                      slotNumber: i,
+                      slot: i,
+                      active: false,
+                      isActive: false,
+                      deviceId: "",
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString()
+                    });
+                  }
+                  await staffBatch.commit();
+                  break;
+
+                case 'status':
+                  // Create all status slots in batch
+                  const statusBatch = db.batch();
+                  for (let i = 1; i <= slotsAllowed; i++) {
+                    const docRef = collectionRef.doc(i.toString());
+                    statusBatch.set(docRef, {
+                      employeeId: i.toString(),
+                      employeeName: `Employee ${i}`,
+                      badgeNumber: i.toString(),
+                      attendanceStatus: "out",
+                      lastClockStatus: "out",
+                      lastClockTime: new Date().toISOString(),
+                      lastEventType: "checkout",
+                      active: false,
+                      isActive: false,
+                      slotNumber: i,
+                      deviceId: "",
+                      updatedAt: new Date().toISOString()
+                    });
+                  }
+                  await statusBatch.commit();
+                  break;
+              }
+              
+              logger.info(`✅ Created ${collectionName} for ${businessId}`);
+            } catch (error) {
+              logger.warn(`⚠️ Error creating ${collectionName} for ${businessId}:`, error.message);
+            }
+          }
+          
+          results[businessId].synced = true;
+        }
+        
+        logger.info(`✅ Completed sync for ${businessId}`);
+        
+      } catch (error) {
+        logger.error(`❌ Error syncing ${businessId}:`, error);
+        results[businessId].error = error.message;
+      }
+    }
+    
+    // Summary
+    const totalBusinesses = businesses.length;
+    const syncedBusinesses = Object.values(results).filter(r => r.synced).length;
+    
+    logger.info("🎯 Auto-sync completed", { totalBusinesses, syncedBusinesses });
+    
+    res.json({
+      success: true,
+      message: `Auto-sync completed for ${totalBusinesses} businesses`,
+      totalBusinesses,
+      syncedBusinesses,
+      standardCollections,
+      results
+    });
+
+  } catch (error) {
+    logger.error("Error in auto-sync:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 📊 UPDATE BUSINESS DOCUMENT STRUCTURE
+ * Updates business document to match template structure
+ */
+exports.updateBusinessDocument = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, templateBusinessId } = req.query;
+    const targetBusiness = businessId || "biz_srcomponents";
+    const templateBusiness = templateBusinessId || "biz_machine_2";
+    
+    logger.info("📊 Updating business document structure", { targetBusiness, templateBusiness });
+
+    // Get template business document
+    const templateDoc = await db.collection('businesses').doc(templateBusiness).get();
+    if (!templateDoc.exists) {
+      throw new Error(`Template business ${templateBusiness} not found`);
+    }
+    
+    const templateData = templateDoc.data();
+    
+    // Get target business document
+    const targetDoc = await db.collection('businesses').doc(targetBusiness).get();
+    const targetData = targetDoc.exists ? targetDoc.data() : {};
+    
+    // Merge template structure with existing data (preserving unique values)
+    const updatedData = {
+      ...templateData, // Start with template structure
+      ...targetData,   // Overlay existing data
+      // Force certain standardized values
+      slotsAllowed: 20,
+      maxEmployees: 20,
+      businessId: targetBusiness,
+      businessName: targetBusiness === "biz_srcomponents" ? "SR Components" : 
+                   targetBusiness === "biz_machine_2" ? "Machine 2" :
+                   targetBusiness === "biz_speaker_repairs" ? "Speaker Repairs" :
+                   targetData.businessName || "Business Name",
+      updatedAt: new Date().toISOString(),
+      structureVersion: "2.0",
+      lastStructureUpdate: new Date().toISOString(),
+      // Preserve device-specific settings
+      deviceId: targetData.deviceId || templateData.deviceId,
+      linkedDevice: targetData.linkedDevice || targetData.deviceId,
+      linkedDevices: targetData.linkedDevices || [targetData.deviceId || templateData.deviceId],
+      // Preserve business-specific settings
+      adminEmail: targetData.adminEmail || templateData.adminEmail,
+      email: targetData.email || templateData.email
+    };
+
+    // Update the business document
+    await db.collection('businesses').doc(targetBusiness).set(updatedData, { merge: true });
+    
+    logger.info("✅ Business document updated successfully");
+    
+    res.json({
+      success: true,
+      message: `Business document updated for ${targetBusiness}`,
+      businessId: targetBusiness,
+      templateUsed: templateBusiness,
+      fieldsUpdated: Object.keys(updatedData).length,
+      structureVersion: "2.0"
+    });
+
+  } catch (error) {
+    logger.error("Error updating business document:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 🔍 GET DEVICE EMPLOYEE DATA
+ * Fetches employee/card data directly from Hikvision device
+ */
+exports.getDeviceEmployeeData = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId } = req.query;
+    const targetBusiness = businessId || "biz_srcomponents";
+    
+    logger.info("🔍 Getting device employee data for:", targetBusiness);
+
+    // Get business document to find device credentials
+    const businessDoc = await db.collection('businesses').doc(targetBusiness).get();
+    if (!businessDoc.exists) {
+      throw new Error(`Business ${targetBusiness} not found`);
+    }
+    
+    const businessData = businessDoc.data();
+    const deviceIp = businessData.deviceIp || "192.168.0.114";
+    const deviceUsername = businessData.deviceUsername || "admin";
+    const devicePassword = businessData.devicePassword || "Azam198419880001";
+    
+    logger.info("🔍 Connecting to device:", { deviceIp, deviceUsername });
+
+    const axios = require('axios');
+    const https = require('https');
+    
+    const httpsAgent = new https.Agent({
+      rejectUnauthorized: false
+    });
+    
+    const auth = Buffer.from(`${deviceUsername}:${devicePassword}`).toString('base64');
+    
+    const results = {
+      businessId: targetBusiness,
+      deviceIp,
+      timestamp: new Date().toISOString(),
+      employees: [],
+      deviceInfo: null,
+      attempts: []
+    };
+
+    // Try multiple endpoints to get employee/card data
+    const endpoints = [
+      {
+        name: "Card Holders",
+        url: `http://${deviceIp}/ISAPI/AccessControl/CardHolder/Search`,
+        method: 'POST',
+        data: '<?xml version="1.0" encoding="UTF-8"?><CardHolderSearchCond><searchID>1</searchID><maxResults>100</maxResults><searchResultPosition>0</searchResultPosition></CardHolderSearchCond>'
+      },
+      {
+        name: "Card Holder List",
+        url: `http://${deviceIp}/ISAPI/AccessControl/CardHolder`,
+        method: 'GET'
+      },
+      {
+        name: "Device Info",
+        url: `http://${deviceIp}/ISAPI/System/deviceInfo`,
+        method: 'GET'
+      },
+      {
+        name: "User Info",
+        url: `http://${deviceIp}/ISAPI/AccessControl/UserInfo/Search`,
+        method: 'POST',
+        data: '<?xml version="1.0" encoding="UTF-8"?><UserInfoSearchCond><searchID>1</searchID><maxResults>100</maxResults><searchResultPosition>0</searchResultPosition></UserInfoSearchCond>'
+      },
+      {
+        name: "Personnel Database",
+        url: `http://${deviceIp}/ISAPI/Intelligent/PersonnelInformation`,
+        method: 'GET'
+      }
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        logger.info(`🔍 Trying endpoint: ${endpoint.name} - ${endpoint.url}`);
+        
+        const config = {
+          method: endpoint.method,
+          url: endpoint.url,
+          headers: {
+            'Authorization': `Basic ${auth}`,
+            'Content-Type': endpoint.method === 'POST' ? 'application/xml' : 'application/json',
+            'Accept': 'application/xml, application/json'
+          },
+          timeout: 10000,
+          httpsAgent
+        };
+        
+        if (endpoint.data) {
+          config.data = endpoint.data;
+        }
+        
+        const response = await axios(config);
+        
+        results.attempts.push({
+          endpoint: endpoint.name,
+          url: endpoint.url,
+          success: true,
+          status: response.status,
+          dataLength: response.data ? response.data.length : 0
+        });
+        
+        // Store device info
+        if (endpoint.name === "Device Info") {
+          results.deviceInfo = response.data;
+        }
+        
+        // Parse employee data
+        if (response.data && typeof response.data === 'string') {
+          // Look for employee/card patterns in XML response
+          const employeeMatches = response.data.match(/<employeeNo>(\d+)<\/employeeNo>/g);
+          const nameMatches = response.data.match(/<name>([^<]+)<\/name>/g);
+          const cardMatches = response.data.match(/<cardNo>(\d+)<\/cardNo>/g);
+          
+          if (employeeMatches && nameMatches) {
+            for (let i = 0; i < Math.min(employeeMatches.length, nameMatches.length); i++) {
+              const employeeNo = employeeMatches[i].replace(/<\/?employeeNo>/g, '');
+              const name = nameMatches[i].replace(/<\/?name>/g, '');
+              const cardNo = cardMatches && cardMatches[i] ? cardMatches[i].replace(/<\/?cardNo>/g, '') : '';
+              
+              results.employees.push({
+                employeeNo,
+                name,
+                cardNo,
+                source: endpoint.name
+              });
+            }
+          }
+        }
+        
+        logger.info(`✅ ${endpoint.name} succeeded`);
+        
+      } catch (error) {
+        logger.warn(`⚠️ ${endpoint.name} failed:`, error.message);
+        results.attempts.push({
+          endpoint: endpoint.name,
+          url: endpoint.url,
+          success: false,
+          error: error.message,
+          status: error.response ? error.response.status : null
+        });
+      }
+    }
+
+    // If no employees found from device, get from Firebase for comparison
+    if (results.employees.length === 0) {
+      logger.info("📋 No employees found on device, checking Firebase data...");
+      
+      const staffSnapshot = await db.collection('businesses').doc(targetBusiness).collection('staff').get();
+      const firebaseEmployees = [];
+      
+      staffSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.active || data.isActive) {
+          firebaseEmployees.push({
+            slotNumber: data.slotNumber || data.slot,
+            employeeName: data.employeeName,
+            badgeNumber: data.badgeNumber,
+            deviceId: data.deviceId,
+            source: "Firebase"
+          });
+        }
+      });
+      
+      results.firebaseEmployees = firebaseEmployees;
+    }
+
+    res.json({
+      success: true,
+      message: `Device employee data for ${targetBusiness}`,
+      data: results,
+      summary: {
+        totalEmployeesOnDevice: results.employees.length,
+        deviceConnected: results.attempts.some(a => a.success),
+        successfulEndpoints: results.attempts.filter(a => a.success).length,
+        totalEndpointsTested: results.attempts.length
+      }
+    });
+
+  } catch (error) {
+    logger.error("Error getting device employee data:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 🔍 LIST ALL REAL EMPLOYEES
+ * Shows all actual employees (not placeholders) across businesses
+ */
+exports.listAllRealEmployees = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId } = req.query;
+    
+    logger.info("🔍 Listing all real employees");
+
+    const results = {
+      timestamp: new Date().toISOString(),
+      businesses: []
+    };
+
+    // Get all businesses or specific one
+    let businessIds = [];
+    if (businessId) {
+      businessIds = [businessId];
+    } else {
+      const businessesSnapshot = await db.collection('businesses').get();
+      businessIds = businessesSnapshot.docs.map(doc => doc.id);
+    }
+
+    for (const bId of businessIds) {
+      const businessResult = {
+        businessId: bId,
+        realEmployees: [],
+        totalSlots: 0
+      };
+
+      // Get staff collection
+      const staffSnapshot = await db.collection('businesses').doc(bId).collection('staff').get();
+      
+      staffSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        businessResult.totalSlots++;
+        
+        // Check if this is a real employee (not placeholder)
+        const isRealEmployee = 
+          (data.active || data.isActive) && 
+          data.employeeName && 
+          data.employeeName !== `Employee ${doc.id}` && 
+          !data.employeeName.startsWith('Employee ');
+        
+        if (isRealEmployee) {
+          businessResult.realEmployees.push({
+            slotNumber: data.slotNumber || data.slot || doc.id,
+            employeeName: data.employeeName,
+            badgeNumber: data.badgeNumber,
+            deviceId: data.deviceId,
+            active: data.active || data.isActive,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          });
+        }
+      });
+      
+      results.businesses.push(businessResult);
+    }
+
+    // Summary
+    const totalReal = results.businesses.reduce((sum, b) => sum + b.realEmployees.length, 0);
+    const totalSlots = results.businesses.reduce((sum, b) => sum + b.totalSlots, 0);
+
+    res.json({
+      success: true,
+      message: `Found ${totalReal} real employees across ${results.businesses.length} businesses`,
+      summary: {
+        totalRealEmployees: totalReal,
+        totalSlots: totalSlots,
+        businessesChecked: results.businesses.length
+      },
+      data: results
+    });
+
+  } catch (error) {
+    logger.error("Error listing real employees:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+
 
 
 

@@ -6173,6 +6173,7 @@
       const totalHours = employeeAssessments.reduce((sum, emp) => sum + emp.currentHours, 0);
       const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + emp.hoursShort, 0);
       const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + emp.currentIncomeDue, 0);
+      const totalPotentialIncome = employeeAssessments.reduce((sum, emp) => sum + (emp.potentialIncome || 0), 0);
 
       display.innerHTML = `
         <!-- Assessment Summary Stats -->
@@ -6261,7 +6262,7 @@
           
           <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #673ab7, #3f51b5); color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(103, 58, 183, 0.3);">
             <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Potential Payroll (100%)</div>
-            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem;">R${(totalEmployees * 176 * 30).toFixed(2)}</div>
+            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem;">R${totalPotentialIncome.toFixed(2)}</div>
           </div>
           
           <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #00bcd4, #009688); color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);">
@@ -9375,6 +9376,7 @@ Click "Test Connection" after starting the service.`);
       const totalHours = employeeAssessments.reduce((sum, emp) => sum + emp.currentHours, 0);
       const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + emp.hoursShort, 0);
       const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + emp.currentIncomeDue, 0);
+      const totalPotentialIncome = employeeAssessments.reduce((sum, emp) => sum + (emp.potentialIncome || 0), 0);
 
       display.innerHTML = `
         <!-- Assessment Table -->

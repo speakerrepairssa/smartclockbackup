@@ -1,0 +1,667 @@
+// Assessment Module - Handle employee performance assessments
+class AssessmentModule {
+  constructor(firebaseCompat, businessId) {
+    this.businessId = businessId;
+    this.currentMonth = null;
+    
+    console.log('🔧 Assessment module initialized with:', {
+      businessId: this.businessId,
+      windowDB: !!window.db,
+      collection: !!window.collection,
+      query: !!window.query,
+      where: !!window.where,
+      getDocs: !!window.getDocs
+    });
+  }
+
+  async init() {
+    try {
+      console.log('📊 Initializing Assessment module for business:', this.businessId);
+      
+      // Set default month to current month
+      const now = new Date();
+      const monthInput = document.getElementById('assessmentMonthInput');
+      const monthDisplay = document.getElementById('assessmentMonth');
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (monthInput) {
+        monthInput.value = currentMonth;
+      }
+      
+      if (monthDisplay) {
+        monthDisplay.textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      }
+      
+      // Load assessment for current month
+      await this.loadAssessment();
+      
+    } catch (error) {
+      console.error("❌ Error initializing assessment:", error);
+    }
+  }
+
+  async loadAssessment() {
+    const month = document.getElementById('assessmentMonthInput').value;
+    const display = document.getElementById('assessmentContent');
+    const monthDisplay = document.getElementById('assessmentMonth');
+
+    if (!month) {
+      display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Select a month to generate assessment</div>';
+      return;
+    }
+
+    try {
+      display.innerHTML = '<div style="text-align: center; padding: 3rem; color: #999;">Loading assessment...</div>';
+
+      // Parse month
+      const [year, monthNum] = month.split('-');
+      const monthDate = new Date(year, monthNum - 1, 1);
+      const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      
+      if (monthDisplay) {
+        monthDisplay.textContent = monthName;
+      }
+
+      // 📊 NEW: Try to load from assessment_cache first (INSTANT LOADING!)
+      let employeeAssessments = [];
+      
+      try {
+        console.log('🚀 Loading from assessment cache for instant loading:', {
+          businessId: this.businessId,
+          month: month,
+          collection: `businesses/${this.businessId}/assessment_cache/${month}`
+        });
+        
+        const cacheRef = window.doc(window.db, "businesses", this.businessId, "assessment_cache", month);
+        console.log('🔍 Cache reference created:', cacheRef);
+        
+        const cacheSnap = await window.getDoc(cacheRef);
+        console.log('🔍 Cache snapshot:', cacheSnap, 'exists:', cacheSnap.exists());
+        
+        if (cacheSnap.exists()) {
+          const cacheData = cacheSnap.data();
+          console.log('✅ Found cached assessment data:', cacheData);
+          
+          // 🐛 DEBUG: Check actual cache structure
+          console.log('🔍 Cache employees data:', cacheData.employees);
+          if (cacheData.employees && cacheData.employees.length > 0) {
+            console.log('🔍 First employee sample:', cacheData.employees[0]);
+          }
+          
+          // Use cached employee data
+          employeeAssessments = cacheData.employees || [];
+          
+          // 🔧 DATA VALIDATION: Ensure proper field mapping
+          employeeAssessments = employeeAssessments.map(emp => {
+            console.log('🔍 Processing employee:', emp.employeeName, 'currentHours:', emp.currentHours);
+
+            return {
+              index: emp.employeeIndex || emp.index,
+              employeeIndex: emp.employeeIndex || emp.index,
+              name: emp.employeeName || emp.name,
+              employeeName: emp.employeeName || emp.name,
+              employeeId: emp.employeeId,
+              shiftId: emp.shiftId || null,
+              shiftName: emp.shiftName || 'No Shift Assigned',
+              requiredHours: emp.requiredHours || 176,
+              currentHours: parseFloat(emp.currentHours) || 0,
+              pastDueHours: emp.pastDueHours || 0,
+              hoursShort: parseFloat(emp.hoursShort) || 0,
+              payRate: parseFloat(emp.payRate) || 0,
+              currentIncomeDue: parseFloat(emp.currentIncomeDue) || 0,
+              status: emp.status || 'Unknown',
+              statusColor: emp.statusColor || '#999'
+            };
+          });
+          
+          console.log('🔧 Processed employee assessments:', employeeAssessments);
+          
+          // Show cache timestamp for transparency
+          const cacheTimestamp = cacheData.lastUpdated?.toDate ? 
+            cacheData.lastUpdated.toDate().toLocaleString() : 
+            'Unknown';
+          
+          console.log(`📊 Loaded ${employeeAssessments.length} cached assessments (updated: ${cacheTimestamp})`);
+          
+          // Update summary display if available
+          if (cacheData.summary) {
+            this.displayCacheSummary(cacheData.summary, cacheTimestamp);
+          }
+          
+        } else {
+          console.log('📭 No cached assessment found, calculating from attendance data...');
+          // Fallback to real-time calculation
+          employeeAssessments = await this.calculateAssessmentFromAttendance(month);
+        }
+        
+      } catch (error) {
+        console.error('⚠️ Could not load from cache:', error);
+        // Fallback to real-time calculation  
+        employeeAssessments = await this.calculateAssessmentFromAttendance(month);
+      }
+
+      // Fallback to dummy data if no cache and calculation failed
+      if (employeeAssessments.length === 0) {
+        console.log('📋 Using dummy assessment data as fallback');
+        employeeAssessments = [
+          {
+            index: 1,
+            name: "No Data",
+            requiredHours: NaN,
+            currentHours: NaN,
+            pastDueHours: NaN,
+            hoursShort: NaN,
+            payRate: NaN,
+            currentIncomeDue: NaN,
+            status: 'No Data',
+            statusColor: '#999'
+          },
+          {
+            index: 2,
+            name: "No Data", 
+            requiredHours: NaN,
+            currentHours: NaN,
+            pastDueHours: NaN,
+            hoursShort: NaN,
+            payRate: NaN,
+            currentIncomeDue: NaN,
+            status: 'No Data',
+            statusColor: '#999'
+          },
+          {
+            index: 3,
+            name: "No Data",
+            requiredHours: NaN,
+            currentHours: NaN,
+            pastDueHours: NaN,
+            hoursShort: NaN,
+            payRate: NaN,
+            currentIncomeDue: NaN,
+            status: 'No Data',
+            statusColor: '#999'
+          }
+        ];
+      }
+
+      // Render assessment table
+      this.renderAssessmentTable(employeeAssessments, display);
+      
+    } catch (error) {
+      console.error("❌ Error loading assessment:", error);
+      display.innerHTML = `<div style="text-align: center; padding: 3rem; color: #dc3545;">Error loading assessment: ${error.message}</div>`;
+    }
+  }
+
+  renderAssessmentTable(employeeAssessments, display) {
+    // Calculate totals
+    const totalEmployees = employeeAssessments.length;
+    const totalHours = employeeAssessments.reduce((sum, emp) => sum + (emp.currentHours || 0), 0);
+    const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + (emp.hoursShort || 0), 0);
+    const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + (emp.currentIncomeDue || 0), 0);
+
+    display.innerHTML = `
+      <!-- Employee Assessment Table -->
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <tr>
+              <th style="padding: 1rem; text-align: center;"># </th>
+              <th style="padding: 1rem;">Employee Name</th>
+              <th style="padding: 1rem;">Shift Name</th>
+              <th style="padding: 1rem; text-align: center;">Required Hours</th>
+              <th style="padding: 1rem; text-align: center;">Current Hours</th>
+              <th style="padding: 1rem; text-align: center;">Past Due Hours</th>
+              <th style="padding: 1rem; text-align: center;">Hours Short</th>
+              <th style="padding: 1rem; text-align: center;">Pay Rate</th>
+              <th style="padding: 1rem; text-align: center;">Current Income Due</th>
+              <th style="padding: 1rem; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${employeeAssessments.map(emp => `
+              <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 1rem; text-align: center; font-weight: bold;">${emp.index || emp.employeeIndex}</td>
+                <td style="padding: 1rem; font-weight: 600; color: #2c3e50;">${emp.employeeName || emp.name}</td>
+                <td style="padding: 1rem; color: #7f8c8d; font-style: italic;">${emp.shiftName || 'No Shift Assigned'}</td>
+                <td style="padding: 1rem; text-align: center;">${isNaN(emp.requiredHours) ? '-' : emp.requiredHours}</td>
+                <td style="padding: 1rem; text-align: center; font-weight: bold; color: #2c3e50;">${isNaN(emp.currentHours) ? '0.0' : emp.currentHours.toFixed(1)}</td>
+                <td style="padding: 1rem; text-align: center;">${isNaN(emp.pastDueHours) ? '-' : emp.pastDueHours}</td>
+                <td style="padding: 1rem; text-align: center; color: ${emp.hoursShort > 0 ? '#dc3545' : '#28a745'}; font-weight: bold;">${isNaN(emp.hoursShort) ? '-' : emp.hoursShort.toFixed(1)}</td>
+                <td style="padding: 1rem; text-align: center;">${isNaN(emp.payRate) ? '-' : 'R' + emp.payRate.toFixed(2)}</td>
+                <td style="padding: 1rem; text-align: center; font-weight: bold; color: #28a745;">${isNaN(emp.currentIncomeDue) ? 'R0.00' : 'R' + emp.currentIncomeDue.toFixed(2)}</td>
+                <td style="padding: 1rem; text-align: center;">
+                  <span style="background: ${emp.statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: bold;">
+                    ${emp.status}
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="row" style="margin-top: 2rem;">
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">${totalEmployees}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">TOTAL EMPLOYEES</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">${totalHours.toFixed(1)}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">TOTAL HOURS WORKED</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">${totalHoursShort.toFixed(1)}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">TOTAL HOURS SHORT</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">R${totalIncomeDue.toFixed(2)}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">TOTAL AMOUNT DUE</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">R${(totalIncomeDue * 1.5).toFixed(2)}</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">POTENTIAL PAYROLL (100%)</p>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="summary-card" style="background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0; font-size: 2rem; font-weight: bold;">${((totalHours / (totalEmployees * 176)) * 100).toFixed(1)}%</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">AVERAGE ATTENDANCE</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 📊 NEW: Display cache summary information
+  displayCacheSummary(summaryData, cacheTimestamp) {
+    console.log('📊 Displaying cache summary:', summaryData);
+    
+    // You can add a cache status indicator here
+    const existingCacheInfo = document.getElementById('cache-info');
+    if (existingCacheInfo) {
+      existingCacheInfo.remove();
+    }
+    
+    const cacheInfoDiv = document.createElement('div');
+    cacheInfoDiv.id = 'cache-info';
+    cacheInfoDiv.style.cssText = `
+      background: #e8f5e8; 
+      border: 1px solid #c3e6c3; 
+      padding: 0.75rem 1rem; 
+      border-radius: 6px; 
+      margin-bottom: 1rem; 
+      font-size: 0.9rem; 
+      color: #2d5a2d;
+    `;
+    cacheInfoDiv.innerHTML = `
+      ✅ <strong>Instant loading from cache</strong> | 
+      Last calculated: ${cacheTimestamp} | 
+      ${summaryData.totalEmployees} employees, ${summaryData.totalHoursWorked}h worked
+    `;
+    
+    const assessmentContent = document.getElementById('assessmentContent');
+    assessmentContent.parentNode.insertBefore(cacheInfoDiv, assessmentContent);
+  }
+
+  // 🔄 NEW: Manual trigger to recalculate assessment cache
+  async triggerAssessmentCalculation() {
+    const month = document.getElementById('assessmentMonthInput').value;
+    if (!month) {
+      alert('Please select a month first');
+      return;
+    }
+
+    const triggerBtn = document.querySelector('.btn-trigger-calculation');
+    const originalText = triggerBtn.innerHTML;
+    
+    try {
+      triggerBtn.innerHTML = '🔄 Calculating...';
+      triggerBtn.disabled = true;
+      
+      console.log('🚀 Manual trigger: Recalculating assessment cache for:', { 
+        businessId: this.businessId, 
+        month 
+      });
+      
+      // Call Cloud Function to recalculate
+      const response = await fetch(`/updateAssessmentCache?businessId=${this.businessId}&month=${month}`, {
+        method: 'GET'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Assessment cache updated:', result);
+        
+        // Show success message
+        this.showTemporaryMessage('✅ Assessment recalculated successfully!', 'success');
+        
+        // Reload the assessment to show new data
+        setTimeout(() => {
+          this.loadAssessment();
+        }, 1000);
+        
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update assessment cache');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to trigger assessment calculation:', error);
+      this.showTemporaryMessage('❌ Failed to recalculate: ' + error.message, 'error');
+    } finally {
+      triggerBtn.innerHTML = originalText;
+      triggerBtn.disabled = false;
+    }
+  }
+
+  // Helper function to show temporary messages
+  showTemporaryMessage(message, type = 'info') {
+    const existingMessage = document.getElementById('temp-message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.id = 'temp-message';
+    messageDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 1rem 1.5rem;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      z-index: 1000;
+      background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(() => {
+      messageDiv.remove();
+    }, 3000);
+  }
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Employee Name</th>
+              <th>Required Hours</th>
+              <th>Current Hours</th>
+              <th>Past Due Hours</th>
+              <th>Hours Short</th>
+              <th>Pay Rate</th>
+              <th>Current Income Due</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${employeeAssessments.map(emp => `
+              <tr>
+                <td><strong>${emp.index}</strong></td>
+                <td><strong>${emp.name}</strong></td>
+                <td>${emp.requiredHours}</td>
+                <td><span style="color: #17a2b8;">${emp.currentHours}</span></td>
+                <td><span style="color: #ffc107;">${emp.pastDueHours}</span></td>
+                <td><span style="color: #dc3545;">${emp.hoursShort}</span></td>
+                <td>R${emp.payRate.toFixed(2)}</td>
+                <td><strong style="color: #28a745;">R${emp.currentIncomeDue.toFixed(2)}</strong></td>
+                <td>
+                  <span class="badge" style="background-color: ${emp.statusColor}; color: white;">
+                    ${emp.status}
+                  </span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="row g-3 mt-4">
+        <div class="col-lg-3 col-md-6">
+          <div class="summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalEmployees}</h3>
+                <p style="margin: 0; opacity: 0.9;">Total Employees</p>
+              </div>
+              <div style="font-size: 3rem; opacity: 0.3;">👥</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+          <div class="summary-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalHours.toFixed(1)}</h3>
+                <p style="margin: 0; opacity: 0.9;">Total Hours Worked</p>
+              </div>
+              <div style="font-size: 3rem; opacity: 0.3;">⏰</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+          <div class="summary-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 1.5rem; border-radius: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalHoursShort.toFixed(1)}</h3>
+                <p style="margin: 0; opacity: 0.9;">Total Hours Short</p>
+              </div>
+              <div style="font-size: 3rem; opacity: 0.3;">⚠️</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+          <div class="summary-card" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; padding: 1.5rem; border-radius: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">R${totalIncomeDue.toFixed(2)}</h3>
+                <p style="margin: 0; opacity: 0.8;">Total Amount Due</p>
+              </div>
+              <div style="font-size: 3rem; opacity: 0.3;">💰</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Additional Summary Cards -->
+      <div class="row g-3 mt-3">
+        <div class="col-lg-6 col-md-12">
+          <div class="summary-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">R${(totalIncomeDue * 1.1).toFixed(2)}</h3>
+                <p style="margin: 0; opacity: 0.9;">Potential Payroll (100%)</p>
+              </div>
+              <div style="font-size: 3rem; opacity: 0.3;">📊</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 col-md-12">
+          <div class="summary-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 1.5rem; border-radius: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700;">${totalEmployees === 0 ? 'NaN' : ((totalHours / (totalEmployees * 176)) * 100).toFixed(1)}%</h3>
+                <p style="margin: 0; opacity: 0.9;">Average Attendance</p>
+              </div>
+              <div style="font-size: 3rem; opacity: 0.3;">📈</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Calculate assessment data from attendance events
+  async calculateAssessmentFromAttendance(month) {
+    try {
+      console.log('📊 Calculating assessment from attendance_events for month:', month);
+      
+      // Get all attendance events for this business
+      const attendanceRef = window.collection(this.db, "businesses", this.businessId, "attendance_events");
+      const attendanceSnap = await window.getDocs(attendanceRef);
+      
+      console.log(`📋 Found ${attendanceSnap.size} total attendance events`);
+      
+      // Process attendance data
+      const employeeData = {};
+      // No hardcoded pay rates - will use NaN if missing
+      
+      attendanceSnap.forEach(doc => {
+        const data = doc.data();
+        const empId = data.employeeId || data.employeeName || "unknown";
+        const empName = data.employeeName || empId;
+        
+        if (!employeeData[empId]) {
+          employeeData[empId] = {
+            name: empName,
+            totalHours: 0,
+            attendanceDays: 0,
+            payRate: data.payRate || NaN
+          };
+        }
+        
+        // Calculate hours worked (8 hours per attendance event for now)
+        const hoursWorked = 8;
+        employeeData[empId].totalHours += hoursWorked;
+        employeeData[empId].attendanceDays += 1;
+      });
+      
+      console.log('👥 Calculated employee data:', employeeData);
+      
+      // Generate assessment array
+      const assessmentArray = [];
+      const requiredHoursPerMonth = NaN; // No longer hardcoded
+      let employeeIndex = 1;
+      
+      for (const [empId, data] of Object.entries(employeeData)) {
+        const hoursShort = isNaN(requiredHoursPerMonth) ? NaN : Math.max(0, requiredHoursPerMonth - data.totalHours);
+        const totalPay = isNaN(data.payRate) ? NaN : (data.totalHours * data.payRate);
+        
+        let status = 'No Data';
+        let statusColor = '#999';
+        
+        if (!isNaN(hoursShort)) {
+          status = 'On Track';
+          statusColor = '#28a745';
+          if (hoursShort > 40) {
+            status = 'Critical';
+            statusColor = '#dc3545';
+          } else if (hoursShort > 0) {
+            status = 'Behind';
+            statusColor = '#fd7e14';
+          }
+        }
+        
+        assessmentArray.push({
+          index: employeeIndex++,
+          name: data.name,
+          employeeId: empId,
+          requiredHours: requiredHoursPerMonth,
+          currentHours: data.totalHours,
+          pastDueHours: 0,
+          hoursShort: hoursShort,
+          payRate: data.payRate,
+          currentIncomeDue: totalPay,
+          status: status,
+          statusColor: statusColor,
+          attendanceStatus: "active",
+          dataSource: 'calculated_from_attendance'
+        });
+      }
+      
+      // If no attendance data found, return basic employee structure
+      if (assessmentArray.length === 0) {
+        console.log('📝 No attendance data found, creating NaN placeholder');
+        return [
+          {
+            index: 1, name: "No Data", employeeId: "unknown", requiredHours: NaN, currentHours: NaN,
+            pastDueHours: NaN, hoursShort: NaN, payRate: NaN, currentIncomeDue: NaN,
+            status: 'No Data', statusColor: '#999', attendanceStatus: "no_data",
+            dataSource: 'placeholder'
+          }
+        ];
+      }
+      
+      console.log('✅ Calculated assessment for', assessmentArray.length, 'employees');
+      return assessmentArray;
+      
+    } catch (error) {
+      console.error('❌ Error calculating from attendance:', error);
+      return [];
+    }
+  }
+
+  // Print functionality
+  printAssessment() {
+    const printWindow = window.open('', '_blank');
+    const content = document.getElementById('assessmentContent').innerHTML;
+    const monthDisplay = document.getElementById('assessmentMonth').textContent;
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Assessment Report - ${monthDisplay}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .badge { padding: 4px 8px; border-radius: 4px; color: white; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <h1>Employee Assessment Report</h1>
+          <h2>${monthDisplay}</h2>
+          ${content}
+          <script>window.print(); window.close();</script>
+        </body>
+      </html>
+    `);
+  }
+}
+
+// Global functions for backwards compatibility
+window.initAssessment = function() {
+  if (window.assessmentModule) {
+    return window.assessmentModule.init();
+  } else {
+    console.error('Assessment module not initialized');
+  }
+};
+
+window.loadAssessment = function() {
+  if (window.assessmentModule) {
+    return window.assessmentModule.loadAssessment();
+  } else {
+    console.error('Assessment module not initialized');
+  }
+};
+
+window.printAssessment = function() {
+  if (window.assessmentModule) {
+    return window.assessmentModule.printAssessment();
+  } else {
+    console.error('Assessment module not initialized');
+  }
+};
+
+// Initialize when loaded
+window.Assessment = AssessmentModule;

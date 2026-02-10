@@ -157,13 +157,13 @@ class AuthService {
         email,
         password, // In production, hash this
         deviceId: deviceId || "",
-        plan: "Basic",
-        slotsAllowed: 6,
-        maxEmployees: 6,
+        plan: "Professional",
+        slotsAllowed: 20,
+        maxEmployees: 20,
         monthlyFee: 29.99,
         status: "active",
-        approved: false,
-        apiEnabled: false,
+        approved: true,
+        apiEnabled: true,
         breakDuration: 60,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -171,7 +171,7 @@ class AuthService {
       console.log("Business document created");
 
       // Initialize business slots
-      await this.initializeBusinessSlots(businessId, 6);
+      await this.initializeBusinessSlots(businessId, 20);
       console.log("Business slots initialized");
 
       return businessId;

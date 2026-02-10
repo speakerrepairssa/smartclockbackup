@@ -304,7 +304,6 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
     });
 
     const currentHours = Math.round(totalPayableHours * 100) / 100;
-    const hoursShort = Math.max(0, requiredHours - currentHours);
 
     // Calculate income
     let totalIncome = 0;
@@ -401,6 +400,10 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
       // NOT the shortfall (that's what hoursShort is for)
       pastDueHours = requiredHoursSoFar;
     }
+
+    // Recalculate hoursShort based on past due hours (not total required hours)
+    // Hours Short = how far behind they are NOW (past due - current)
+    const hoursShort = Math.max(0, pastDueHours - currentHours);
 
     // Determine status
     let status = 'On Track';

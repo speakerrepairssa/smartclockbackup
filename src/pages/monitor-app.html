@@ -246,7 +246,8 @@
             snapshot.forEach(doc => {
               const data = doc.data();
               console.log('Employee data:', data);
-              if (data.lastClockTime) {
+              // Show all active employees, not just those with clock times
+              if (data.active || data.isActive || data.lastClockTime) {
                 employees.push({
                   id: doc.id,
                   ...data
@@ -283,35 +284,35 @@
       const grid = document.getElementById('monitorGrid');
       
       if (employees.length === 0) {
-        grid.innerHTML = '<div class="empty-state">👤 No employees clocked in yet</div>';
+        grid.innerHTML = '<div class="empty-state">👤 No active employees found. Check staff configuration.</div>';
         return;
       }
 
       // Sort by slot number
       employees.sort((a, b) => {
-        const slotA = a.slot || a.slotNumber || a.employeeId || '999';
-        const slotB = b.slot || b.slotNumber || b.employeeId || '999';
-        return String(slotA).localeCompare(String(slotB));
+        const slotA = a.slot || a.slotNumber || a.employeeId || parseInt(a.id) || 999;
+        const slotB = b.slot || b.slotNumber || b.employeeId || parseInt(b.id) || 999;
+        return parseInt(slotA) - parseInt(slotB);
       });
 
       // Separate IN and OUT employees
       const inEmployees = employees.filter(e => e.attendanceStatus === 'in');
-      const outEmployees = employees.filter(e => e.attendanceStatus === 'out');
+      const outEmployees = employees.filter(e => e.attendanceStatus === 'out' || !e.attendanceStatus);
 
       let html = `
         <div class="employees-column">
           <div class="column-header in">✅ CLOCKED IN (${inEmployees.length})</div>
           ${inEmployees.length === 0 ? '<div style="text-align: center; padding: 2rem; opacity: 0.7;">No employees clocked in</div>' : ''}
           ${inEmployees.map(emp => {
-            const slot = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-            const name = emp.employeeName || 'Unknown';
-            const time = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+            const slot = emp.slot || emp.slotNumber || emp.employeeId || emp.id || 'N/A';
+            const name = emp.employeeName || `Employee ${slot}`;
+            const time = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Ready';
 
             return `
               <div class="employee-card in">
                 <div class="slot-number">SLOT ${slot}</div>
                 <div class="employee-name">${name}</div>
-                ${time ? `<div class="clock-time">⏰ ${time}</div>` : ''}
+                <div class="clock-time">⏰ ${time}</div>
               </div>
             `;
           }).join('')}
@@ -321,15 +322,15 @@
           <div class="column-header out">❌ CLOCKED OUT (${outEmployees.length})</div>
           ${outEmployees.length === 0 ? '<div style="text-align: center; padding: 2rem; opacity: 0.7;">No employees clocked out</div>' : ''}
           ${outEmployees.map(emp => {
-            const slot = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-            const name = emp.employeeName || 'Unknown';
-            const time = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+            const slot = emp.slot || emp.slotNumber || emp.employeeId || emp.id || 'N/A';
+            const name = emp.employeeName || `Employee ${slot}`;
+            const time = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Ready';
 
             return `
               <div class="employee-card out">
                 <div class="slot-number">SLOT ${slot}</div>
                 <div class="employee-name">${name}</div>
-                ${time ? `<div class="clock-time">⏰ ${time}</div>` : ''}
+                <div class="clock-time">⏰ ${time}</div>
               </div>
             `;
           }).join('')}
