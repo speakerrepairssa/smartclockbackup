@@ -586,6 +586,26 @@ async function processAttendanceEvent(businessId, eventData) {
 
     logger.info("🎯 Using slot number from device", { slotNumber, verifyNo, employeeId });
 
+    // 🔄 STORE RAW DEVICE EVENT for sync tracking
+    if (deviceId && !eventData.source?.includes('sync-recovery') && !eventData.source?.includes('historical-import')) {
+      try {
+        await storeRawDeviceEvent(businessId, deviceId, {
+          ...eventData,
+          employeeId: slotNumber.toString(),
+          timestamp: timestamp,
+          slotNumber: slotNumber
+        });
+        logger.info("🔄 Raw device event stored for sync tracking", { businessId, deviceId, slotNumber });
+      } catch (storeError) {
+        logger.error("⚠️ Failed to store raw device event (non-critical)", { 
+          businessId, 
+          deviceId, 
+          error: storeError.message 
+        });
+        // Don't fail the main processing for storage errors
+      }
+    }
+
     const isClockingIn = attendanceStatus === 'in' || attendanceStatus === 'checkIn';
 
     // 🚨 DUPLICATE PREVENTION: Check last clock status to prevent duplicate punches
@@ -4703,6 +4723,757 @@ exports.listAllRealEmployees = onRequest(async (req, res) => {
     });
   }
 });
+
+/**
+ * 🔄 DEVICE EVENT MIRRORING AND SYNC FUNCTIONS
+ */
+
+/**
+ * 🔄 STORE RAW DEVICE EVENT
+ * Creates device-specific collections for real-time mirroring
+ * Structure: device_{deviceId}_events/{date}/{employeeId}/{eventId}
+ */
+async function storeRawDeviceEvent(businessId, deviceId, eventData) {
+  try {
+    const { timestamp, employeeId, verifyNo } = eventData;
+    const eventDate = new Date(timestamp).toISOString().split('T')[0]; // YYYY-MM-DD
+    const slotNumber = verifyNo || employeeId;
+    
+    logger.info("🔄 Storing raw device event", { 
+      businessId, 
+      deviceId, 
+      eventDate, 
+      slotNumber,
+      eventData: eventData 
+    });
+
+    // Store in device-specific collection
+    const deviceEventsRef = db.collection('businesses')
+      .doc(businessId)
+      .collection(`device_${deviceId}_events`)
+      .doc(eventDate)
+      .collection(slotNumber.toString())
+      .doc();
+
+    await deviceEventsRef.set({
+      ...eventData,
+      eventId: deviceEventsRef.id,
+      storedAt: new Date().toISOString()
+    });
+
+    logger.info("✅ Raw device event stored", { 
+      businessId, 
+      deviceId, 
+      eventDate, 
+      slotNumber,
+      eventId: deviceEventsRef.id 
+    });
+
+  } catch (error) {
+    logger.error("❌ Failed to store raw device event", { 
+      businessId, 
+      deviceId, 
+      error: error.message,
+      eventData 
+    });
+  }
+}
+
+/**
+ * 🔍 TRIGGER SYNC CHECK  
+ * Compares device events vs processed events and heals missing data
+ */
+async function triggerSyncCheck(businessId, deviceId) {
+  try {
+    logger.info("🔍 Starting sync check", { businessId, deviceId });
+
+    // Get today and yesterday for comparison
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    // Check today and yesterday for any missing events
+    await performSyncCheck(businessId, deviceId, today);
+    await performSyncCheck(businessId, deviceId, yesterday);
+
+    logger.info("✅ Sync check completed", { businessId, deviceId });
+
+  } catch (error) {
+    logger.error("❌ Sync check failed", { 
+      businessId, 
+      deviceId, 
+      error: error.message 
+    });
+  }
+}
+
+/**
+ * 🔧 PERFORM SYNC CHECK FOR SPECIFIC DATE
+ */
+async function performSyncCheck(businessId, deviceId, dateStr) {
+  try {
+    logger.info("🔧 Performing sync check for date", { businessId, deviceId, dateStr });
+
+    // Get all raw device events for this date
+    const deviceEventsRef = db.collection('businesses')
+      .doc(businessId)
+      .collection(`device_${deviceId}_events`)
+      .doc(dateStr);
+
+    const deviceEventsDocs = await deviceEventsRef.listCollections();
+    
+    for (const employeeCollection of deviceEventsDocs) {
+      const employeeId = employeeCollection.id;
+      
+      // Get device events for this employee
+      const deviceEventsSnap = await employeeCollection.get();
+      const deviceEvents = [];
+      
+      deviceEventsSnap.forEach(doc => {
+        deviceEvents.push({ id: doc.id, ...doc.data() });
+      });
+
+      // Get processed events for comparison
+      const processedEventsRef = db.collection('businesses')
+        .doc(businessId)
+        .collection('attendance_events')
+        .doc(dateStr)
+        .collection(employeeId);
+
+      const processedEventsSnap = await processedEventsRef.get();
+      const processedEvents = [];
+      
+      processedEventsSnap.forEach(doc => {
+        processedEvents.push({ id: doc.id, ...doc.data() });
+      });
+
+      // Compare events - find missing ones
+      const missingEvents = deviceEvents.filter(deviceEvent => {
+        return !processedEvents.some(processedEvent => 
+          Math.abs(new Date(deviceEvent.timestamp) - new Date(processedEvent.timestamp)) < 5000 && // Within 5 seconds
+          deviceEvent.attendanceStatus === processedEvent.attendanceStatus
+        );
+      });
+
+      // Process missing events
+      if (missingEvents.length > 0) {
+        logger.warn("🚨 MISSING EVENTS DETECTED - Auto-healing", {
+          businessId,
+          deviceId,
+          dateStr,
+          employeeId,
+          missingCount: missingEvents.length
+        });
+
+        for (const missingEvent of missingEvents) {
+          logger.info("🔧 Processing missing event", { missingEvent });
+          
+          // Re-process the missing event
+          await processAttendanceEvent(businessId, {
+            employeeId: missingEvent.employeeId,
+            employeeName: missingEvent.employeeName,
+            attendanceStatus: missingEvent.attendanceStatus,
+            timestamp: missingEvent.timestamp,
+            deviceId: missingEvent.deviceId,
+            verifyNo: missingEvent.verifyNo,
+            serialNo: missingEvent.serialNo,
+            source: 'sync-recovery'
+          });
+
+          // Mark device event as healed
+          await deviceEventsRef
+            .collection(employeeId)
+            .doc(missingEvent.eventId || missingEvent.id)
+            .update({
+              healed: true,
+              healedAt: new Date().toISOString()
+            });
+        }
+      } else {
+        logger.info("✅ All events synced", { 
+          businessId, 
+          deviceId, 
+          dateStr, 
+          employeeId,
+          deviceEventsCount: deviceEvents.length,
+          processedEventsCount: processedEvents.length
+        });
+      }
+    }
+
+  } catch (error) {
+    logger.error("❌ Sync check failed for date", { 
+      businessId, 
+      deviceId, 
+      dateStr, 
+      error: error.message 
+    });
+  }
+}
+
+/**
+ * 📋 IMPORT HISTORICAL EVENTS FROM DEVICE
+ * Extracts historical attendance events from Hikvision device and imports to Firestore
+ */
+async function importHistoricalEvents(businessId, deviceId, deviceInfo) {
+  try {
+    logger.info("📋 Starting historical event import", { businessId, deviceId, deviceInfo });
+
+    // Load current employees for mapping
+    const currentEmployees = await loadCurrentBusinessEmployees(businessId);
+    
+    // Extract historical events from device
+    const historicalEvents = await extractHistoricalEventsFromDevice(deviceInfo);
+    
+    if (historicalEvents.length === 0) {
+      logger.info("📋 No historical events found", { businessId, deviceId });
+      return { success: true, imported: 0, message: 'No historical events found' };
+    }
+
+    logger.info("📋 Found historical events", { 
+      businessId, 
+      deviceId, 
+      eventCount: historicalEvents.length 
+    });
+
+    // Map events to current employee slots and import
+    let importedCount = 0;
+    const importResults = [];
+
+    for (const event of historicalEvents) {
+      try {
+        const mappedEvent = await mapEventToCurrentEmployee(event, currentEmployees, businessId);
+        
+        if (mappedEvent) {
+          // Store as raw device event first
+          await storeRawDeviceEvent(businessId, deviceId, mappedEvent);
+          
+          // Process as attendance event
+          await processAttendanceEvent(businessId, {
+            ...mappedEvent,
+            source: 'historical-import'
+          });
+          
+          importedCount++;
+          importResults.push({ 
+            originalEvent: event, 
+            mappedEvent: mappedEvent, 
+            status: 'imported' 
+          });
+        } else {
+          importResults.push({ 
+            originalEvent: event, 
+            status: 'skipped-no-mapping' 
+          });
+        }
+      } catch (eventError) {
+        logger.error("❌ Failed to import individual event", { 
+          event, 
+          error: eventError.message 
+        });
+        importResults.push({ 
+          originalEvent: event, 
+          status: 'error', 
+          error: eventError.message 
+        });
+      }
+    }
+
+    logger.info("✅ Historical import completed", {
+      businessId,
+      deviceId,
+      totalEvents: historicalEvents.length,
+      importedCount,
+      skippedCount: historicalEvents.length - importedCount
+    });
+
+    return {
+      success: true,
+      imported: importedCount,
+      total: historicalEvents.length,
+      results: importResults
+    };
+
+  } catch (error) {
+    logger.error("❌ Historical import failed", { 
+      businessId, 
+      deviceId, 
+      error: error.message 
+    });
+    throw error;
+  }
+}
+
+/**
+ * 👥 LOAD CURRENT BUSINESS EMPLOYEES
+ */
+async function loadCurrentBusinessEmployees(businessId) {
+  try {
+    const employeesRef = db.collection('businesses').doc(businessId).collection('staff');
+    const employeesSnap = await employeesRef.get();
+    
+    const employees = {};
+    employeesSnap.forEach(doc => {
+      const data = doc.data();
+      employees[doc.id] = data;
+      
+      // Also map by name for lookup
+      if (data.employeeName && data.employeeName.trim()) {
+        employees[data.employeeName.toLowerCase().trim()] = data;
+      }
+    });
+
+    return employees;
+  } catch (error) {
+    logger.error("❌ Failed to load current employees", { businessId, error: error.message });
+    return {};
+  }
+}
+
+/**
+ * 🔍 EXTRACT HISTORICAL EVENTS FROM DEVICE  
+ */
+async function extractHistoricalEventsFromDevice(deviceInfo) {
+  try {
+    const { ip, username, password } = deviceInfo;
+    
+    if (!ip || !username || !password) {
+      throw new Error('Device info incomplete - need ip, username, password');
+    }
+
+    logger.info("🔍 Connecting to device for historical events", { ip });
+
+    let events = [];
+
+    // Method 1: Try CGI-based log search (common on older devices)
+    try {
+      logger.info("🔍 Trying CGI log search method");
+      
+      const startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const endTime = new Date();
+      
+      const logUrl = `https://${ip}/cgi-bin/logs.cgi?action=list&starttime=${startTime.getFullYear()}-${String(startTime.getMonth() + 1).padStart(2, '0')}-${String(startTime.getDate()).padStart(2, '0')}%20${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}:${String(startTime.getSeconds()).padStart(2, '0')}&endtime=${endTime.getFullYear()}-${String(endTime.getMonth() + 1).padStart(2, '0')}-${String(endTime.getDate()).padStart(2, '0')}%20${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}:${String(endTime.getSeconds()).padStart(2, '0')}`;
+      
+      const cgiResponse = await fetch(logUrl, {
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64')
+        }
+      });
+      
+      if (cgiResponse.ok) {
+        const cgiData = await cgiResponse.text();
+        logger.info("🔍 CGI response received", { 
+          hasData: !!cgiData,
+          length: cgiData?.length,
+          preview: cgiData?.substring(0, 200)
+        });
+        
+        // Parse CGI log format (usually XML or plain text)
+        events = parseCGILogResponse(cgiData);
+      }
+    } catch (cgiError) {
+      logger.info("🔍 CGI method failed", { error: cgiError.message });
+    }
+
+    // Method 2: Try ISAPI access control events (for newer devices)
+    if (events.length === 0) {
+      try {
+        logger.info("🔍 Trying ISAPI AccessControl method");
+        
+        const startTimeISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const endTimeISO = new Date().toISOString();
+        
+        const isapiResponse = await fetch(`https://${ip}/ISAPI/AccessControl/AcsEvent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64')
+          },
+          body: JSON.stringify({
+            AcsEventCond: {
+              searchID: `search_${Date.now()}`,
+              searchResultPosition: 0,
+              maxResults: 1000,
+              major: 5,
+              minor: 75,
+              startTime: startTimeISO,
+              endTime: endTimeISO
+            }
+          })
+        });
+
+        if (isapiResponse.ok) {
+          const isapiData = await isapiResponse.json();
+          logger.info("🔍 ISAPI response received", { 
+            hasEvents: !!(isapiData?.AcsEvent?.InfoList),
+            eventCount: isapiData?.AcsEvent?.InfoList?.length
+          });
+          
+          if (isapiData?.AcsEvent?.InfoList) {
+            events = isapiData.AcsEvent.InfoList.map(event => ({
+              timestamp: event.time,
+              employeeId: event.employeeNoString || event.employeeNo?.toString(),
+              employeeName: event.name || '',
+              attendanceStatus: event.attendanceStatus === 'checkIn' ? 'clock_in' : 'clock_out',
+              deviceId: deviceInfo.deviceId || ip,
+              verifyNo: event.employeeNoString || event.employeeNo?.toString(),
+              serialNo: event.serialNo,
+              cardNo: event.cardNo,
+              source: 'historical-import',
+              rawEvent: event
+            }));
+          }
+        }
+      } catch (isapiError) {
+        logger.info("🔍 ISAPI method failed", { error: isapiError.message });
+      }
+    }
+
+    // Method 3: Try alternative ISAPI endpoints
+    if (events.length === 0) {
+      try {
+        logger.info("🔍 Trying alternative ISAPI endpoints");
+        
+        const endpoints = [
+          `/ISAPI/Event/logs`,
+          `/ISAPI/System/AcsEvent`,
+          `/ISAPI/AccessControl/logs`,
+          `/ISAPI/Event/notification/alertStream`
+        ];
+        
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetch(`https://${ip}${endpoint}`, {
+              headers: {
+                'Authorization': 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64')
+              }
+            });
+            
+            if (response.ok) {
+              const data = await response.text();
+              logger.info(`🔍 Endpoint ${endpoint} responded`, { 
+                hasData: !!data,
+                length: data?.length 
+              });
+              
+              // Try to parse the response
+              const parsedEvents = parseGenericResponse(data);
+              if (parsedEvents.length > 0) {
+                events = parsedEvents;
+                break;
+              }
+            }
+          } catch (endpointError) {
+            logger.info(`🔍 Endpoint ${endpoint} failed`, { error: endpointError.message });
+          }
+        }
+      } catch (altError) {
+        logger.info("🔍 Alternative endpoints failed", { error: altError.message });
+      }
+    }
+
+    // If still no events, provide manual guidance
+    if (events.length === 0) {
+      logger.info("🔍 No events extracted via API - device may require manual export");
+      
+      return [{
+        timestamp: new Date().toISOString(),
+        employeeId: 'manual',
+        employeeName: 'Manual Export Required',
+        attendanceStatus: 'info',
+        deviceId: deviceInfo.deviceId || ip,
+        source: 'manual-instruction',
+        message: `Device at ${ip} requires manual event export. Please use HikvisionClient or web interface to export attendance logs as CSV/Excel and upload to AiClock.`
+      }];
+    }
+
+    logger.info("🔍 Successfully extracted events from device", { 
+      ip, 
+      eventCount: events.length,
+      method: events[0]?.source
+    });
+
+    return events;
+
+  } catch (error) {
+    logger.error("❌ Failed to extract historical events from device", { 
+      deviceInfo: { ip: deviceInfo?.ip }, 
+      error: error.message,
+      stack: error.stack 
+    });
+    return [];
+  }
+}
+
+/**
+ * 📋 PARSE CGI LOG RESPONSE
+ */
+function parseCGILogResponse(cgiData) {
+  try {
+    const events = [];
+    const lines = cgiData.split('\n');
+    
+    for (const line of lines) {
+      // Look for access control events in the log
+      if (line.includes('Access Control') || line.includes('Card') || line.includes('Employee')) {
+        // Parse log line format (varies by device)
+        const event = parseLogLine(line);
+        if (event) {
+          events.push(event);
+        }
+      }
+    }
+    
+    return events;
+  } catch (error) {
+    logger.error("❌ Failed to parse CGI log response", { error: error.message });
+    return [];
+  }
+}
+
+/**
+ * 📋 PARSE GENERIC RESPONSE 
+ */
+function parseGenericResponse(data) {
+  try {
+    // Try JSON first
+    if (data.trim().startsWith('{') || data.trim().startsWith('[')) {
+      const jsonData = JSON.parse(data);
+      // Process JSON data...
+      return [];
+    }
+    
+    // Try XML
+    if (data.trim().startsWith('<')) {
+      // Process XML data...
+      return [];
+    }
+    
+    // Try CSV/plain text
+    return parseCGILogResponse(data);
+  } catch (error) {
+    logger.error("❌ Failed to parse generic response", { error: error.message });
+    return [];
+  }
+}
+
+/**
+ * 📋 PARSE LOG LINE
+ */
+function parseLogLine(line) {
+  try {
+    // Common log formats:
+    // "2026-02-10 08:30:45 - Employee: qaasiem (ID: 3) - Access: In"
+    // "Card Access,Employee ID 3,qaasiem,2026-02-10 08:30:45,In"
+    
+    const patterns = [
+      /(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}).*Employee.*?(\w+).*?ID.*?(\d+).*?(In|Out)/i,
+      /(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}).*ID\s*(\d+).*?(\w+).*?(In|Out)/i
+    ];
+    
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (match) {
+        return {
+          timestamp: new Date(match[1]).toISOString(),
+          employeeId: match[3] || match[2],
+          employeeName: match[2] || match[3],
+          attendanceStatus: match[4].toLowerCase() === 'in' ? 'clock_in' : 'clock_out',
+          source: 'cgi-log-import'
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * 🗺️ MAP EVENT TO CURRENT EMPLOYEE
+ */
+async function mapEventToCurrentEmployee(historicalEvent, currentEmployees, businessId) {
+  try {
+    const { employeeName, employeeId, verifyNo } = historicalEvent;
+    
+    // Try to find matching employee by:
+    // 1. Employee ID/verifyNo
+    // 2. Employee name (case-insensitive)
+    
+    let matchedEmployee = null;
+    let matchedSlot = null;
+
+    // Try by employee ID/verifyNo first
+    if (verifyNo && currentEmployees[verifyNo]) {
+      matchedEmployee = currentEmployees[verifyNo];
+      matchedSlot = verifyNo;
+    } else if (employeeId && currentEmployees[employeeId]) {
+      matchedEmployee = currentEmployees[employeeId];
+      matchedSlot = employeeId;
+    }
+
+    // Try by name if no ID match
+    if (!matchedEmployee && employeeName && employeeName.trim()) {
+      const nameKey = employeeName.toLowerCase().trim();
+      if (currentEmployees[nameKey]) {
+        matchedEmployee = currentEmployees[nameKey];
+        // Find the slot ID for this employee
+        for (const [slotId, emp] of Object.entries(currentEmployees)) {
+          if (emp.employeeName && emp.employeeName.toLowerCase().trim() === nameKey) {
+            matchedSlot = slotId;
+            break;
+          }
+        }
+      }
+    }
+
+    if (matchedEmployee && matchedSlot) {
+      logger.info("🗺️ Mapped historical event to current employee", {
+        originalName: employeeName,
+        originalId: employeeId,
+        mappedSlot: matchedSlot,
+        mappedName: matchedEmployee.employeeName
+      });
+
+      return {
+        ...historicalEvent,
+        employeeId: matchedSlot,
+        employeeName: matchedEmployee.employeeName,
+        mappedFrom: {
+          originalName: employeeName,
+          originalId: employeeId
+        }
+      };
+    }
+
+    logger.warn("🗺️ Could not map historical event to current employee", {
+      businessId,
+      originalName: employeeName,
+      originalId: employeeId,
+      availableEmployees: Object.keys(currentEmployees).filter(k => !k.includes('.')).slice(0, 5) // Show first 5 slot IDs
+    });
+
+    return null;
+
+  } catch (error) {
+    logger.error("❌ Failed to map historical event", { 
+      historicalEvent, 
+      error: error.message 
+    });
+    return null;
+  }
+}
+
+/**
+ * 🔧 MANUAL DEVICE SYNC
+ * HTTP endpoint to manually trigger sync check for specific business/device
+ * URL: /manualDeviceSync?businessId=xxx&deviceId=xxx&date=2026-01-28
+ * URL: /manualDeviceSync?businessId=xxx&deviceId=xxx&action=importHistorical&ip=192.168.1.100&username=admin&password=12345
+ */
+exports.manualDeviceSync = onRequest({ cors: true }, async (req, res) => {
+  // Set CORS headers explicitly
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Max-Age', '3600');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).send('');
+    return;
+  }
+
+  try {
+    const { businessId, deviceId, date, action, ip, username, password } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'businessId is required' });
+    }
+
+    logger.info("Manual device sync triggered", { businessId, deviceId, date, action, ip });
+
+    const results = [];
+
+    // HISTORICAL IMPORT MODE
+    if (action === 'importHistorical') {
+      if (!deviceId || !ip || !username || !password) {
+        return res.status(400).json({ 
+          error: 'For historical import: deviceId, ip, username, password are required' 
+        });
+      }
+
+      const deviceInfo = {
+        deviceId,
+        ip,
+        username,
+        password
+      };
+
+      logger.info("Starting historical import", { businessId, deviceId, ip });
+
+      const importResult = await importHistoricalEvents(businessId, deviceId, deviceInfo);
+      
+      return res.json({
+        success: true,
+        action: 'importHistorical',
+        result: importResult
+      });
+    }
+
+    // REGULAR SYNC MODE
+    if (deviceId && date) {
+      // Sync specific device and date
+      await performSyncCheck(businessId, deviceId, date);
+      results.push({ businessId, deviceId, date, status: 'synced' });
+    } else if (deviceId) {
+      // Sync specific device for today and yesterday
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      await performSyncCheck(businessId, deviceId, today);
+      await performSyncCheck(businessId, deviceId, yesterday);
+      
+      results.push({ businessId, deviceId, dates: [today, yesterday], status: 'synced' });
+    } else {
+      // Sync all devices for this business
+      const devicesRef = db.collection('businesses').doc(businessId).collection('devices');
+      const devicesSnap = await devicesRef.get();
+      
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      for (const deviceDoc of devicesSnap.docs) {
+        const deviceId = deviceDoc.id;
+        await performSyncCheck(businessId, deviceId, today);
+        await performSyncCheck(businessId, deviceId, yesterday);
+        results.push({ businessId, deviceId, dates: [today, yesterday], status: 'synced' });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Device sync completed',
+      results
+    });
+
+  } catch (error) {
+    logger.error("Manual device sync failed", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Collections Backup & Restore Functions
+const {
+  dailyBackup,
+  createManualBackup,
+  restoreFromBackup,
+  getBackupHistory
+} = require('./collections-backup.js');
+
+exports.dailyBackup = dailyBackup;
+exports.createManualBackup = createManualBackup;
+exports.restoreFromBackup = restoreFromBackup;
+exports.getBackupHistory = getBackupHistory;
 
 
 
