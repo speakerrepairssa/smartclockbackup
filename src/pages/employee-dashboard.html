@@ -342,15 +342,43 @@
 
     window.handleClockOut = async function() {
       try {
+        console.log('🔴 Clock-out button clicked');
         document.getElementById('loading').style.display = 'block';
 
+        // Get employee data from staff document
         const slotRef = doc(db, "businesses", businessId, "staff", slotId);
-        await updateDoc(slotRef, {
-          active: false,
-          clockOutTime: new Date().toISOString(),
-          clockOutTimestamp: new Date().getTime(),
-          status: "OUT"
+        const slotDoc = await getDoc(slotRef);
+        const employeeData = slotDoc.data();
+
+        console.log('📋 Employee data:', employeeData);
+        console.log('🌐 Calling webhook...');
+
+        // Call attendance webhook to trigger proper processing including WhatsApp
+        const webhookResponse = await fetch('https://attendancewebhook-4q7htrps4q-uc.a.run.app', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deviceId: 'WEBAPP',
+            verifyNo: slotId,
+            employeeName: employeeData.employeeName || badgeNumber,
+            attendanceStatus: 'out',
+            timestamp: new Date().toISOString(),
+            businessId: businessId,
+            isManual: true,
+            manualNotes: 'Clock-out from employee dashboard'
+          })
         });
+
+        console.log('✅ Webhook response:', webhookResponse.status, webhookResponse.statusText);
+
+        if (!webhookResponse.ok) {
+          const errorText = await webhookResponse.text();
+          console.error('❌ Webhook error response:', errorText);
+          throw new Error('Failed to process clock-out: ' + errorText);
+        }
+
+        const webhookResult = await webhookResponse.json();
+        console.log('✅ Webhook result:', webhookResult);
 
         // Clear session
         sessionStorage.removeItem("employeeLoggedIn");

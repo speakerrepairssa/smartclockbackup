@@ -767,14 +767,113 @@ async function processAttendanceEvent(businessId, eventData) {
       manualNotes: eventData.manualNotes || null
     });
 
-    // � TRIGGER WHATSAPP ON CLOCK-OUT
-    if (!isClockingIn) {
-      try {
-        await sendDailyUpdateWhatsApp(businessId, slotNumber.toString(), employeeName, eventDate);
-      } catch (whatsappError) {
-        logger.error("Failed to send WhatsApp notification", { error: whatsappError.message });
-        // Don't fail the whole operation if WhatsApp fails
+    // TRIGGER WHATSAPP AUTOMATION CARDS  
+    try {
+      const trigger = isClockingIn ? 'clock-in' : 'clock-out';
+      
+      logger.info("🔔 Checking for WhatsApp automation cards", { 
+        businessId, 
+        trigger, 
+        slotNumber, 
+        employeeName 
+      });
+      
+      // Check if there are any enabled automation cards for this trigger
+      const automationsRef = db.collection('businesses').doc(businessId).collection('whatsapp_automations');
+      const automationsSnap = await automationsRef.where('trigger', '==', trigger).where('enabled', '==', true).get();
+      
+      logger.info("📋 WhatsApp automation cards query result", { 
+        count: automationsSnap.size,
+        trigger,
+        businessId
+      });
+      
+      if (!automationsSnap.empty) {
+        logger.info("✅ Found enabled WhatsApp automation cards", { 
+          count: automationsSnap.size,
+          businessId, 
+          trigger, 
+          slotNumber, 
+          employeeName 
+        });
+        
+        // Get employee phone from staff doc
+        const phone = staffDoc?.data()?.phone || null;
+        
+        logger.info("📞 Employee phone number", { phone: phone ? 'Found' : 'Not found', slotNumber });
+        
+        // Prepare employee data for WhatsApp function
+        const employeeData = {
+          employeeId: slotNumber.toString(),
+          employeeName: employeeName,
+          phone: phone,
+          time: eventTime,
+          date: eventDate,
+          businessName: businessId
+        };
+        
+        logger.info("📤 Calling WhatsApp function", { 
+          businessId, 
+          trigger, 
+          employeeData 
+        });
+        
+        // Call the sendWhatsAppMessage Cloud Function via HTTPS
+        const https = require('https');
+        const postData = JSON.stringify({
+          businessId: businessId,
+          trigger: trigger,
+          employeeData: employeeData
+        });
+
+        const options = {
+          hostname: 'sendwhatsappmessage-4q7htrps4q-uc.a.run.app',
+          port: 443,
+          path: '/',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData)
+          }
+        };
+
+        const whatsappPromise = new Promise((resolve, reject) => {
+          const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+              logger.info("📨 WhatsApp function response", { 
+                statusCode: res.statusCode, 
+                data: data.substring(0, 500) 
+              });
+              if (res.statusCode === 200) {
+                resolve(JSON.parse(data));
+              } else {
+                reject(new Error(`WhatsApp function returned ${res.statusCode}: ${data}`));
+              }
+            });
+          });
+          req.on('error', (err) => {
+            logger.error("❌ HTTPS request error", { error: err.message });
+            reject(err);
+          });
+          req.write(postData);
+          req.end();
+        });
+
+        const whatsappResult = await whatsappPromise;
+        logger.info("✅ WhatsApp automation triggered successfully", { result: whatsappResult });
+      } else {
+        logger.info("ℹ️ No enabled WhatsApp automation cards for trigger", { businessId, trigger });
       }
+    } catch (whatsappError) {
+      logger.error("❌ Failed to trigger WhatsApp automation", { 
+        error: whatsappError.message, 
+        stack: whatsappError.stack,
+        businessId,
+        trigger: isClockingIn ? 'clock-in' : 'clock-out'
+      });
+      // Don't fail the whole operation if WhatsApp fails
     }
 
     logger.info("✅ UNIFIED: Attendance event processed successfully", { 
@@ -2021,21 +2120,25 @@ async function sendDailyUpdateWhatsApp(businessId, employeeId, employeeName, cur
  * Send WhatsApp messages based on templates and triggers
  */
 exports.sendWhatsAppMessage = onRequest(async (req, res) => {
+  // Set CORS headers
   res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Max-Age', '3600');
   
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.status(204).send('');
     return;
   }
 
   try {
-    const { businessId, trigger, employeeData } = req.body;
+    const { businessId, trigger, employeeData, testMode, testPhone, testTemplate, parameters } = req.body;
 
     if (!businessId || !trigger) {
       throw new Error('Missing required fields: businessId and trigger');
     }
 
-    logger.info("WhatsApp message request", { businessId, trigger, employeeData });
+    logger.info("WhatsApp message request", { businessId, trigger, employeeData, testMode });
 
     // Get WhatsApp settings
     const settingsRef = db.collection('businesses').doc(businessId).collection('settings').doc('whatsapp');
@@ -2049,76 +2152,153 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
 
     const settings = settingsDoc.data();
 
-    // Get active templates for this trigger
-    const templatesRef = db.collection('businesses').doc(businessId).collection('whatsapp_templates');
-    const templatesSnap = await templatesRef.where('trigger', '==', trigger).where('active', '==', true).get();
+    // Get enabled automation cards for this trigger
+    const automationsRef = db.collection('businesses').doc(businessId).collection('whatsapp_automations');
+    const automationsSnap = await automationsRef.where('trigger', '==', trigger).where('enabled', '==', true).get();
 
-    if (templatesSnap.empty) {
-      logger.info("No active templates for trigger", { businessId, trigger });
-      res.json({ success: true, message: 'No active templates' });
+    if (automationsSnap.empty) {
+      logger.info("No enabled automation cards for trigger", { businessId, trigger });
+      res.json({ success: true, message: 'No active templates', messagesSent: 0 });
       return;
     }
 
     const messages = [];
 
-    for (const templateDoc of templatesSnap.docs) {
-      const template = templateDoc.data();
+    for (const automationDoc of automationsSnap.docs) {
+      const automation = automationDoc.data();
       
-      // Replace variables in message
-      let message = template.message;
-      message = message.replace(/\{\{employeeName\}\}/g, employeeData.employeeName || 'Employee');
-      message = message.replace(/\{\{employeeId\}\}/g, employeeData.employeeId || '');
-      message = message.replace(/\{\{time\}\}/g, new Date().toLocaleTimeString());
-      message = message.replace(/\{\{date\}\}/g, new Date().toLocaleDateString());
-      message = message.replace(/\{\{businessName\}\}/g, employeeData.businessName || 'Your Business');
-      message = message.replace(/\{\{status\}\}/g, employeeData.status || '');
-      message = message.replace(/\{\{hoursWorked\}\}/g, employeeData.hoursWorked || '');
-      message = message.replace(/\{\{daysWorked\}\}/g, employeeData.daysWorked || '');
+      // Use test template name if in test mode, otherwise use automation template
+      const templateName = testMode && testTemplate ? testTemplate : automation.templateName;
+      
+      // Build template parameters from parameter mappings or test parameters
+      const templateParameters = [];
+      
+      if (testMode && parameters) {
+        // In test mode, use provided parameters
+        for (const [key, value] of Object.entries(parameters)) {
+          templateParameters.push({
+            type: "text",
+            text: value || ''
+          });
+        }
+      } else if (automation.parameterMappings) {
+        // In normal mode, map parameters from employee/business data
+        logger.info("Processing parameter mappings", { 
+          mappingCount: automation.parameterMappings.length,
+          employeeDataKeys: employeeData ? Object.keys(employeeData) : [] 
+        });
+        
+        for (const mapping of automation.parameterMappings) {
+          let value = mapping.value || '';
+          
+          logger.info("Processing mapping", { 
+            parameter: mapping.parameter,
+            source: mapping.source, 
+            value: mapping.value,
+            employeeDataHasField: employeeData && employeeData[value] !== undefined
+          });
+          
+          // If value is a field name from employeeData, use the actual value
+          if (employeeData && employeeData[value] !== undefined) {
+            // Direct field lookup (e.g., "employeeName" -> actual name)
+            const actualValue = employeeData[value];
+            logger.info("Mapped parameter from field", { 
+              field: mapping.value, 
+              actualValue: actualValue,
+              type: typeof actualValue 
+            });
+            value = String(actualValue);
+          } else if (employeeData) {
+            // Legacy: Replace placeholders like {{employeeName}}
+            value = value.replace(/\{\{employeeName\}\}/g, employeeData.employeeName || '');
+            value = value.replace(/\{\{employeeId\}\}/g, employeeData.employeeId || '');
+            value = value.replace(/\{\{hoursWorked\}\}/g, employeeData.hoursWorked || '');
+            value = value.replace(/\{\{daysWorked\}\}/g, employeeData.daysWorked || '');
+            value = value.replace(/\{\{status\}\}/g, employeeData.status || '');
+            value = value.replace(/\{\{requiredHours\}\}/g, employeeData.requiredHours || '');
+            value = value.replace(/\{\{currentHours\}\}/g, employeeData.currentHours || '');
+            value = value.replace(/\{\{hoursShort\}\}/g, employeeData.hoursShort || '');
+            value = value.replace(/\{\{pastDueHours\}\}/g, employeeData.pastDueHours || '');
+            value = value.replace(/\{\{payRate\}\}/g, employeeData.payRate || '');
+            value = value.replace(/\{\{basePay\}\}/g, employeeData.basePay || '');
+            value = value.replace(/\{\{currentIncomeDue\}\}/g, employeeData.currentIncomeDue || '');
+            value = value.replace(/\{\{potentialIncome\}\}/g, employeeData.potentialIncome || '');
+            value = value.replace(/\{\{shiftName\}\}/g, employeeData.shiftName || '');
+            value = value.replace(/\{\{time\}\}/g, employeeData.time || '');
+            value = value.replace(/\{\{date\}\}/g, employeeData.date || '');
+          }
+          
+          templateParameters.push({
+            type: "text",
+            text: value
+          });
+        }
+      }
+      
+      logger.info("Template parameters prepared", { 
+        automationName: automation.name,
+        templateName: templateName,
+        parameterCount: templateParameters.length,
+        parameters: templateParameters 
+      });
 
       // Determine recipient phone number
       let toNumbers = [];
-      if (template.recipient === 'employee' || template.recipient === 'both') {
-        if (employeeData.phone) {
-          toNumbers.push(employeeData.phone);
+      
+      if (testMode && testPhone) {
+        // In test mode, use provided test phone
+        toNumbers.push(testPhone);
+      } else {
+        // Normal mode: use recipient configuration
+        if (automation.recipient === 'employee' || automation.recipient === 'both') {
+          if (employeeData && employeeData.phone) {
+            toNumbers.push(employeeData.phone);
+          }
         }
-      }
-      if (template.recipient === 'manager' || template.recipient === 'both') {
-        // Get business owner/manager phone
-        const businessDoc = await db.collection('businesses').doc(businessId).get();
-        if (businessDoc.exists && businessDoc.data().phone) {
-          toNumbers.push(businessDoc.data().phone);
+        if (automation.recipient === 'manager' || automation.recipient === 'both') {
+          // Get business owner/manager phone
+          const businessDoc = await db.collection('businesses').doc(businessId).get();
+          if (businessDoc.exists && businessDoc.data().phone) {
+            toNumbers.push(businessDoc.data().phone);
+          }
         }
       }
 
-      // Send messages via WhatsApp API
+      // Send messages via WhatsApp Cloud API
       for (const toNumber of toNumbers) {
         try {
-          // Different API implementations based on provider
-          if (settings.apiProvider === 'twilio') {
-            await sendViaTwilio(settings, toNumber, message);
-          } else if (settings.apiProvider === 'whatsapp-business') {
-            await sendViaWhatsAppBusiness(settings, toNumber, message);
-          } else if (settings.apiProvider === '360dialog') {
-            await sendVia360Dialog(settings, toNumber, message);
-          } else if (settings.apiProvider === 'wati') {
-            await sendViaWati(settings, toNumber, message);
-          } else {
-            // Generic HTTP API call
-            await sendViaGenericAPI(settings, toNumber, message);
-          }
-
-          messages.push({ to: toNumber, message, status: 'sent' });
-          logger.info("WhatsApp message sent", { businessId, toNumber, trigger });
+          // Send via WhatsApp Cloud API with template
+          const result = await sendWhatsAppCloudAPITemplate(
+            settings.accessToken,
+            settings.phoneNumberId,
+            toNumber,
+            templateName,
+            templateParameters
+          );
+          
+          messages.push({ 
+            to: toNumber, 
+            template: templateName,
+            parameters: templateParameters,
+            status: 'sent',
+            result 
+          });
+          logger.info("WhatsApp template message sent", { businessId, toNumber, trigger, templateName });
         } catch (error) {
           logger.error("Error sending WhatsApp message", { error: error.message, toNumber });
-          messages.push({ to: toNumber, message, status: 'failed', error: error.message });
+          messages.push({ 
+            to: toNumber, 
+            template: templateName,
+            status: 'failed', 
+            error: error.message 
+          });
         }
       }
     }
 
     res.json({
       success: true,
-      messagesSent: messages.length,
+      messagesSent: messages.filter(m => m.status === 'sent').length,
       messages
     });
 
@@ -2127,6 +2307,56 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Helper function for WhatsApp Cloud API Template Messages
+async function sendWhatsAppCloudAPITemplate(accessToken, phoneNumberId, toNumber, templateName, parameters) {
+  const https = require('https');
+  
+  const postData = JSON.stringify({
+    messaging_product: 'whatsapp',
+    to: toNumber.replace(/[^0-9]/g, ''),  // Remove all non-numeric characters
+    type: 'template',
+    template: {
+      name: templateName,
+      language: {
+        code: 'en'
+      },
+      components: parameters && parameters.length > 0 ? [{
+        type: 'body',
+        parameters: parameters
+      }] : []
+    }
+  });
+
+  const options = {
+    hostname: 'graph.facebook.com',
+    port: 443,
+    path: `/v18.0/${phoneNumberId}/messages`,
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          resolve(JSON.parse(data));
+        } else {
+          reject(new Error(`WhatsApp Cloud API error: ${res.statusCode} - ${data}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
 
 // Helper functions for different WhatsApp API providers
 async function sendViaTwilio(settings, toNumber, message) {
@@ -4704,7 +4934,116 @@ exports.listAllRealEmployees = onRequest(async (req, res) => {
   }
 });
 
+/**
+ * 🎯 FIRESTORE TRIGGER: WhatsApp on Status Change
+ * Automatically triggers WhatsApp when employee status changes from IN to OUT
+ */
+exports.onEmployeeStatusChange = onDocumentUpdated(
+  "businesses/{businessId}/status/{employeeId}",
+  async (event) => {
+    try {
+      const businessId = event.params.businessId;
+      const employeeId = event.params.employeeId;
+      
+      const beforeData = event.data.before.data();
+      const afterData = event.data.after.data();
+      
+      // Check if status changed from 'in' to 'out'
+      const wasIn = beforeData?.attendanceStatus === 'in';
+      const nowOut = afterData?.attendanceStatus === 'out';
+      
+      if (!wasIn || !nowOut) {
+        logger.info("Status change not relevant for WhatsApp", { 
+          businessId, 
+          employeeId, 
+          before: beforeData?.attendanceStatus, 
+          after: afterData?.attendanceStatus 
+        });
+        return;
+      }
+      
+      logger.info("🔔 Employee clocked out - checking WhatsApp automation", { 
+        businessId, 
+        employeeId, 
+        employeeName: afterData?.employeeName 
+      });
+      
+      // Check for enabled automation cards
+      const automationsRef = db.collection('businesses').doc(businessId).collection('whatsapp_automations');
+      const automationsSnap = await automationsRef.where('trigger', '==', 'clock-out').where('enabled', '==', true).get();
+      
+      if (automationsSnap.empty) {
+        logger.info("No enabled WhatsApp automation for clock-out", { businessId });
+        return;
+      }
+      
+      logger.info("✅ Found WhatsApp automation cards", { count: automationsSnap.size, businessId });
+      
+      // Get employee phone number
+      const staffRef = db.collection('businesses').doc(businessId).collection('staff').doc(employeeId);
+      const staffDoc = await staffRef.get();
+      const phone = staffDoc.exists ? staffDoc.data()?.phone : null;
+      
+      // Prepare employee data
+      const employeeData = {
+        employeeId: employeeId,
+        employeeName: afterData?.employeeName || `Employee ${employeeId}`,
+        phone: phone,
+        time: new Date(afterData.lastClockTime).toLocaleTimeString(),
+        date: new Date(afterData.lastClockTime).toLocaleDateString(),
+        businessName: businessId
+      };
+      
+      logger.info("📤 Triggering WhatsApp via HTTPS", { businessId, employeeData });
+      
+      // Call sendWhatsAppMessage function
+      const https = require('https');
+      const postData = JSON.stringify({
+        businessId: businessId,
+        trigger: 'clock-out',
+        employeeData: employeeData
+      });
 
+      const options = {
+        hostname: 'sendwhatsappmessage-4q7htrps4q-uc.a.run.app',
+        port: 443,
+        path: '/',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      };
 
+      const whatsappPromise = new Promise((resolve, reject) => {
+        const req = https.request(options, (res) => {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            logger.info("📨 WhatsApp response", { statusCode: res.statusCode, data: data.substring(0, 500) });
+            if (res.statusCode === 200) {
+              resolve(JSON.parse(data));
+            } else {
+              reject(new Error(`WhatsApp function returned ${res.statusCode}: ${data}`));
+            }
+          });
+        });
+        req.on('error', (err) => {
+          logger.error("❌ HTTPS request error", { error: err.message });
+          reject(err);
+        });
+        req.write(postData);
+        req.end();
+      });
 
-
+      const result = await whatsappPromise;
+      logger.info("✅ WhatsApp automation triggered successfully", { result });
+      
+    } catch (error) {
+      logger.error("❌ Error in status change trigger", { 
+        error: error.message, 
+        stack: error.stack 
+      });
+    }
+  }
+);

@@ -3562,11 +3562,119 @@
       }
     }
 
+    // Track previous employee statuses to detect changes
+    let previousStatuses = {};
+    let recentWhatsAppTriggers = {}; // Deduplication tracking
+
     function setupRealtimeListeners() {
-      // Setup real-time listener for status collection (triggers recalculation)
+      // Setup real-time listener for status collection (triggers recalculation AND WhatsApp)
       const statusRef = collection(db, "businesses", businessId, "status");
       statusUnsubscribe = onSnapshot(statusRef, (snapshot) => {
         console.log("🔄 Status update received - triggering attendance recalculation");
+        
+        // Check each status change for clock-out events
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === 'modified') {
+            const employeeId = change.doc.id;
+            const newData = change.doc.data();
+            const previousStatus = previousStatuses[employeeId];
+            
+            // Detect clock-out: status changed from 'in' to 'out'
+            if (previousStatus === 'in' && newData.attendanceStatus === 'out') {
+              // Deduplication: Check if we already triggered WhatsApp for this employee recently
+              const now = Date.now();
+              const lastTrigger = recentWhatsAppTriggers[employeeId] || 0;
+              
+              if (now - lastTrigger < 5000) { // 5 second cooldown
+                console.log('⏭️ Skipping duplicate WhatsApp trigger for', newData.employeeName, '(triggered', (now - lastTrigger), 'ms ago)');
+                return;
+              }
+              
+              console.log('🔔 Clock-out detected for', newData.employeeName, '- triggering WhatsApp');
+              recentWhatsAppTriggers[employeeId] = now;
+              
+              // 📊 Get assessment data from cache for complete employee data
+              const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+              let employeeAssessmentData = {};
+              
+              try {
+                const cacheRef = doc(db, "businesses", businessId, "assessment_cache", currentMonth);
+                const cacheSnap = await getDoc(cacheRef);
+                
+                if (cacheSnap.exists()) {
+                  const cacheData = cacheSnap.data();
+                  const employeeCache = (cacheData.employees || []).find(emp => emp.employeeId === employeeId);
+                  
+                  if (employeeCache) {
+                    console.log('📊 Found assessment data for employee:', employeeCache);
+                    employeeAssessmentData = employeeCache;
+                  } else {
+                    console.warn('⚠️ Employee not found in assessment cache');
+                  }
+                } else {
+                  console.warn('⚠️ Assessment cache not found for month:', currentMonth);
+                }
+              } catch (cacheError) {
+                console.error('❌ Error loading assessment cache:', cacheError);
+              }
+              
+              // Trigger WhatsApp automation with complete employee data
+              const employeeDataToSend = {
+                employeeId: employeeId,
+                employeeName: newData.employeeName || employeeAssessmentData.employeeName,
+                time: new Date(newData.lastClockTime).toLocaleTimeString(),
+                date: new Date(newData.lastClockTime).toLocaleDateString(),
+                // Assessment cache data
+                requiredHours: employeeAssessmentData.requiredHours || 0,
+                currentHours: employeeAssessmentData.currentHours || 0,
+                hoursWorked: employeeAssessmentData.currentHours || 0,
+                pastDueHours: employeeAssessmentData.pastDueHours || 0,
+                hoursShort: employeeAssessmentData.hoursShort || 0,
+                payRate: employeeAssessmentData.payRate || 0,
+                basePay: employeeAssessmentData.payRate || 0,
+                currentIncomeDue: employeeAssessmentData.currentIncomeDue || 0,
+                potentialIncome: employeeAssessmentData.potentialIncome || 0,
+                status: employeeAssessmentData.status || 'Unknown',
+                shiftName: employeeAssessmentData.shiftName || 'Not Assigned'
+              };
+              
+              console.log('📤 Sending WhatsApp trigger with data:', employeeDataToSend);
+              
+              try {
+                const response = await fetch('https://sendwhatsappmessage-4q7htrps4q-uc.a.run.app', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    businessId: businessId,
+                    trigger: 'clock-out',
+                    employeeData: employeeDataToSend
+                  })
+                });
+                
+                const result = await response.json();
+                console.log('✅ WhatsApp triggered:', result);
+                
+                // Check if multiple messages were sent
+                if (result.messagesSent > 1) {
+                  console.warn('⚠️ Multiple messages sent:', result.messagesSent, '- You may have duplicate automation cards enabled');
+                }
+              } catch (error) {
+                console.error('❌ WhatsApp trigger failed:', error);
+              }
+            }
+            
+            // Update tracking
+            previousStatuses[employeeId] = newData.attendanceStatus;
+          }
+        });
+        
+        // Initialize tracking for new documents
+        snapshot.forEach(doc => {
+          const employeeId = doc.id;
+          if (!previousStatuses[employeeId]) {
+            previousStatuses[employeeId] = doc.data().attendanceStatus;
+          }
+        });
         
         // Trigger background recalculation when someone clocks in/out
         triggerAttendanceRecalculation(businessId);
