@@ -5434,7 +5434,10 @@
                       timestamp: event.timestamp,
                       time: eventDate,
                       source: event.source || 'nested',
-                      eventId: doc.id
+                      eventId: doc.id,
+                      employeeId: employeeId,
+                      employeeName: employee.employeeName,
+                      employeeSlot: employee.slot
                     });
                     
                     console.log('Added nested event:', { date: dateStr, type: eventType, time: eventDate });
@@ -5502,7 +5505,10 @@
                       timestamp: event.timestamp,
                       time: eventDate,
                       source: event.source || 'flat',
-                      eventId: doc.id
+                      eventId: doc.id,
+                      employeeId: employeeId,
+                      employeeName: employee.employeeName,
+                      employeeSlot: employee.slot
                     });
                     
                     console.log('Added flat event:', { date: dateStr, type: eventType, time: eventDate });
@@ -5863,7 +5869,7 @@
                         // Add action buttons for mispunch management
                         const mispunchId = `mispunch_${event.timestamp}_${event.employeeId}`;
                         notes += ` <span class="mispunch-actions">
-                          <button onclick="manageMispunch('${mispunchId}', '${event.id}', 'clock_out_no_in', '${event.employeeName}')" 
+                          <button onclick="manageMispunch('${mispunchId}', '${event.eventId}', 'clock_out_no_in', '${event.employeeName}', '${event.employeeSlot}', '${event.employeeId}', '${dateStr}')" 
                                   class="btn-mispunch" title="Manage this mispunch">
                             ⚠️ Fix
                           </button>
@@ -5928,7 +5934,7 @@
                       ).replace(
                         'Started work', 
                         `Still clocked in ${Math.round(pendingHours)}h ago - missing clock-out <span class="mispunch-actions">
-                          <button onclick="manageMispunch('${mispunchId}', '${currentClockIn.id}', 'clock_in_no_out', '${currentClockIn.employeeName}')" 
+                          <button onclick="manageMispunch('${mispunchId}', '${currentClockIn.eventId}', 'clock_in_no_out', '${currentClockIn.employeeName}', '${currentClockIn.employeeSlot}', '${currentClockIn.employeeId}', '${dateStr}')" 
                                   class="btn-mispunch" title="Manage this mispunch">
                             ⚠️ Fix
                           </button>
@@ -7657,7 +7663,7 @@
     }
 
     // Mispunch management function
-    async function manageMispunch(mispunchId, punchId, reason, employeeName) {
+    async function manageMispunch(mispunchId, punchId, reason, employeeName, employeeSlot, employeeId, dateStr) {
       const modal = `
         <div class="modal-overlay" onclick="closeMispunchModal(event)">
           <div class="modal-employee" onclick="event.stopPropagation()">
@@ -7708,7 +7714,7 @@
             
             <div class="modal-buttons">
               <button type="button" onclick="closeMispunchModal()" class="btn-secondary">Cancel</button>
-              <button type="button" onclick="applyMispunchResolution('${punchId}', '${employeeName}')" class="btn-primary">Apply Resolution</button>
+              <button type="button" onclick="applyMispunchResolution('${punchId}', '${employeeName}', '${employeeSlot}', '${employeeId}', '${dateStr}')" class="btn-primary">Apply Resolution</button>
             </div>
           </div>
         </div>
@@ -7726,7 +7732,7 @@
       clockOutOptions.style.display = action === 'add_missing_out' ? 'block' : 'none';
     }
 
-    async function applyMispunchResolution(punchId, employeeName) {
+    async function applyMispunchResolution(punchId, employeeName, employeeSlot, employeeId, dateStr) {
       const action = document.getElementById('mispunchAction').value;
       const notes = document.getElementById('mispunchNotes').value;
 
@@ -7744,13 +7750,14 @@
               return;
             }
             
-            // Create a new clock-in punch before this clock-out
-            const today = new Date().toISOString().split('T')[0];
-            const clockInTimestamp = new Date(`${today}T${estimatedTime}:00`);
+            // Create a new clock-in punch before this clock-out  
+            // Use the punch date from the mispunch, not today's date
+            const punchDate = dateStr || new Date().toISOString().split('T')[0];
+            const clockInTimestamp = new Date(`${punchDate}T${estimatedTime}:00`);
             
             const webhookPayload = {
               deviceId: 'MISPUNCH_CORRECTION',
-              verifyNo: punchId.split('_')[0], // Extract employee slot
+              verifyNo: employeeSlot || '0',
               employeeName: employeeName,
               attendanceStatus: 'in',
               timestamp: clockInTimestamp.toISOString(),
@@ -7760,6 +7767,8 @@
               isMispunchCorrection: true
             };
 
+            console.log('Adding missing clock-in:', webhookPayload);
+
             const response = await fetch('https://attendancewebhook-4q7htrps4q-uc.a.run.app', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -7767,7 +7776,8 @@
             });
 
             if (!response.ok) {
-              throw new Error('Failed to add missing clock-in');
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.error || 'Failed to add missing clock-in');
             }
 
             alert(`Missing clock-in added at ${estimatedTime} for ${employeeName}`);
@@ -7781,12 +7791,13 @@
             }
             
             // Create a new clock-out punch after this clock-in
-            const todayOut = new Date().toISOString().split('T')[0];
-            const clockOutTimestamp = new Date(`${todayOut}T${estimatedOutTime}:00`);
+            // Use the punch date from the mispunch, not today's date
+            const outPunchDate = dateStr || new Date().toISOString().split('T')[0];
+            const clockOutTimestamp = new Date(`${outPunchDate}T${estimatedOutTime}:00`);
             
             const clockOutPayload = {
               deviceId: 'MISPUNCH_CORRECTION',
-              verifyNo: punchId.split('_')[0], // Extract employee slot
+              verifyNo: employeeSlot || '0',
               employeeName: employeeName,
               attendanceStatus: 'out',
               timestamp: clockOutTimestamp.toISOString(),
@@ -7796,6 +7807,8 @@
               isMispunchCorrection: true
             };
 
+            console.log('Adding missing clock-out:', clockOutPayload);
+
             const outResponse = await fetch('https://attendancewebhook-4q7htrps4q-uc.a.run.app', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -7803,7 +7816,8 @@
             });
 
             if (!outResponse.ok) {
-              throw new Error('Failed to add missing clock-out');
+              const errorData = await outResponse.json().catch(() => ({}));
+              throw new Error(errorData.error || 'Failed to add missing clock-out');
             }
 
             alert(`Missing clock-out added at ${estimatedOutTime} for ${employeeName}`);
@@ -7825,7 +7839,7 @@
         }
 
         closeMispunchModal();
-        await loadPunches(); // Refresh the punch list
+        await loadTimecard(); // Refresh the timecard
 
       } catch (error) {
         console.error('Error resolving mispunch:', error);
