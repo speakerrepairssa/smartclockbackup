@@ -606,6 +606,9 @@ async function processAttendanceEvent(businessId, eventData) {
     const skipStatusValidation = eventData.skipStatusValidation || eventData.isMispunchCorrection;
     const correctionDate = eventData.correctionDate;
     
+    // Define lastClockStatus outside the validation block
+    let lastClockStatus = 'out'; // Default to 'out' if no history
+    
     if (skipStatusValidation) {
       logger.info("⏭️ Skipping status validation for mispunch correction", {
         slotNumber,
@@ -625,7 +628,7 @@ async function processAttendanceEvent(businessId, eventData) {
       
       const currentStatusSnap = await statusRef.get();
       const currentStatus = currentStatusSnap.exists ? currentStatusSnap.data() : null;
-      const lastClockStatus = currentStatus?.attendanceStatus || 'out'; // Default to 'out' if no history
+      lastClockStatus = currentStatus?.attendanceStatus || 'out'; // Update the outer variable
       
       logger.info("🔍 Duplicate detection check", { 
         slotNumber, 
