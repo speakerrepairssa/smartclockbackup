@@ -1,0 +1,457 @@
+<!-- Professional Payslip Template Editor -->
+<div class="template-editor-container">
+  
+  <!-- Editor Tabs -->
+  <div class="editor-tabs">
+    <button class="editor-tab active" data-tab="company">🏢 Company Info</button>
+    <button class="editor-tab" data-tab="styling">🎨 Styling</button>
+    <button class="editor-tab" data-tab="sections">📋 Sections</button>
+    <button class="editor-tab" data-tab="messages">💬 Messages</button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="editor-content">
+    
+    <!-- Company Info Tab -->
+    <div class="editor-tab-content active" data-content="company">
+      <h3>Company Information</h3>
+      <p class="tab-description">These details appear in the payslip header</p>
+      
+      <div class="form-group">
+        <label for="editorCompanyName">Company Name</label>
+        <input type="text" id="editorCompanyName" placeholder="Your Company Name">
+      </div>
+
+      <div class="form-group">
+        <label for="editorCompanyAddress">Address</label>
+        <textarea id="editorCompanyAddress" rows="2" 
+                  placeholder="123 Business Street&#10;City, Province, 0000"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="editorCompanyPhone">Phone</label>
+          <input type="tel" id="editorCompanyPhone" placeholder="+27 12 345 6789">
+        </div>
+
+        <div class="form-group">
+          <label for="editorCompanyEmail">Email</label>
+          <input type="email" id="editorCompanyEmail" placeholder="info@company.com">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="editorTaxNumber">Tax Number</label>
+          <input type="text" id="editorTaxNumber" placeholder="9001234567">
+        </div>
+
+        <div class="form-group">
+          <label for="editorRegNumber">Registration Number</label>
+          <input type="text" id="editorRegNumber" placeholder="2024/123456/07">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="editorCompanyLogo">Company Logo URL</label>
+        <input type="url" id="editorCompanyLogo" placeholder="https://yourwebsite.com/logo.png">
+        <small>Upload your logo to your website and paste the URL here</small>
+      </div>
+    </div>
+
+    <!-- Styling Tab -->
+    <div class="editor-tab-content" data-content="styling">
+      <h3>Brand Colors</h3>
+      <p class="tab-description">Customize the look of your payslips</p>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="editorPrimaryColor">Primary Color (Header)</label>
+          <div class="color-picker-group">
+            <input type="color" id="editorPrimaryColor" value="#2563eb">
+            <input type="text" id="editorPrimaryColorText" value="#2563eb" class="color-text">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="editorSecondaryColor">Secondary Color (Text)</label>
+          <div class="color-picker-group">
+            <input type="color" id="editorSecondaryColor" value="#64748b">
+            <input type="text" id="editorSecondaryColorText" value="#64748b" class="color-text">
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 2rem;">Display Options</h3>
+      
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="editorShowLogo" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Show Company Logo</span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="editorShowCompanyDetails" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Show Company Details in Header</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Sections Tab -->
+    <div class="editor-tab-content" data-content="sections">
+      <h3>Payslip Sections</h3>
+      <p class="tab-description">Choose which sections to include in your payslips</p>
+      
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="sectionCompanyHeader" checked disabled>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">
+            <strong>Company Header</strong>
+            <small>Company name, logo, and contact details</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="sectionEmployeeDetails" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">
+            <strong>Employee Information</strong>
+            <small>Name, position, employee ID, pay rate</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="sectionPayPeriod" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">
+            <strong>Pay Period</strong>
+            <small>Month, year, and pay date</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="sectionEarnings" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">
+            <strong>Earnings Breakdown</strong>
+            <small>Regular hours, overtime, and rates</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="sectionDeductions" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">
+            <strong>Deductions</strong>
+            <small>Tax, UIF, and other deductions</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="sectionSummary" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">
+            <strong>Payment Summary</strong>
+            <small>Total hours, gross pay, and net pay</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="toggle-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="sectionFooter" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">
+            <strong>Footer</strong>
+            <small>Legal disclaimer and custom message</small>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Messages Tab -->
+    <div class="editor-tab-content" data-content="messages">
+      <h3>Custom Messages</h3>
+      <p class="tab-description">Add personalized messages to your payslips</p>
+      
+      <div class="form-group">
+        <label for="editorHeaderMessage">Header Message (Optional)</label>
+        <textarea id="editorHeaderMessage" rows="3" 
+                  placeholder="e.g., Thank you for your continued dedication and hard work this month."></textarea>
+        <small>This appears at the top of the payslip body</small>
+      </div>
+
+      <div class="form-group">
+        <label for="editorFooterMessage">Footer Message</label>
+        <textarea id="editorFooterMessage" rows="2">This is a computer-generated payslip. No signature is required.</textarea>
+        <small>Legal disclaimer or additional information</small>
+      </div>
+
+      <div class="form-group">
+        <label for="editorEmailSubject">Email Subject</label>
+        <input type="text" id="editorEmailSubject" value="Your Payslip for {{month}} {{year}}">
+        <div class="variables-help">
+          <strong>Available variables:</strong>
+          <code>{{employeeName}}</code>
+          <code>{{month}}</code>
+          <code>{{year}}</code>
+          <code>{{period}}</code>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Live Preview -->
+  <div class="live-preview-section">
+    <div class="preview-header">
+      <h3>📱 Live Preview</h3>
+      <button id="refreshPreviewBtn" class="btn-secondary btn-sm">🔄 Refresh</button>
+    </div>
+    <div class="preview-frame-container">
+      <iframe id="livePreviewFrame" sandbox="allow-same-origin"></iframe>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.template-editor-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.editor-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+  grid-column: 1 / -1;
+}
+
+.editor-tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.editor-tab:hover {
+  color: #2563eb;
+  background: #f8fafc;
+}
+
+.editor-tab.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.editor-content {
+  grid-column: 1;
+}
+
+.editor-tab-content {
+  display: none;
+}
+
+.editor-tab-content.active {
+  display: block;
+}
+
+.tab-description {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 1.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.color-picker-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.color-picker-group input[type="color"] {
+  width: 60px;
+  height: 40px;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.color-text {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+}
+
+.toggle-group {
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.toggle-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  cursor: pointer;
+}
+
+.toggle-switch input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  width: 44px;
+  height: 24px;
+  background: #cbd5e1;
+  border-radius: 24px;
+  position: relative;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  top: 3px;
+  left: 3px;
+  transition: all 0.3s;
+}
+
+.toggle-switch input[type="checkbox"]:checked + .toggle-slider {
+  background: #2563eb;
+}
+
+.toggle-switch input[type="checkbox"]:checked + .toggle-slider::after {
+  left: 23px;
+}
+
+.toggle-switch input[type="checkbox"]:disabled + .toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.toggle-label strong {
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.toggle-label small {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.variables-help {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: #f0f9ff;
+  border-left: 3px solid #2563eb;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.variables-help code {
+  display: inline-block;
+  background: white;
+  padding: 2px 6px;
+  margin: 2px;
+  border-radius: 3px;
+  font-size: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.live-preview-section {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.preview-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 13px;
+}
+
+.preview-frame-container {
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  height: 600px;
+  overflow: hidden;
+  position: sticky;
+  top: 1rem;
+}
+
+#livePreviewFrame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+}
+
+@media (max-width: 1200px) {
+  .template-editor-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .live-preview-section {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  
+  .preview-frame-container {
+    position: static;
+    height: 500px;
+  }
+}
+</style>

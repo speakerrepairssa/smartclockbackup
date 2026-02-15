@@ -14,11 +14,11 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { db } from "../../config/firebase.js";
 import { showNotification } from "../shared/ui.js";
-import { VisualPayslipEditor } from "./visualEditor.js";
+import TemplateEditor from "./template-editor.js";
 
 /**
  * Payslips Module Class
- * Manages payslip templates, generation, and distribution with visual editor
+ * Manages payslip templates, generation, and distribution with professional template editor
  */
 class PayslipsModule {
   constructor(businessId) {
@@ -26,7 +26,7 @@ class PayslipsModule {
     this.currentTemplate = null;
     this.selectedEmployees = [];
     this.scheduleConfig = null;
-    this.visualEditor = new VisualPayslipEditor(businessId);
+    this.templateEditor = null;
     
     console.log('💰 Payslips module initialized for business:', this.businessId);
   }
@@ -38,16 +38,41 @@ class PayslipsModule {
     try {
       console.log('📊 Initializing Payslips module');
       
+      await this.loadTemplateEditorUI();
       await this.loadTemplates();
       await this.loadEmployees();
-      await this.visualEditor.init();
       this.setupEventListeners();
-      this.setupDesignControls();
       
       console.log('✅ Payslips module initialized successfully');
     } catch (error) {
       console.error("❌ Error initializing payslips module:", error);
       showNotification("Failed to initialize payslips module", "error");
+    }
+  }
+
+  /**
+   * Load the template editor UI
+   */
+  async loadTemplateEditorUI() {
+    try {
+      const container = document.getElementById('templateEditorContainer');
+      if (!container) {
+        console.error('Template editor container not found');
+        return;
+      }
+
+      // Fetch and load the template editor HTML
+      const response = await fetch('/modules/payslips/template-editor.html');
+      const html = await response.text();
+      container.innerHTML = html;
+
+      // Initialize the template editor
+      this.templateEditor = new TemplateEditor();
+      
+      console.log('✅ Template editor UI loaded');
+    } catch (error) {
+      console.error('❌ Error loading template editor:', error);
+      showNotification('Failed to load template editor', 'error');
     }
   }
 

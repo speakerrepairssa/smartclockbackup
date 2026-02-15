@@ -27,28 +27,12 @@
       <!-- Template Form -->
       <div class="form-group">
         <label for="templateName">Template Name</label>
-        <input type="text" id="templateName" placeholder="e.g., Monthly Payslip">
+        <input type="text" id="templateName" placeholder="e.g., Professional Monthly Payslip">
       </div>
 
-      <div class="form-group">
-        <label for="templateSubject">Email Subject</label>
-        <input type="text" id="templateSubject" placeholder="Your Payslip for {{month}} {{year}}">
-        <div class="template-hint">
-          Available variables: <code>{{employeeName}}</code>, <code>{{month}}</code>, <code>{{year}}</code>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="templateContent">Template Content</label>
-        <textarea id="templateContent" placeholder="Enter your payslip template here..."></textarea>
-        <div class="template-hint">
-          <strong>Available variables:</strong><br>
-          <code>{{employeeName}}</code>, <code>{{position}}</code>, <code>{{payRate}}</code>,
-          <code>{{month}}</code>, <code>{{year}}</code>, <code>{{period}}</code>,
-          <code>{{hoursWorked}}</code>, <code>{{regularHours}}</code>, <code>{{overtimeHours}}</code>,
-          <code>{{regularPay}}</code>, <code>{{overtimePay}}</code>, <code>{{grossPay}}</code>,
-          <code>{{deductions}}</code>, <code>{{netPay}}</code>, <code>{{businessName}}</code>
-        </div>
+      <!-- Visual Template Editor -->
+      <div id="templateEditorContainer">
+        <!-- Template editor will be loaded here -->
       </div>
     </div>
 
