@@ -1302,6 +1302,26 @@
             background: #f8f9fa;
           }
 
+          /* Day color coding for better visual separation */
+          .timecard-table .day-color-0 {
+            background-color: #fef3c7; /* Light amber */
+          }
+          .timecard-table .day-color-1 {
+            background-color: #dbeafe; /* Light blue */
+          }
+          .timecard-table .day-color-2 {
+            background-color: #d1fae5; /* Light green */
+          }
+          .timecard-table .day-color-3 {
+            background-color: #fce7f3; /* Light pink */
+          }
+          .timecard-table .day-color-4 {
+            background-color: #e9d5ff; /* Light purple */
+          }
+          .timecard-table .day-color-5 {
+            background-color: #fed7aa; /* Light orange */
+          }
+
           .day-date {
             font-weight: 600;
             color: #2c3e50;
@@ -1313,7 +1333,7 @@
           }
 
           .weekend {
-            background: #fff3cd !important;
+            background: #f3f4f6 !important; /* Gray for weekends - override day colors */
           }
 
           .no-data {
@@ -5787,9 +5807,10 @@
                 </tr>
               </thead>
               <tbody>
-                ${dailyRecords.map(record => {
+                ${dailyRecords.map((record, dayIndex) => {
                   const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(record.day).padStart(2, '0')}`;
-                  const rowClass = !record.isWorkingDay || record.isPublicHoliday ? 'weekend' : '';
+                  const dayColorClass = `day-color-${dayIndex % 6}`;
+                  const rowClass = `${dayColorClass} ${!record.isWorkingDay || record.isPublicHoliday ? 'weekend' : ''}`;
                   
                   // Determine shift based on schedule
                   let shift = '-';
