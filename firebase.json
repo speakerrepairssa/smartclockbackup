@@ -32,6 +32,17 @@
         "node_modules",
         ".git",
         "firebase-debug.log",
+        "firebase-debug.*.log",
+        "cache-calculation/**"
+      ]
+    },
+    {
+      "source": "functions/cache-calculation",
+      "codebase": "cache-calculation",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
         "firebase-debug.*.log"
       ]
     }

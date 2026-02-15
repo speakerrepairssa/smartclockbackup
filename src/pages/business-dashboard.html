@@ -6822,8 +6822,9 @@
           month 
         });
         
-        // Call Cloud Function directly
-        const functionUrl = `https://updateassessmentcache-4q7htrps4q-uc.a.run.app?businessId=${businessId}&month=${month}`;
+        // Call ISOLATED Cache Calculation Cloud Function
+        // This function is deployed separately to prevent updates from breaking it
+        const functionUrl = `https://us-central1-aiclock-82608.cloudfunctions.net/cacheCalculation?businessId=${businessId}&month=${month}`;
         const response = await fetch(functionUrl, {
           method: 'GET'
         });
