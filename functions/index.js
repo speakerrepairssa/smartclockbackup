@@ -29,15 +29,19 @@ const {
   assignShiftToEmployee
 } = require('./shiftModule.js');
 
+// [PAYSLIPS MODULE MOVED TO ISOLATED SERVICE]
+// Payslips functions are now in functions/payslips-service/
+// This prevents accidental breakage from unrelated changes
 // Import payslips module functions
-const {
-  sendPayslips,
-  processScheduledPayslips
-} = require('./payslipsModule.js');
+// const {
+//   sendPayslips,
+//   processScheduledPayslips
+// } = require('./payslipsModule.js');
 
 // Export payslips functions
-exports.sendPayslips = sendPayslips;
-exports.processScheduledPayslips = processScheduledPayslips;
+// NOTE: Both sendPayslips and processScheduledPayslips are now isolated in payslips-service codebase
+// exports.sendPayslips = sendPayslips;
+// exports.processScheduledPayslips = processScheduledPayslips;
 
 /**
  * Cloud Function to handle attendance webhooks from Hikvision devices

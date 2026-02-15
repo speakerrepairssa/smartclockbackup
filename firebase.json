@@ -33,12 +33,23 @@
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",
-        "cache-calculation/**"
+        "cache-calculation/**",
+        "payslips-service/**"
       ]
     },
     {
       "source": "functions/cache-calculation",
       "codebase": "cache-calculation",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ]
+    },
+    {
+      "source": "functions/payslips-service",
+      "codebase": "payslips-service",
       "ignore": [
         "node_modules",
         ".git",
