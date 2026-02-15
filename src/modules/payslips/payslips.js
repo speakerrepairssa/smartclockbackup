@@ -431,10 +431,19 @@ class PayslipsModule {
     console.log('Creating default professional template...');
     
     try {
+      // Check if template editor is ready
+      if (!this.templateEditor) {
+        console.error('❌ Template editor not initialized yet');
+        showNotification("Template editor is still loading. Please wait a moment and try again.", "warning");
+        return;
+      }
+
       // Get business data to pre-fill company info
       const businessRef = doc(db, "businesses", this.businessId);
       const businessDoc = await getDoc(businessRef);
       const businessData = businessDoc.exists() ? businessDoc.data() : {};
+      
+      console.log('📋 Business data:', businessData);
       
       // Pre-fill with professional defaults
       const defaultConfig = {
@@ -442,8 +451,8 @@ class PayslipsModule {
         companyAddress: businessData.address || '123 Business Street\nCity, Province, 0000',
         companyPhone: businessData.phone || '(012) 345-6789',
         companyEmail: businessData.email || 'payroll@company.com',
-        taxNumber: businessData.taxNumber || 'TAX123456',
-        registrationNumber: businessData.registrationNumber || 'REG123456',
+        taxNumber: businessData.taxNumber || '9001234567',
+        registrationNumber: businessData.registrationNumber || '2024/123456/07',
         companyLogo: '', // Can add logo URL
         primaryColor: '#2563eb',
         secondaryColor: '#64748b',
@@ -458,6 +467,44 @@ class PayslipsModule {
           summary: true,
           footer: true
         },
+        deductionTypes: {
+          uif: {
+            enabled: true,
+            label: "UIF (Unemployment Insurance Fund)",
+            rate: 1.0,
+            description: "1% of gross salary"
+          },
+          paye: {
+            enabled: true,
+            label: "PAYE (Income Tax)",
+            rate: 0,
+            description: "As per SARS tax tables"
+          },
+          pension: {
+            enabled: false,
+            label: "Pension Fund Contribution",
+            rate: 7.5,
+            description: "Retirement annuity contribution"
+          },
+          medicalAid: {
+            enabled: false,
+            label: "Medical Aid Contribution",
+            rate: 0,
+            description: "Monthly medical aid premium"
+          },
+          providentFund: {
+            enabled: false,
+            label: "Provident Fund",
+            rate: 7.5,
+            description: "Provident fund contribution"
+          },
+          other: {
+            enabled: false,
+            label: "Other Deductions",
+            rate: 0,
+            description: "Miscellaneous deductions"
+          }
+        },
         headerMessage: 'Thank you for your continued dedication and hard work this month.',
         footerMessage: 'This is a computer-generated payslip. No signature is required.\n\nFor any queries regarding your payslip, please contact the HR department.',
         subject: 'Your Payslip for {{month}} {{year}}'
@@ -467,17 +514,19 @@ class PayslipsModule {
       const templateName = document.getElementById('templateName');
       if (templateName) {
         templateName.value = 'Professional Monthly Payslip';
+        console.log('✅ Template name set');
+      } else {
+        console.warn('⚠️ Template name field not found');
       }
       
       // Load into editor
-      if (this.templateEditor) {
-        this.templateEditor.loadConfigIntoForm(defaultConfig);
-      }
+      console.log('📝 Loading config into template editor...');
+      this.templateEditor.loadConfigIntoForm(defaultConfig);
       
       this.currentTemplate = null; // Mark as unsaved
       
       console.log('✅ Default template created with professional settings');
-      showNotification("Professional template created! Customize and save it.", "success");
+      showNotification("Professional template created! Review the settings in all tabs and save.", "success");
       
     } catch (error) {
       console.error('❌ Error creating default template:', error);
