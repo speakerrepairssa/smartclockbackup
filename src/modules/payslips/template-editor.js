@@ -9,15 +9,42 @@ export class TemplateEditor {
   constructor() {
     this.currentConfig = { ...DEFAULT_PAYSLIP_TEMPLATE };
     this.previewFrame = null;
-    this.init();
+    
+    // Wait for next frame before initializing to ensure DOM is ready
+    requestAnimationFrame(() => {
+      console.log('🎨 TemplateEditor: Starting initialization...');
+      this.init();
+    });
   }
 
   init() {
-    this.setupTabSwitching();
-    this.setupColorPickers();
-    this.setupFormListeners();
-    this.previewFrame = document.getElementById('livePreviewFrame');
-    this.updatePreview();
+    try {
+      console.log('🎨 TemplateEditor: Setting up tabs...');
+      this.setupTabSwitching();
+      
+      console.log('🎨 TemplateEditor: Setting up color pickers...');
+      this.setupColorPickers();
+      
+      console.log('🎨 TemplateEditor: Setting up form listeners...');
+      this.setupFormListeners();
+      
+      console.log('🎨 TemplateEditor: Getting preview frame...');
+      this.previewFrame = document.getElementById('livePreviewFrame');
+      
+      if (!this.previewFrame) {
+        console.error('❌ Preview frame not found!');
+      } else {
+        console.log('✅ Preview frame found');
+      }
+      
+      console.log('🎨 TemplateEditor: Updating preview...');
+      this.updatePreview();
+      
+      console.log('✅ TemplateEditor initialized successfully!');
+    } catch (error) {
+      console.error('❌ Error initializing TemplateEditor:', error);
+      throw error;
+    }
   }
 
   /**

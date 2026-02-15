@@ -14,7 +14,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { db } from "../../config/firebase.js";
 import { showNotification } from "../shared/ui.js";
-import TemplateEditor from "./template-editor.js";
+import { TemplateEditor } from "./template-editor.js";
 
 /**
  * Payslips Module Class
@@ -57,22 +57,35 @@ class PayslipsModule {
     try {
       const container = document.getElementById('templateEditorContainer');
       if (!container) {
-        console.error('Template editor container not found');
+        console.error('❌ Template editor container not found');
         return;
       }
 
+      console.log('📥 Fetching template editor HTML...');
+
       // Fetch and load the template editor HTML
       const response = await fetch('/modules/payslips/template-editor.html');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch template editor: ${response.status} ${response.statusText}`);
+      }
+      
       const html = await response.text();
+      console.log('✅ Template editor HTML fetched, injecting into DOM...');
+      
       container.innerHTML = html;
 
+      // Wait for DOM to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Initialize the template editor
+      console.log('🎨 Initializing TemplateEditor class...');
       this.templateEditor = new TemplateEditor();
       
-      console.log('✅ Template editor UI loaded');
+      console.log('✅ Template editor UI loaded successfully');
     } catch (error) {
       console.error('❌ Error loading template editor:', error);
-      showNotification('Failed to load template editor', 'error');
+      console.error('Error details:', error.message);
+      showNotification('Failed to load template editor: ' + error.message, 'error');
     }
   }
 
