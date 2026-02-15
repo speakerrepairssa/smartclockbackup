@@ -2378,6 +2378,7 @@
                   <option value="">Select a template...</option>
                 </select>
                 <button class="btn-primary" id="createTemplateBtn">+ New</button>
+                <button class="btn-success" id="createDefaultTemplateBtn">✨ Default</button>
                 <button class="btn-secondary" id="saveTemplateBtn">💾 Save</button>
                 <button class="btn-danger" id="deleteTemplateBtn">🗑️ Delete</button>
               </div>
@@ -2426,6 +2427,12 @@
               <div class="form-group">
                 <label for="taxNumber">Tax/VAT Number (Optional)</label>
                 <input type="text" id="taxNumber" placeholder="VAT: 4123456789 | Company Reg: 2021/123456/07">
+              </div>
+
+              <!-- Visual Template Editor -->
+              <div class="section-divider"></div>
+              <div id="templateEditorContainer">
+                <!-- Template editor will be loaded here -->
               </div>
             </div>
 
