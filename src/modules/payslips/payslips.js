@@ -16,6 +16,7 @@ import { db } from "../../config/firebase.js";
 import { showNotification } from "../shared/ui.js";
 import { TemplateEditor } from "./template-editor.js";
 import { DEFAULT_PAYSLIP_TEMPLATE } from "./default-template.js";
+import { VisualPayslipEditor } from "./visualEditor.js";
 
 /**
  * Payslips Module Class
@@ -28,6 +29,7 @@ class PayslipsModule {
     this.selectedEmployees = [];
     this.scheduleConfig = null;
     this.templateEditor = null;
+    this.visualEditor = null;
     
     console.log('💰 Payslips module initialized for business:', this.businessId);
   }
@@ -38,6 +40,10 @@ class PayslipsModule {
   async init() {
     try {
       console.log('📊 Initializing Payslips module');
+      
+      // Initialize visual editor first
+      this.visualEditor = new VisualPayslipEditor(this.businessId);
+      await this.visualEditor.init();
       
       await this.loadTemplateEditorUI();
       await this.loadTemplates();
