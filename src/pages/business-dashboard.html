@@ -7764,7 +7764,9 @@
               businessId: businessId,
               isManual: true,
               manualNotes: `Mispunch correction: Added missing clock-in. ${notes}`,
-              isMispunchCorrection: true
+              isMispunchCorrection: true,
+              correctionDate: punchDate,
+              skipStatusValidation: true
             };
 
             console.log('Adding missing clock-in:', webhookPayload);
@@ -7804,7 +7806,9 @@
               businessId: businessId,
               isManual: true,
               manualNotes: `Mispunch correction: Added missing clock-out. ${notes}`,
-              isMispunchCorrection: true
+              isMispunchCorrection: true,
+              correctionDate: outPunchDate,
+              skipStatusValidation: true
             };
 
             console.log('Adding missing clock-out:', clockOutPayload);

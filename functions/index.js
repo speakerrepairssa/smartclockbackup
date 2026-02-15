@@ -602,32 +602,47 @@ async function processAttendanceEvent(businessId, eventData) {
 
     const isClockingIn = attendanceStatus === 'in' || attendanceStatus === 'checkIn';
 
-    // 🚨 DUPLICATE PREVENTION: Check last clock status to prevent duplicate punches
-    const statusRef = db.collection('businesses')
-      .doc(businessId)
-      .collection('status')
-      .doc(slotNumber.toString());
+    // � MISPUNCH CORRECTION: Skip duplicate validation for historical corrections
+    const skipStatusValidation = eventData.skipStatusValidation || eventData.isMispunchCorrection;
+    const correctionDate = eventData.correctionDate;
     
-    const currentStatusSnap = await statusRef.get();
-    const currentStatus = currentStatusSnap.exists ? currentStatusSnap.data() : null;
-    const lastClockStatus = currentStatus?.attendanceStatus || 'out'; // Default to 'out' if no history
-    
-    logger.info("🔍 Duplicate detection check", { 
-      slotNumber, 
-      currentPunch: attendanceStatus,
-      lastClockStatus,
-      isDuplicate: (isClockingIn && lastClockStatus === 'in') || (!isClockingIn && lastClockStatus === 'out')
-    });
-    
-    // Check for duplicate clock-ins or clock-outs
-    if (isClockingIn && lastClockStatus === 'in') {
-      logger.warn("🚨 DUPLICATE CLOCK-IN DETECTED", {
+    if (skipStatusValidation) {
+      logger.info("⏭️ Skipping status validation for mispunch correction", {
         slotNumber,
         employeeName,
+        correctionDate,
+        isMispunchCorrection: eventData.isMispunchCorrection
+      });
+    }
+
+    // 🚨 DUPLICATE PREVENTION: Check last clock status to prevent duplicate punches
+    // Skip this check for mispunch corrections
+    if (!skipStatusValidation) {
+      const statusRef = db.collection('businesses')
+        .doc(businessId)
+        .collection('status')
+        .doc(slotNumber.toString());
+      
+      const currentStatusSnap = await statusRef.get();
+      const currentStatus = currentStatusSnap.exists ? currentStatusSnap.data() : null;
+      const lastClockStatus = currentStatus?.attendanceStatus || 'out'; // Default to 'out' if no history
+      
+      logger.info("🔍 Duplicate detection check", { 
+        slotNumber, 
+        currentPunch: attendanceStatus,
         lastClockStatus,
-        newPunch: attendanceStatus,
-        timestamp,
-        businessId,
+        isDuplicate: (isClockingIn && lastClockStatus === 'in') || (!isClockingIn && lastClockStatus === 'out')
+      });
+      
+      // Check for duplicate clock-ins or clock-outs
+      if (isClockingIn && lastClockStatus === 'in') {
+        logger.warn("🚨 DUPLICATE CLOCK-IN DETECTED", {
+          slotNumber,
+          employeeName,
+          lastClockStatus,
+          newPunch: attendanceStatus,
+          timestamp,
+          businessId,
         message: "Employee trying to clock in while already clocked in - treating as mispunch"
       });
       
@@ -700,7 +715,14 @@ async function processAttendanceEvent(businessId, eventData) {
       throw new Error(`Duplicate clock-out detected for ${employeeName}. Last status was already "out". Punch stored as mispunch for admin review.`);
     }
 
-    logger.info("✅ Valid punch - no duplicates detected", { slotNumber, attendanceStatus, lastClockStatus });
+      logger.info("✅ Valid punch - no duplicates detected", { slotNumber, attendanceStatus, lastClockStatus });
+    } else {
+      logger.info("⏭️ Skipped duplicate validation for mispunch correction", { 
+        slotNumber, 
+        attendanceStatus,
+        correctionDate 
+      });
+    }
 
     // 🎯 UPDATE NUMBERED STAFF SLOT (CRITICAL: Use slot number as document ID)
     const staffSlotRef = db.collection('businesses')
