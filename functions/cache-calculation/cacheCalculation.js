@@ -167,10 +167,12 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
       console.log(`📊 Business-default required hours for ${employeeName}: ${requiredHours.toFixed(2)}h`);
     }
 
-    // Get attendance events
+    // Get attendance events - CHECK BOTH NESTED AND FLAT STRUCTURES
     const eventsByDate = {};
     const attendanceRef = db.collection("businesses").doc(businessId).collection("attendance_events");
 
+    // STRATEGY 1: Check nested structure (attendance_events/{date}/{employeeId}/*)
+    console.log(`🔍 Checking nested structure for ${employeeName}...`);
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
@@ -197,6 +199,50 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
       } catch (dayError) {
         // Day might not exist
       }
+    }
+    
+    // STRATEGY 2: Check flat structure as fallback (attendance_events/*)
+    console.log(`🔍 Checking flat structure for ${employeeName}...`);
+    try {
+      const flatAttendanceSnap = await attendanceRef.get();
+      const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+      const endDate = `${year}-${String(monthNum).padStart(2, '0')}-${daysInMonth}`;
+      
+      flatAttendanceSnap.forEach(doc => {
+        const event = doc.data();
+        if (event.employeeId === employeeId && event.timestamp) {
+          const timestamp = event.timestamp.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
+          const dateStr = timestamp.toISOString().split('T')[0];
+          
+          // Only include events in this month
+          if (dateStr >= startDate && dateStr <= endDate) {
+            // Skip test events and unresolved pending
+            if (event.testMode) return;
+            if (event.status === 'pending' && !event.resolvedManually) return;
+            
+            let eventType = event.type || (event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out');
+            
+            if (eventType) {
+              if (!eventsByDate[dateStr]) eventsByDate[dateStr] = [];
+              
+              // Check for duplicates (might exist in both structures)
+              const existing = eventsByDate[dateStr];
+              const isDuplicate = existing.some(e => {
+                const timeDiff = Math.abs(e.timestamp.getTime() - timestamp.getTime());
+                return timeDiff < 30000 && e.type === eventType; // Within 30 seconds and same type
+              });
+              
+              if (!isDuplicate) {
+                eventsByDate[dateStr].push({ type: eventType, timestamp: timestamp, dateStr: dateStr });
+              }
+            }
+          }
+        }
+      });
+      
+      console.log(`📊 Found ${Object.keys(eventsByDate).length} days with events for ${employeeName}`);
+    } catch (flatError) {
+      console.log(`⚠️  Could not check flat structure:`, flatError.message);
     }
 
     // Skip if no attendance
@@ -291,11 +337,26 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
       const scheduledHours = schedEnd - schedStart;
       const maxPayableHours = Math.max(0, scheduledHours - (breakDuration / 60));
 
-      // Deduct break and cap at max payable hours
-      let dayPayableHours = Math.max(0, actualHours - (breakDuration / 60));
+      // ⚡ IMPROVED BREAK LOGIC: Only deduct break if worked time justifies a break
+      // If employee worked less than break duration + 1 hour, don't deduct full break
+      // This prevents negative or zero hours for short shifts
+      let dayPayableHours;
+      const breakHours = breakDuration / 60;
+      const minimumForBreak = breakHours + 1; // Need to work at least 1 hour beyond break time
+      
+      if (actualHours < minimumForBreak) {
+        // Short shift - no break deduction (they didn't work long enough for a break)
+        dayPayableHours = actualHours;
+        console.log(`  ⚡ Short shift: ${actualHours.toFixed(2)}h (no break deduction, worked < ${minimumForBreak.toFixed(1)}h)`);
+      } else {
+        // Full shift - deduct break
+        dayPayableHours = Math.max(0, actualHours - breakHours);
+        console.log(`  Break: ${breakDuration}min deducted | Payable: ${dayPayableHours.toFixed(2)}h`);
+      }
+      
+      // Cap at max payable hours
       dayPayableHours = Math.min(dayPayableHours, maxPayableHours);
-
-      console.log(`  Break: ${breakDuration}min | Max payable: ${maxPayableHours.toFixed(2)}h | Payable: ${dayPayableHours.toFixed(2)}h`);
+      console.log(`  Max payable: ${maxPayableHours.toFixed(2)}h | Final payable: ${dayPayableHours.toFixed(2)}h`);
 
       if (!dailyHoursByMultiplier[dayMultiplier]) dailyHoursByMultiplier[dayMultiplier] = 0;
       dailyHoursByMultiplier[dayMultiplier] += dayPayableHours;
