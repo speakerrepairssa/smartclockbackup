@@ -15,6 +15,7 @@ import {
 import { db } from "../../config/firebase.js";
 import { showNotification } from "../shared/ui.js";
 import { TemplateEditor } from "./template-editor.js";
+import { DEFAULT_PAYSLIP_TEMPLATE } from "./default-template.js";
 
 /**
  * Payslips Module Class
@@ -97,11 +98,13 @@ class PayslipsModule {
     
     // Template management
     const createTemplateBtn = document.getElementById('createTemplateBtn');
+    const createDefaultTemplateBtn = document.getElementById('createDefaultTemplateBtn');
     const saveTemplateBtn = document.getElementById('saveTemplateBtn');
     const deleteTemplateBtn = document.getElementById('deleteTemplateBtn');
     
     console.log('Found elements:', {
       createTemplateBtn: !!createTemplateBtn,
+      createDefaultTemplateBtn: !!createDefaultTemplateBtn,
       saveTemplateBtn: !!saveTemplateBtn,
       deleteTemplateBtn: !!deleteTemplateBtn
     });
@@ -113,6 +116,13 @@ class PayslipsModule {
       });
     } else {
       console.error('createTemplateBtn not found');
+    }
+    
+    if (createDefaultTemplateBtn) {
+      createDefaultTemplateBtn.addEventListener('click', () => {
+        console.log('Create default template button clicked');
+        this.createDefaultTemplate();
+      });
     }
     
     if (saveTemplateBtn) {
@@ -390,32 +400,88 @@ class PayslipsModule {
       this.currentTemplate = null;
       
       const templateName = document.getElementById('templateName');
-      const templateSubject = document.getElementById('templateSubject');
       const templateSelect = document.getElementById('templateSelect');
       
-      // Template content fields
-      const companyAddress = document.getElementById('companyAddress');
-      const companyContact = document.getElementById('companyContact');
-      const customMessage = document.getElementById('customMessage');
-      const payslipFooter = document.getElementById('payslipFooter');
-      const taxNumber = document.getElementById('taxNumber');
-      
       if (templateName) templateName.value = '';
-      if (templateSubject) templateSubject.value = 'Your Payslip for {{month}} {{year}}';
       if (templateSelect) templateSelect.value = '';
       
-      // Set default template content
-      if (companyAddress) companyAddress.value = '';
-      if (companyContact) companyContact.value = 'Tel: (XXX) XXX-XXXX | Email: payroll@company.com';
-      if (customMessage) customMessage.value = 'Thank you for your hard work and dedication this month.';
-      if (payslipFooter) payslipFooter.value = 'This is a computer-generated payslip. No signature is required.';
-      if (taxNumber) taxNumber.value = '';
+      // Clear the template editor to defaults
+      if (this.templateEditor) {
+        this.templateEditor.loadConfigIntoForm({
+          ...DEFAULT_PAYSLIP_TEMPLATE,
+          companyName: '', // Will be filled by user
+          companyAddress: '',
+          companyPhone: '',
+          companyEmail: ''
+        });
+      }
       
       console.log('✅ New template created successfully');
-      showNotification("New template created - customize and save", "success");
+      showNotification("New blank template created - customize and save", "success");
     } catch (error) {
       console.error('❌ Error creating template:', error);
       showNotification("Error creating template", "error");
+    }
+  }
+
+  /**
+   * Create a default professional template with pre-filled values
+   */
+  async createDefaultTemplate() {
+    console.log('Creating default professional template...');
+    
+    try {
+      // Get business data to pre-fill company info
+      const businessRef = doc(db, "businesses", this.businessId);
+      const businessDoc = await getDoc(businessRef);
+      const businessData = businessDoc.exists() ? businessDoc.data() : {};
+      
+      // Pre-fill with professional defaults
+      const defaultConfig = {
+        companyName: businessData.businessName || 'Your Company Name',
+        companyAddress: businessData.address || '123 Business Street\nCity, Province, 0000',
+        companyPhone: businessData.phone || '(012) 345-6789',
+        companyEmail: businessData.email || 'payroll@company.com',
+        taxNumber: businessData.taxNumber || 'TAX123456',
+        registrationNumber: businessData.registrationNumber || 'REG123456',
+        companyLogo: '', // Can add logo URL
+        primaryColor: '#2563eb',
+        secondaryColor: '#64748b',
+        showLogo: false,
+        showCompanyDetails: true,
+        sections: {
+          companyHeader: true,
+          employeeDetails: true,
+          payPeriod: true,
+          earnings: true,
+          deductions: true,
+          summary: true,
+          footer: true
+        },
+        headerMessage: 'Thank you for your continued dedication and hard work this month.',
+        footerMessage: 'This is a computer-generated payslip. No signature is required.\n\nFor any queries regarding your payslip, please contact the HR department.',
+        subject: 'Your Payslip for {{month}} {{year}}'
+      };
+      
+      // Set template name
+      const templateName = document.getElementById('templateName');
+      if (templateName) {
+        templateName.value = 'Professional Monthly Payslip';
+      }
+      
+      // Load into editor
+      if (this.templateEditor) {
+        this.templateEditor.loadConfigIntoForm(defaultConfig);
+      }
+      
+      this.currentTemplate = null; // Mark as unsaved
+      
+      console.log('✅ Default template created with professional settings');
+      showNotification("Professional template created! Customize and save it.", "success");
+      
+    } catch (error) {
+      console.error('❌ Error creating default template:', error);
+      showNotification("Error creating default template: " + error.message, "error");
     }
   }
 
@@ -479,24 +545,12 @@ Best regards,
       const template = templateDoc.data();
       this.currentTemplate = { id: templateId, ...template };
       
+      // Set template name
       document.getElementById('templateName').value = template.name || '';
-      document.getElementById('templateSubject').value = template.subject || '';
       
-      // Load template content fields
-      if (document.getElementById('companyAddress')) {
-        document.getElementById('companyAddress').value = template.companyAddress || '';
-      }
-      if (document.getElementById('companyContact')) {
-        document.getElementById('companyContact').value = template.companyContact || '';
-      }
-      if (document.getElementById('customMessage')) {
-        document.getElementById('customMessage').value = template.customMessage || '';
-      }
-      if (document.getElementById('payslipFooter')) {
-        document.getElementById('payslipFooter').value = template.payslipFooter || 'This is a computer-generated payslip. No signature is required.';
-      }
-      if (document.getElementById('taxNumber')) {
-        document.getElementById('taxNumber').value = template.taxNumber || '';
+      // Load the full template config into the editor
+      if (this.templateEditor) {
+        this.templateEditor.loadConfigIntoForm(template);
       }
       
       console.log('✅ Template loaded:', templateId);
@@ -512,28 +566,18 @@ Best regards,
   async saveTemplate() {
     try {
       const name = document.getElementById('templateName').value.trim();
-      const subject = document.getElementById('templateSubject').value.trim();
-      
-      // Get template content fields
-      const companyAddress = document.getElementById('companyAddress')?.value.trim() || '';
-      const companyContact = document.getElementById('companyContact')?.value.trim() || '';
-      const customMessage = document.getElementById('customMessage')?.value.trim() || '';
-      const payslipFooter = document.getElementById('payslipFooter')?.value.trim() || 'This is a computer-generated payslip. No signature is required.';
-      const taxNumber = document.getElementById('taxNumber')?.value.trim() || '';
       
       if (!name) {
         showNotification("Please enter a template name", "warning");
         return;
       }
       
+      // Get the complete template configuration from the editor
+      const templateConfig = this.templateEditor ? this.templateEditor.getConfig() : {};
+      
       const templateData = {
         name,
-        subject,
-        companyAddress,
-        companyContact,
-        customMessage,
-        payslipFooter,
-        taxNumber,
+        ...templateConfig, // Include all template editor config
         updatedAt: Timestamp.now()
       };
       
