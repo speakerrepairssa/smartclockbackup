@@ -1,0 +1,156 @@
+<!-- Payslips Module Template -->
+<div class="payslips-container" id="payslipsView" style="display: none;">
+  
+  <!-- Header -->
+  <div class="payslips-header">
+    <h1>💰 Payslip Management</h1>
+    <p>Create payslip templates and schedule automatic delivery to employees via email or WhatsApp</p>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="payslips-grid">
+    
+    <!-- Left Column: Template Management -->
+    <div class="payslip-card">
+      <h2>📝 Payslip Template</h2>
+      
+      <!-- Template Selection -->
+      <div class="template-controls">
+        <select id="templateSelect">
+          <option value="">Select a template...</option>
+        </select>
+        <button class="btn-primary" id="createTemplateBtn">+ New</button>
+        <button class="btn-secondary" id="saveTemplateBtn">💾 Save</button>
+        <button class="btn-danger" id="deleteTemplateBtn">🗑️ Delete</button>
+      </div>
+
+      <!-- Template Form -->
+      <div class="form-group">
+        <label for="templateName">Template Name</label>
+        <input type="text" id="templateName" placeholder="e.g., Monthly Payslip">
+      </div>
+
+      <div class="form-group">
+        <label for="templateSubject">Email Subject</label>
+        <input type="text" id="templateSubject" placeholder="Your Payslip for {{month}} {{year}}">
+        <div class="template-hint">
+          Available variables: <code>{{employeeName}}</code>, <code>{{month}}</code>, <code>{{year}}</code>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="templateContent">Template Content</label>
+        <textarea id="templateContent" placeholder="Enter your payslip template here..."></textarea>
+        <div class="template-hint">
+          <strong>Available variables:</strong><br>
+          <code>{{employeeName}}</code>, <code>{{position}}</code>, <code>{{payRate}}</code>,
+          <code>{{month}}</code>, <code>{{year}}</code>, <code>{{period}}</code>,
+          <code>{{hoursWorked}}</code>, <code>{{regularHours}}</code>, <code>{{overtimeHours}}</code>,
+          <code>{{regularPay}}</code>, <code>{{overtimePay}}</code>, <code>{{grossPay}}</code>,
+          <code>{{deductions}}</code>, <code>{{netPay}}</code>, <code>{{businessName}}</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Employee Selection & Delivery -->
+    <div>
+      <!-- Employee Selection -->
+      <div class="payslip-card">
+        <h2>👥 Select Employees</h2>
+        
+        <div class="employee-selection-controls">
+          <button id="selectAllEmployees">✓ Select All</button>
+          <button id="deselectAllEmployees">✗ Deselect All</button>
+          <div class="selected-count">
+            Selected: <span id="selectedEmployeeCount">0</span>
+          </div>
+        </div>
+
+        <div id="employeeList">
+          <!-- Employees will be loaded here dynamically -->
+        </div>
+      </div>
+
+      <!-- Delivery Options -->
+      <div class="payslip-card" style="margin-top: 2rem;">
+        <h2>📬 Delivery Options</h2>
+        
+        <h3>Delivery Methods</h3>
+        <div class="delivery-options">
+          <div class="delivery-option">
+            <input type="checkbox" id="deliveryEmail" checked>
+            <label for="deliveryEmail">📧 Email</label>
+          </div>
+          <div class="delivery-option">
+            <input type="checkbox" id="deliveryWhatsApp">
+            <label for="deliveryWhatsApp">💬 WhatsApp</label>
+          </div>
+        </div>
+
+        <h3>Schedule Delivery</h3>
+        <div class="schedule-inputs">
+          <div class="form-group">
+            <label for="scheduleDate">Date</label>
+            <input type="date" id="scheduleDate">
+          </div>
+          <div class="form-group">
+            <label for="scheduleTime">Time</label>
+            <input type="time" id="scheduleTime" value="09:00">
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn-secondary" id="previewPayslipBtn">
+            👁️ Preview
+          </button>
+          <button class="btn-success" id="sendPayslipsBtn">
+            📤 Send Now
+          </button>
+          <button class="btn-primary" id="schedulePayslipsBtn">
+            ⏰ Schedule
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scheduled Payslips -->
+  <div class="payslip-card">
+    <h2>📅 Scheduled Payslips</h2>
+    <div id="scheduleList">
+      <div class="empty-state">No scheduled payslips</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Preview Payslip</h2>
+      <button class="close-modal" onclick="document.getElementById('previewModal').style.display='none'">&times;</button>
+    </div>
+    <div class="preview-subject" id="previewSubject">
+      Subject will appear here
+    </div>
+    <div class="preview-content" id="previewContent">
+      Payslip content will appear here...
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  // This script will be integrated into the business dashboard
+  // It's here for reference only
+  
+  // Import the payslips module
+  import PayslipsModule from '../../modules/payslips/payslips.js';
+  
+  // Initialize when the payslips view is shown
+  window.initPayslipsModule = async function(businessId) {
+    const payslipsModule = new PayslipsModule(businessId);
+    await payslipsModule.init();
+    return payslipsModule;
+  };
+</script>

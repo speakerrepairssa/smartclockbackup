@@ -1,7 +1,7 @@
 {
   "name": "aiclock-dataconnect-migration",
   "version": "1.0.0",
-  "description": "Firebase Data Connect migration tools for AiClock",
+  "description": "Firebase Data Connect migration tools for SmartClock",
   "type": "module",
   "scripts": {
     "migrate": "node scripts/migrate-to-dataconnect.js",

@@ -29,6 +29,16 @@ const {
   assignShiftToEmployee
 } = require('./shiftModule.js');
 
+// Import payslips module functions
+const {
+  sendPayslips,
+  processScheduledPayslips
+} = require('./payslipsModule.js');
+
+// Export payslips functions
+exports.sendPayslips = sendPayslips;
+exports.processScheduledPayslips = processScheduledPayslips;
+
 /**
  * Cloud Function to handle attendance webhooks from Hikvision devices
  * Dynamically maps deviceId to the correct business
@@ -812,10 +822,108 @@ async function processAttendanceEvent(businessId, eventData) {
           businessName: businessId
         };
         
+        // 📊 FETCH ASSESSMENT DATA FOR CLOCK-OUT TRIGGERS
+        // If this is a clock-out, fetch the employee's assessment data
+        if (trigger === 'clock-out') {
+          try {
+            const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
+            const assessmentCacheRef = db.collection('businesses')
+              .doc(businessId)
+              .collection('assessment_cache')
+              .doc(currentMonth);
+            
+            const cacheDoc = await assessmentCacheRef.get();
+            
+            if (cacheDoc.exists) {
+              const cacheData = cacheDoc.data();
+              
+              // NEW STRUCTURE: Cache has employees array
+              let employeeAssessment = null;
+              
+              // Try new structure first (employees array)
+              if (cacheData.employees && Array.isArray(cacheData.employees)) {
+                employeeAssessment = cacheData.employees.find(
+                  emp => emp.employeeId === slotNumber.toString()
+                );
+                logger.info("🔍 Using NEW cache structure (employees array)", { 
+                  slotNumber,
+                  foundEmployee: !!employeeAssessment 
+                });
+              } else {
+                // Fallback to old structure (direct key lookup)
+                employeeAssessment = cacheData[slotNumber.toString()];
+                logger.info("🔍 Using OLD cache structure (direct key)", { 
+                  slotNumber,
+                  foundEmployee: !!employeeAssessment 
+                });
+              }
+              
+              if (employeeAssessment) {
+                // Add assessment data to employeeData
+                // Update phone and email from cache if available (cache is source of truth)
+                if (employeeAssessment.phone) {
+                  employeeData.phone = employeeAssessment.phone;
+                  logger.info("📞 Phone updated from cache", { phone: employeeAssessment.phone });
+                }
+                if (employeeAssessment.email) {
+                  employeeData.email = employeeAssessment.email;
+                  logger.info("📧 Email updated from cache", { email: employeeAssessment.email });
+                }
+                
+                employeeData.requiredHours = employeeAssessment.requiredHours?.toString() || '0';
+                employeeData.currentHours = employeeAssessment.currentHours?.toString() || '0';
+                employeeData.hoursWorked = employeeAssessment.currentHours?.toString() || '0';
+                employeeData.hoursShort = employeeAssessment.hoursShort?.toString() || '0';
+                employeeData.daysWorked = employeeAssessment.daysWorked?.toString() || '0';
+                employeeData.pastDueHours = employeeAssessment.pastDueHours?.toString() || '0';
+                employeeData.payRate = employeeAssessment.payRate?.toString() || '0';
+                employeeData.basePay = employeeAssessment.basePay?.toString() || '0';
+                employeeData.currentIncomeDue = employeeAssessment.currentIncomeDue?.toString() || '0';
+                employeeData.potentialIncome = employeeAssessment.potentialIncome?.toString() || '0';
+                employeeData.status = employeeAssessment.status || 'Unknown';
+                employeeData.shiftName = employeeAssessment.shiftName || 'No Shift Assigned';
+                
+                // Handle dailyMultipliers - convert array to readable string
+                if (employeeAssessment.dailyMultipliers) {
+                  if (Array.isArray(employeeAssessment.dailyMultipliers)) {
+                    employeeData.dailyMultipliers = employeeAssessment.dailyMultipliers.join(', ');
+                  } else if (typeof employeeAssessment.dailyMultipliers === 'string') {
+                    employeeData.dailyMultipliers = employeeAssessment.dailyMultipliers;
+                  } else {
+                    employeeData.dailyMultipliers = JSON.stringify(employeeAssessment.dailyMultipliers);
+                  }
+                } else {
+                  employeeData.dailyMultipliers = 'N/A';
+                }
+                
+                logger.info("✅ Fetched assessment data for WhatsApp", { 
+                  slotNumber, 
+                  phone: employeeData.phone || 'none',
+                  email: employeeData.email || 'none',
+                  requiredHours: employeeData.requiredHours,
+                  currentIncomeDue: employeeData.currentIncomeDue,
+                  dailyMultipliers: employeeData.dailyMultipliers 
+                });
+              } else {
+                logger.warn("⚠️ No assessment data found for employee in cache", { slotNumber, currentMonth });
+              }
+            } else {
+              logger.warn("⚠️ Assessment cache document not found", { businessId, currentMonth });
+            }
+          } catch (assessmentError) {
+            logger.error("❌ Error fetching assessment data for WhatsApp", { 
+              error: assessmentError.message,
+              slotNumber 
+            });
+            // Continue without assessment data - don't fail the WhatsApp trigger
+          }
+        }
+        
         logger.info("📤 Calling WhatsApp function", { 
           businessId, 
           trigger, 
-          employeeData 
+          employeeData,
+          hasAssessmentData: !!employeeData.currentIncomeDue 
         });
         
         // Call the sendWhatsAppMessage Cloud Function via HTTPS
@@ -2156,6 +2264,13 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
     const automationsRef = db.collection('businesses').doc(businessId).collection('whatsapp_automations');
     const automationsSnap = await automationsRef.where('trigger', '==', trigger).where('enabled', '==', true).get();
 
+    logger.info("Automation cards query result", { 
+      businessId, 
+      trigger, 
+      cardsFound: automationsSnap.size,
+      isEmpty: automationsSnap.empty 
+    });
+
     if (automationsSnap.empty) {
       logger.info("No enabled automation cards for trigger", { businessId, trigger });
       res.json({ success: true, message: 'No active templates', messagesSent: 0 });
@@ -2224,8 +2339,27 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
             value = value.replace(/\{\{currentIncomeDue\}\}/g, employeeData.currentIncomeDue || '');
             value = value.replace(/\{\{potentialIncome\}\}/g, employeeData.potentialIncome || '');
             value = value.replace(/\{\{shiftName\}\}/g, employeeData.shiftName || '');
+            value = value.replace(/\{\{dailyMultipliers\}\}/g, employeeData.dailyMultipliers || 'N/A');
             value = value.replace(/\{\{time\}\}/g, employeeData.time || '');
             value = value.replace(/\{\{date\}\}/g, employeeData.date || '');
+            
+            // If value is still a field name (no replacement happened), provide default
+            if (value === 'none' || value === 'None') {
+              value = 'N/A';
+            } else if (value && !value.includes('{{') && employeeData[value] === undefined) {
+              // Value is a field name that doesn't exist in employeeData
+              logger.warn("Field not found in employeeData, using default", { field: value });
+              value = 'N/A';
+            }
+          }
+          
+          // Ensure value is not empty - WhatsApp API requires non-empty parameters
+          if (!value || value.trim() === '') {
+            value = 'N/A';
+            logger.warn("Empty parameter value detected, using default", { 
+              parameter: mapping.parameter,
+              source: mapping.source 
+            });
           }
           
           templateParameters.push({
@@ -2241,18 +2375,42 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
         parameterCount: templateParameters.length,
         parameters: templateParameters 
       });
+      
+      // Log each parameter value for debugging
+      templateParameters.forEach((param, idx) => {
+        logger.info(`📝 Parameter ${idx + 1}`, {
+          value: param.text,
+          length: param.text?.length,
+          type: typeof param.text
+        });
+      });
 
       // Determine recipient phone number
       let toNumbers = [];
       
+      logger.info("🔍 Determining recipients", { 
+        testMode, 
+        testPhone: testPhone || 'none',
+        recipient: automation.recipient,
+        hasEmployeeData: !!employeeData,
+        employeePhone: employeeData?.phone || 'missing'
+      });
+      
       if (testMode && testPhone) {
         // In test mode, use provided test phone
         toNumbers.push(testPhone);
+        logger.info("✅ Using test phone", { testPhone });
       } else {
         // Normal mode: use recipient configuration
         if (automation.recipient === 'employee' || automation.recipient === 'both') {
           if (employeeData && employeeData.phone) {
             toNumbers.push(employeeData.phone);
+            logger.info("✅ Added employee phone", { phone: employeeData.phone });
+          } else {
+            logger.warn("⚠️ Employee phone not found", { 
+              hasEmployeeData: !!employeeData,
+              employeePhone: employeeData?.phone 
+            });
           }
         }
         if (automation.recipient === 'manager' || automation.recipient === 'both') {
@@ -2260,30 +2418,85 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
           const businessDoc = await db.collection('businesses').doc(businessId).get();
           if (businessDoc.exists && businessDoc.data().phone) {
             toNumbers.push(businessDoc.data().phone);
+            logger.info("✅ Added manager phone", { phone: businessDoc.data().phone });
+          } else {
+            logger.warn("⚠️ Manager phone not found");
           }
         }
       }
+      
+      logger.info("📱 Recipients determined", { 
+        count: toNumbers.length,
+        recipients: toNumbers 
+      });
 
       // Send messages via WhatsApp Cloud API
       for (const toNumber of toNumbers) {
         try {
+          // Format phone number to international format (remove leading 0, add country code if needed)
+          let formattedPhone = toNumber.replace(/[^0-9]/g, ''); // Remove non-numeric
+          
+          // If starts with 0, assume South African and convert to +27
+          if (formattedPhone.startsWith('0')) {
+            formattedPhone = '27' + formattedPhone.substring(1);
+          }
+          
+          // If doesn't start with country code, assume South African
+          if (!formattedPhone.startsWith('27') && !formattedPhone.startsWith('1') && formattedPhone.length === 9) {
+            formattedPhone = '27' + formattedPhone;
+          }
+          
+          logger.info("📞 Sending WhatsApp", { 
+            originalPhone: toNumber,
+            formattedPhone: formattedPhone,
+            template: templateName,
+            parameterCount: templateParameters.length
+          });
+          
           // Send via WhatsApp Cloud API with template
           const result = await sendWhatsAppCloudAPITemplate(
             settings.accessToken,
             settings.phoneNumberId,
-            toNumber,
+            formattedPhone,
             templateName,
             templateParameters
           );
           
+          logger.info("✅ WhatsApp API response", { 
+            phone: formattedPhone,
+            result: result 
+          });
+          
           messages.push({ 
-            to: toNumber, 
+            to: formattedPhone, 
             template: templateName,
             parameters: templateParameters,
             status: 'sent',
             result 
           });
           logger.info("WhatsApp template message sent", { businessId, toNumber, trigger, templateName });
+          
+          // 📊 LOG TO FIRESTORE for history tracking
+          try {
+            await db.collection('businesses').doc(businessId).collection('whatsapp_logs').add({
+              timestamp: new Date().toISOString(),
+              to: formattedPhone,
+              toOriginal: toNumber,
+              trigger: trigger,
+              templateName: templateName,
+              status: 'sent',
+              messageId: result.messages?.[0]?.id || null,
+              employeeData: {
+                employeeId: employeeData?.employeeId,
+                employeeName: employeeData?.employeeName
+              },
+              parameters: templateParameters.map(p => p.text),
+              result: result
+            });
+          } catch (logError) {
+            logger.warn("Failed to log message to Firestore", { error: logError.message });
+          }
+          
         } catch (error) {
           logger.error("Error sending WhatsApp message", { error: error.message, toNumber });
           messages.push({ 
@@ -2292,6 +2505,27 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
             status: 'failed', 
             error: error.message 
           });
+          
+          // 📊 LOG FAILURE TO FIRESTORE
+          try {
+            await db.collection('businesses').doc(businessId).collection('whatsapp_logs').add({
+              timestamp: new Date().toISOString(),
+              to: toNumber,
+              toOriginal: toNumber,
+              trigger: trigger,
+              templateName: templateName,
+              status: 'failed',
+              error: error.message,
+              errorStack: error.stack,
+              employeeData: {
+                employeeId: employeeData?.employeeId,
+                employeeName: employeeData?.employeeName
+              },
+              parameters: templateParameters.map(p => p.text)
+            });
+          } catch (logError) {
+            logger.warn("Failed to log error to Firestore", { error: logError.message });
+          }
         }
       }
     }
@@ -2311,10 +2545,13 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
 // Helper function for WhatsApp Cloud API Template Messages
 async function sendWhatsAppCloudAPITemplate(accessToken, phoneNumberId, toNumber, templateName, parameters) {
   const https = require('https');
+  const logger = require('firebase-functions/logger');
+  
+  const cleanPhone = toNumber.replace(/[^0-9]/g, '');  // Remove all non-numeric characters
   
   const postData = JSON.stringify({
     messaging_product: 'whatsapp',
-    to: toNumber.replace(/[^0-9]/g, ''),  // Remove all non-numeric characters
+    to: cleanPhone,
     type: 'template',
     template: {
       name: templateName,
@@ -2326,6 +2563,14 @@ async function sendWhatsAppCloudAPITemplate(accessToken, phoneNumberId, toNumber
         parameters: parameters
       }] : []
     }
+  });
+
+  logger.info("📤 WhatsApp API Request", {
+    to: cleanPhone,
+    template: templateName,
+    phoneNumberId: phoneNumberId,
+    paramCount: parameters?.length || 0,
+    requestBody: postData
   });
 
   const options = {
@@ -2345,14 +2590,31 @@ async function sendWhatsAppCloudAPITemplate(accessToken, phoneNumberId, toNumber
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
+        logger.info("📨 WhatsApp API Response", {
+          statusCode: res.statusCode,
+          responseBody: data
+        });
+        
         if (res.statusCode === 200 || res.statusCode === 201) {
-          resolve(JSON.parse(data));
+          try {
+            resolve(JSON.parse(data));
+          } catch (parseError) {
+            logger.error("❌ Failed to parse WhatsApp API response", { data, parseError: parseError.message });
+            reject(new Error(`Failed to parse response: ${data}`));
+          }
         } else {
+          logger.error("❌ WhatsApp API Error", {
+            statusCode: res.statusCode,
+            responseBody: data
+          });
           reject(new Error(`WhatsApp Cloud API error: ${res.statusCode} - ${data}`));
         }
       });
     });
-    req.on('error', reject);
+    req.on('error', (error) => {
+      logger.error("❌ WhatsApp API Request Error", { error: error.message });
+      reject(error);
+    });
     req.write(postData);
     req.end();
   });
@@ -4937,11 +5199,18 @@ exports.listAllRealEmployees = onRequest(async (req, res) => {
 /**
  * 🎯 FIRESTORE TRIGGER: WhatsApp on Status Change
  * Automatically triggers WhatsApp when employee status changes from IN to OUT
+ * 
+ * ⚠️ DISABLED: WhatsApp automation is now handled by attendanceWebhook HTTP function
+ * which fetches assessment data for better parameter mapping.
  */
 exports.onEmployeeStatusChange = onDocumentUpdated(
   "businesses/{businessId}/status/{employeeId}",
   async (event) => {
     try {
+      // DISABLED: Handled by attendanceWebhook → processAttendanceEvent which has assessment data
+      logger.info("⏭️ Skipping Firestore trigger - WhatsApp handled by HTTP webhook");
+      return;
+      
       const businessId = event.params.businessId;
       const employeeId = event.params.employeeId;
       

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Message Logs</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #2c3e50;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .header h1 {
+      color: #2c3e50;
+      font-size: 2rem;
+    }
+
+    .back-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .back-btn:hover {
+      background: #5a6268;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat-card.success {
+      background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    }
+
+    .stat-card.failed {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      opacity: 0.9;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .filters {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-group label {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      padding: 0.75rem;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .logs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    .logs-table thead {
+      background: #f8f9fa;
+    }
+
+    .logs-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: #2c3e50;
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .logs-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .logs-table tr:hover {
+      background: #f8f9fa;
+    }
+
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .status-badge.sent {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-badge.failed {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .details-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.3s ease;
+    }
+
+    .details-btn:hover {
+      background: #764ba2;
+    }
+
+    .details-row {
+      display: none;
+      background: #f8f9fa;
+    }
+
+    .details-row.show {
+      display: table-row;
+    }
+
+    .details-content {
+      padding: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .details-section {
+      margin-bottom: 1rem;
+    }
+
+    .details-section h4 {
+      color: #667eea;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .details-section pre {
+      background: white;
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+      overflow-x: auto;
+      font-size: 0.85rem;
+    }
+
+    .parameter-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .parameter-list li {
+      background: white;
+      padding: 0.5rem 1rem;
+      margin: 0.25rem 0;
+      border-radius: 6px;
+      border-left: 3px solid #667eea;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #666;
+    }
+
+    .no-logs {
+      text-align: center;
+      padding: 3rem;
+      color: #666;
+    }
+
+    .no-logs h3 {
+      margin-bottom: 1rem;
+      color: #2c3e50;
+    }
+
+    .export-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s ease;
+      margin-left: 1rem;
+    }
+
+    .export-btn:hover {
+      background: #218838;
+    }
+
+    .refresh-btn {
+      background: #17a2b8;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s ease;
+      margin-left: 1rem;
+    }
+
+    .refresh-btn:hover {
+      background: #138496;
+    }
+
+    .timestamp {
+      font-size: 0.85rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📊 WhatsApp Message Logs</h1>
+      <div>
+        <button class="refresh-btn" onclick="loadLogs()">🔄 Refresh</button>
+        <button class="export-btn" onclick="exportToCSV()">📥 Export CSV</button>
+        <a href="business-dashboard.html" class="back-btn">← Dashboard</a>
+      </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-label">Total Messages</div>
+        <div class="stat-value" id="totalMessages">-</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label">Sent Successfully</div>
+        <div class="stat-value" id="sentMessages">-</div>
+      </div>
+      <div class="stat-card failed">
+        <div class="stat-label">Failed</div>
+        <div class="stat-value" id="failedMessages">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Success Rate</div>
+        <div class="stat-value" id="successRate">-</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <label>Status</label>
+        <select id="filterStatus" onchange="applyFilters()">
+          <option value="all">All Messages</option>
+          <option value="sent">Sent Only</option>
+          <option value="failed">Failed Only</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Trigger</label>
+        <select id="filterTrigger" onchange="applyFilters()">
+          <option value="all">All Triggers</option>
+          <option value="clock-in">Clock In</option>
+          <option value="clock-out">Clock Out</option>
+          <option value="test">Test Message</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Time Range</label>
+        <select id="filterTime" onchange="applyFilters()">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">Last 7 Days</option>
+          <option value="month">Last 30 Days</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Search Phone/Name</label>
+        <input type="text" id="searchQuery" placeholder="Filter by phone or name" oninput="applyFilters()">
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading" id="loading">
+      <h3>Loading message logs...</h3>
+    </div>
+
+    <!-- No Logs State -->
+    <div class="no-logs" id="noLogs" style="display: none;">
+      <h3>No messages found</h3>
+      <p>Try adjusting your filters or send some test messages</p>
+    </div>
+
+    <!-- Logs Table -->
+    <div id="logsContainer" style="display: none;">
+      <table class="logs-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Trigger</th>
+            <th>Recipient</th>
+            <th>Employee</th>
+            <th>Template</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody">
+          <!-- Rows populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { getFirestore, collection, query, where, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCgfP_HnecrR6xYRzlQ2t4g9LzRHl2r_Xs",
+      authDomain: "attendance-system-9f59e.firebaseapp.com",
+      projectId: "attendance-system-9f59e",
+      storageBucket: "attendance-system-9f59e.appspot.com",
+      messagingSenderId: "815587021262",
+      appId: "1:815587021262:web:02c58c0e1cdfe63e92b90d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentBusinessId = null;
+    let allLogs = [];
+    let filteredLogs = [];
+
+    // Wait for auth
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      currentBusinessId = urlParams.get('businessId');
+      
+      if (!currentBusinessId) {
+        alert('No business selected');
+        window.location.href = 'business-dashboard.html';
+        return;
+      }
+
+      loadLogs();
+    });
+
+    window.loadLogs = async function() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('noLogs').style.display = 'none';
+      document.getElementById('logsContainer').style.display = 'none';
+
+      try {
+        const logsRef = collection(db, 'businesses', currentBusinessId, 'whatsapp_logs');
+        const q = query(logsRef, orderBy('timestamp', 'desc'), limit(500));
+        const snapshot = await getDocs(q);
+
+        allLogs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        updateStats();
+        applyFilters();
+
+      } catch (error) {
+        console.error('Error loading logs:', error);
+        alert('Failed to load logs: ' + error.message);
+        document.getElementById('loading').style.display = 'none';
+      }
+    };
+
+    function updateStats() {
+      const total = allLogs.length;
+      const sent = allLogs.filter(log => log.status === 'sent').length;
+      const failed = allLogs.filter(log => log.status === 'failed').length;
+      const successRate = total > 0 ? Math.round((sent / total) * 100) : 0;
+
+      document.getElementById('totalMessages').textContent = total;
+      document.getElementById('sentMessages').textContent = sent;
+      document.getElementById('failedMessages').textContent = failed;
+      document.getElementById('successRate').textContent = successRate + '%';
+    }
+
+    window.applyFilters = function() {
+      const statusFilter = document.getElementById('filterStatus').value;
+      const triggerFilter = document.getElementById('filterTrigger').value;
+      const timeFilter = document.getElementById('filterTime').value;
+      const searchQuery = document.getElementById('searchQuery').value.toLowerCase();
+
+      let filtered = [...allLogs];
+
+      // Status filter
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter(log => log.status === statusFilter);
+      }
+
+      // Trigger filter
+      if (triggerFilter !== 'all') {
+        filtered = filtered.filter(log => log.trigger === triggerFilter);
+      }
+
+      // Time filter
+      if (timeFilter !== 'all') {
+        const now = new Date();
+        const cutoff = new Date();
+        
+        if (timeFilter === 'today') {
+          cutoff.setHours(0, 0, 0, 0);
+        } else if (timeFilter === 'week') {
+          cutoff.setDate(now.getDate() - 7);
+        } else if (timeFilter === 'month') {
+          cutoff.setDate(now.getDate() - 30);
+        }
+
+        filtered = filtered.filter(log => new Date(log.timestamp) >= cutoff);
+      }
+
+      // Search filter
+      if (searchQuery) {
+        filtered = filtered.filter(log => 
+          (log.to && log.to.toLowerCase().includes(searchQuery)) ||
+          (log.employeeData?.employeeName && log.employeeData.employeeName.toLowerCase().includes(searchQuery))
+        );
+      }
+
+      filteredLogs = filtered;
+      renderLogs();
+    };
+
+    function renderLogs() {
+      document.getElementById('loading').style.display = 'none';
+
+      if (filteredLogs.length === 0) {
+        document.getElementById('noLogs').style.display = 'block';
+        document.getElementById('logsContainer').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('noLogs').style.display = 'none';
+      document.getElementById('logsContainer').style.display = 'block';
+
+      const tbody = document.getElementById('logsTableBody');
+      tbody.innerHTML = '';
+
+      filteredLogs.forEach(log => {
+        const date = new Date(log.timestamp);
+        const formattedTime = date.toLocaleString();
+
+        // Main row
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="timestamp">${formattedTime}</span></td>
+          <td>${log.trigger || 'N/A'}</td>
+          <td>${log.to || 'N/A'}</td>
+          <td>${log.employeeData?.employeeName || 'N/A'}</td>
+          <td>${log.templateName || 'N/A'}</td>
+          <td><span class="status-badge ${log.status}">${log.status.toUpperCase()}</span></td>
+          <td><button class="details-btn" onclick="toggleDetails('${log.id}')">View Details</button></td>
+        `;
+        tbody.appendChild(tr);
+
+        // Details row (hidden by default)
+        const detailsTr = document.createElement('tr');
+        detailsTr.className = 'details-row';
+        detailsTr.id = `details-${log.id}`;
+        
+        let parametersHTML = '';
+        if (log.parameters && log.parameters.length > 0) {
+          parametersHTML = '<ul class="parameter-list">' +
+            log.parameters.map((param, idx) => `<li><strong>Param ${idx + 1}:</strong> ${param}</li>`).join('') +
+            '</ul>';
+        }
+
+        let errorHTML = '';
+        if (log.error) {
+          errorHTML = `
+            <div class="details-section">
+              <h4>❌ Error Message</h4>
+              <pre>${log.error}</pre>
+            </div>
+          `;
+        }
+
+        let resultHTML = '';
+        if (log.messageId) {
+          resultHTML = `
+            <div class="details-section">
+              <h4>✅ Message ID (WAMID)</h4>
+              <pre>${log.messageId}</pre>
+            </div>
+          `;
+        }
+
+        detailsTr.innerHTML = `
+          <td colspan="7">
+            <div class="details-content">
+              <div class="details-section">
+                <h4>📱 Contact Info</h4>
+                <pre>Phone: ${log.to}
+Original: ${log.toOriginal || 'N/A'}
+Employee ID: ${log.employeeData?.employeeId || 'N/A'}
+Employee Name: ${log.employeeData?.employeeName || 'N/A'}</pre>
+              </div>
+              <div class="details-section">
+                <h4>📝 Template Parameters</h4>
+                ${parametersHTML || '<p>No parameters</p>'}
+              </div>
+              ${resultHTML}
+              ${errorHTML}
+            </div>
+          </td>
+        `;
+        tbody.appendChild(detailsTr);
+      });
+    }
+
+    window.toggleDetails = function(logId) {
+      const detailsRow = document.getElementById(`details-${logId}`);
+      detailsRow.classList.toggle('show');
+    };
+
+    window.exportToCSV = function() {
+      if (filteredLogs.length === 0) {
+        alert('No logs to export');
+        return;
+      }
+
+      const headers = ['Timestamp', 'Trigger', 'Recipient', 'Employee ID', 'Employee Name', 'Template', 'Status', 'Message ID', 'Error'];
+      const rows = filteredLogs.map(log => [
+        log.timestamp,
+        log.trigger || '',
+        log.to || '',
+        log.employeeData?.employeeId || '',
+        log.employeeData?.employeeName || '',
+        log.templateName || '',
+        log.status,
+        log.messageId || '',
+        log.error || ''
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `whatsapp-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    };
+  </script>
+</body>
+</html>

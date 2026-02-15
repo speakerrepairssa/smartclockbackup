@@ -1,6 +1,6 @@
 # 🔍 Direct Device Data Extractor
 
-Standalone module for extracting employee data and events directly from Hikvision devices without affecting the main AiClock application.
+Standalone module for extracting employee data and events directly from Hikvision devices without affecting the main SmartClock application.
 
 ## 🎯 Purpose
 
@@ -149,8 +149,8 @@ This module will help you discover:
 
 ## 🔐 Security Note
 
-This module is for **testing and discovery only**. It doesn't modify any data on the device or in your main AiClock application. All tests are read-only operations.
+This module is for **testing and discovery only**. It doesn't modify any data on the device or in your main SmartClock application. All tests are read-only operations.
 
 ## 📞 Support
 
-If you discover working endpoints or employee data, you can use this information to enhance the main AiClock attendance webhook system.
+If you discover working endpoints or employee data, you can use this information to enhance the main SmartClock attendance webhook system.

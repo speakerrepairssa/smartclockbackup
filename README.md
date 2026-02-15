@@ -1,4 +1,4 @@
-# AiClock - Multi-Tenant Attendance Management SaaS
+# SmartClock - Multi-Tenant Attendance Management SaaS
 
 ## 🏗️ Project Structure
 

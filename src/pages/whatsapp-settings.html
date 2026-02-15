@@ -1581,6 +1581,14 @@
           const statusColor = card.enabled ? '#25D366' : '#999';
           const statusIcon = card.enabled ? '✓' : '⏸';
           
+          // Debug: Show parameter mappings for each card
+          console.log(`🎴 Card: ${card.name} (${docSnap.id})`, {
+            trigger: card.trigger,
+            enabled: card.enabled,
+            templateName: card.templateName,
+            parameterMappings: card.parameterMappings
+          });
+          
           html += `
             <div style="background: white; padding: 1.2rem; border-radius: 12px; border: 2px solid ${statusColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
               <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.8rem;">
@@ -1950,17 +1958,49 @@
       testBtn.disabled = true;
 
       try {
+        // Helper function to generate sample values for testing
+        const getSampleValue = (fieldName) => {
+          const sampleData = {
+            'employeeName': 'John Doe',
+            'employeeId': '12345',
+            'requiredHours': '40.0',
+            'currentHours': '35.5',
+            'hoursWorked': '8.5',
+            'hoursShort': '4.5',
+            'daysWorked': '5',
+            'pastDueHours': '2.5',
+            'payRate': '150.00',
+            'basePay': '6000.00',
+            'currentIncomeDue': '5325.00',
+            'potentialIncome': '6750.00',
+            'dailyMultipliers': '1.0x, 1.0x, 1.5x, 1.0x, 1.0x',
+            'status': 'On Track',
+            'shiftName': 'Morning Shift',
+            'time': new Date().toLocaleTimeString(),
+            'date': new Date().toLocaleDateString(),
+            'none': '',
+            'custom': 'Sample Value'
+          };
+          return sampleData[fieldName] || fieldName;
+        };
+        
         // Collect parameter values from the test form
         const parameters = {};
         
         if (window.currentTestCard.parameterMappings) {
           window.currentTestCard.parameterMappings.forEach((mapping, index) => {
             const useManual = document.getElementById(`useManual${index}`)?.checked;
-            const value = useManual 
-              ? document.getElementById(`testManual${index}`).value
-              : document.getElementById(`testParam${index}`).value;
+            let value;
             
-            parameters[mapping.parameter] = value || mapping.value || `Sample ${mapping.parameter}`;
+            if (useManual) {
+              // User provided manual value
+              value = document.getElementById(`testManual${index}`).value;
+            } else {
+              // Use sample value based on the field name
+              value = getSampleValue(mapping.value || mapping.source);
+            }
+            
+            parameters[mapping.parameter] = value || `Sample ${mapping.parameter}`;
           });
         }
         

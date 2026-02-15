@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>Business Dashboard - AiClock</title>
+  <title>Business Dashboard - SmartClock</title>
   <style>
     * {
       margin: 0;
@@ -442,13 +442,14 @@
   <div class="dashboard-wrapper">
     <!-- Sidebar -->
     <aside class="sidebar">
-      <div class="sidebar-header">🕐 AiClock</div>
+      <div class="sidebar-header">🕐 SmartClock</div>
       <ul class="sidebar-menu">
         <li><button class="menu-btn active" data-module="dashboard" onclick="switchModule('dashboard')">📊 Dashboard</button></li>
         <li><button class="menu-btn" data-module="monitor" onclick="switchModule('monitor')">🔴 Monitor Mode</button></li>
         <li><button class="menu-btn" data-module="attendance" onclick="switchModule('attendance')">✓ Attendance</button></li>
         <li><button class="menu-btn" data-module="reports" onclick="switchModule('reports')">📈 Reports</button></li>
         <li><button class="menu-btn" data-module="assessment" onclick="switchModule('assessment')">📊 Assessment</button></li>
+        <li><button class="menu-btn" data-module="payslips" onclick="switchModule('payslips')">💰 Payslips</button></li>
         <li><button class="menu-btn" data-module="employees" onclick="switchModule('employees')">👥 Employees</button></li>
         <li><button class="menu-btn" data-module="shifts" onclick="switchModule('shifts')">📅 Shifts</button></li>
         <li><button class="menu-btn" data-module="timecard" onclick="switchModule('timecard')">🕐 Timecard</button></li>
@@ -457,6 +458,7 @@
         <li><button class="menu-btn" data-module="sql-integration" onclick="switchModule('sql-integration')">🗄️ SQL Integration</button></li>
         <li><button class="menu-btn" data-module="downloads" onclick="switchModule('downloads')">📥 Downloads</button></li>
         <li><a href="whatsapp-settings.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📱 WhatsApp</button></a></li>
+        <li><a href="#" id="whatsappLogsLink" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📊 WhatsApp Logs</button></a></li>
         <li><button class="menu-btn" data-module="settings" onclick="switchModule('settings')">⚙️ Settings</button></li>
       </ul>
       <div class="sidebar-footer">
@@ -729,13 +731,17 @@
           /* Employee Management Styles */
           .employees-container {
             padding: 1rem;
+            width: 100%;
+            display: block;
+            clear: both;
           }
 
           .employees-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 1.5rem;
             margin-top: 1.5rem;
+            width: 100%;
           }
 
           .employee-card {
@@ -745,6 +751,12 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s, box-shadow 0.2s;
             border-left: 4px solid #667eea;
+            position: static !important;
+            width: auto !important;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
           }
 
           .employee-card:hover {
@@ -762,12 +774,14 @@
             justify-content: space-between;
             align-items: start;
             margin-bottom: 1rem;
+            width: 100%;
           }
 
           .employee-info h3 {
             margin: 0 0 0.25rem 0;
             color: #2c3e50;
             font-size: 1.1rem;
+            word-wrap: break-word;
           }
 
           .employee-slot-badge {
@@ -784,6 +798,7 @@
             flex-direction: column;
             gap: 0.75rem;
             margin: 1rem 0;
+            width: 100%;
           }
 
           .employee-detail-row {
@@ -794,16 +809,23 @@
             background: #f8f9fa;
             border-radius: 6px;
             font-size: 0.9rem;
+            width: 100%;
+            box-sizing: border-box;
           }
 
           .detail-label {
             color: #666;
             font-weight: 500;
+            white-space: nowrap;
+            margin-right: 0.5rem;
           }
 
           .detail-value {
             color: #2c3e50;
             font-weight: 600;
+            text-align: right;
+            word-break: break-word;
+            flex-shrink: 0;
           }
 
           .employee-status {
@@ -830,10 +852,13 @@
             display: flex;
             gap: 0.5rem;
             margin-top: 1rem;
+            width: 100%;
+            flex-wrap: wrap;
           }
 
           .btn-edit {
             flex: 1;
+            min-width: 120px;
             padding: 0.6rem;
             background: #667eea;
             color: white;
@@ -842,6 +867,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: background 0.2s;
+            white-space: nowrap;
           }
 
           .btn-edit:hover {
@@ -850,6 +876,7 @@
 
           .btn-view {
             flex: 1;
+            min-width: 120px;
             padding: 0.6rem;
             background: #48bb78;
             color: white;
@@ -858,6 +885,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: background 0.2s;
+            white-space: nowrap;
           }
 
           .btn-view:hover {
@@ -2270,6 +2298,226 @@
         </div>
       </div>
 
+      <!-- Payslips View -->
+      <div class="view-section" id="payslipsView">
+        <div class="payslips-container">
+          
+          <!-- Header -->
+          <div class="payslips-header">
+            <h1>💰 Payslip Management</h1>
+            <p>Design professional payslips with your company branding and schedule automatic delivery</p>
+          </div>
+
+          <!-- Main Grid -->
+          <div class="payslips-grid">
+            
+            <!-- Left Column: Design & Template Management -->
+            <div class="payslip-card">
+              
+              <!-- Visual Design Editor -->
+              <div class="design-editor-section">
+                <h2>🎨 Design Your Payslip</h2>
+                
+                <!-- Logo Upload -->
+                <div class="design-control-group">
+                  <label>Company Logo</label>
+                  <div class="logo-upload-container">
+                    <div class="logo-preview" id="logoPlaceholder">
+                      <span>📷 Upload Logo</span>
+                    </div>
+                    <img id="logoPreview" class="logo-preview-image" style="display: none;" />
+                    <div class="logo-controls">
+                      <button class="btn-primary btn-sm" id="uploadLogoBtn">Upload Logo</button>
+                      <button class="btn-secondary btn-sm" id="removeLogoBtn">Remove</button>
+                      <input type="file" id="logoUpload" accept="image/*" style="display: none;" />
+                    </div>
+                    <div class="design-hint">Max 2MB. PNG, JPG, or SVG recommended.</div>
+                  </div>
+                </div>
+
+                <!-- Color Scheme -->
+                <div class="design-control-group">
+                  <label>Color Scheme</label>
+                  <div class="color-picker-group">
+                    <div class="color-picker-item">
+                      <label for="primaryColorPicker">Primary</label>
+                      <input type="color" id="primaryColorPicker" value="#667eea" />
+                      <span class="color-preview" id="primaryColorPreview">#667eea</span>
+                    </div>
+                    <div class="color-picker-item">
+                      <label for="secondaryColorPicker">Secondary</label>
+                      <input type="color" id="secondaryColorPicker" value="#764ba2" />
+                      <span class="color-preview" id="secondaryColorPreview">#764ba2</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Font Selection -->
+                <div class="design-control-group">
+                  <label for="fontFamilySelect">Font Family</label>
+                  <select id="fontFamilySelect">
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="'Helvetica Neue', Helvetica, sans-serif">Helvetica</option>
+                    <option value="'Segoe UI', Tahoma, sans-serif">Segoe UI</option>
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                    <option value="'Open Sans', sans-serif">Open Sans</option>
+                    <option value="Georgia, serif">Georgia</option>
+                    <option value="'Times New Roman', serif">Times New Roman</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <!-- Template Management -->
+              <h2>📝 Template Settings</h2>
+              
+              <!-- Template Selection -->
+              <div class="template-controls">
+                <select id="templateSelect">
+                  <option value="">Select a template...</option>
+                </select>
+                <button class="btn-primary" id="createTemplateBtn">+ New</button>
+                <button class="btn-secondary" id="saveTemplateBtn">💾 Save</button>
+                <button class="btn-danger" id="deleteTemplateBtn">🗑️ Delete</button>
+              </div>
+
+              <!-- Template Form -->
+              <div class="form-group">
+                <label for="templateName">Template Name</label>
+                <input type="text" id="templateName" placeholder="e.g., Monthly Payslip">
+              </div>
+
+              <div class="form-group">
+                <label for="templateSubject">Email Subject (Optional)</label>
+                <input type="text" id="templateSubject" placeholder="Your Payslip for {{month}} {{year}}">
+                <div class="template-hint">
+                  Variables: <code>{{employeeName}}</code>, <code>{{month}}</code>, <code>{{year}}</code>
+                </div>
+              </div>
+
+              <!-- Editable Template Fields -->
+              <div class="section-divider"></div>
+              <h3>📝 Customize Payslip Content</h3>
+
+              <div class="form-group">
+                <label for="companyAddress">Company Address</label>
+                <textarea id="companyAddress" rows="3" placeholder="123 Main Road&#10;Business Bay, Cape Town&#10;7806"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="companyContact">Contact Information</label>
+                <input type="text" id="companyContact" placeholder="Tel: +27 21 555 0123 | Email: payroll@company.com">
+              </div>
+
+              <div class="form-group">
+                <label for="customMessage">Custom Message (Optional)</label>
+                <textarea id="customMessage" rows="3" placeholder="Thank you for your dedication and hard work this month."></textarea>
+                <div class="template-hint">
+                  This message will appear at the bottom of the payslip
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="payslipFooter">Footer / Disclaimer</label>
+                <textarea id="payslipFooter" rows="2" placeholder="This is a computer-generated payslip. No signature required."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="taxNumber">Tax/VAT Number (Optional)</label>
+                <input type="text" id="taxNumber" placeholder="VAT: 4123456789 | Company Reg: 2021/123456/07">
+              </div>
+            </div>
+
+            <!-- Right Column: Employee Selection & Delivery -->
+            <div>
+              <!-- Employee Selection -->
+              <div class="payslip-card">
+                <h2>👥 Select Employees</h2>
+                
+                <div class="employee-selection-controls">
+                  <button id="selectAllEmployees">✓ Select All</button>
+                  <button id="deselectAllEmployees">✗ Deselect All</button>
+                  <div class="selected-count">
+                    Selected: <span id="selectedEmployeeCount">0</span>
+                  </div>
+                </div>
+
+                <div id="employeeList">
+                  <!-- Employees will be loaded here dynamically -->
+                </div>
+              </div>
+
+              <!-- Delivery Options -->
+              <div class="payslip-card" style="margin-top: 2rem;">
+                <h2>📬 Delivery Options</h2>
+                
+                <h3>Delivery Methods</h3>
+                <div class="delivery-options">
+                  <div class="delivery-option">
+                    <input type="checkbox" id="deliveryEmail" checked>
+                    <label for="deliveryEmail">📧 Email</label>
+                  </div>
+                  <div class="delivery-option">
+                    <input type="checkbox" id="deliveryWhatsApp">
+                    <label for="deliveryWhatsApp">💬 WhatsApp</label>
+                  </div>
+                </div>
+
+                <h3>Schedule Delivery</h3>
+                <div class="schedule-inputs">
+                  <div class="form-group">
+                    <label for="scheduleDate">Date</label>
+                    <input type="date" id="scheduleDate">
+                  </div>
+                  <div class="form-group">
+                    <label for="scheduleTime">Time</label>
+                    <input type="time" id="scheduleTime" value="09:00">
+                  </div>
+                </div>
+
+                <div class="action-buttons">
+                  <button class="btn-secondary" id="previewPayslipBtn">
+                    👁️ Preview
+                  </button>
+                  <button class="btn-success" id="sendPayslipsBtn">
+                    📤 Send Now
+                  </button>
+                  <button class="btn-primary" id="schedulePayslipsBtn">
+                    ⏰ Schedule
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scheduled Payslips -->
+          <div class="payslip-card">
+            <h2>📅 Scheduled Payslips</h2>
+            <div id="scheduleList">
+              <div class="empty-state">No scheduled payslips</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Preview Payslip</h2>
+              <button class="close-modal" onclick="document.getElementById('previewModal').style.display='none'">&times;</button>
+            </div>
+            <div class="preview-subject" id="previewSubject">
+              Subject will appear here
+            </div>
+            <div class="preview-content" id="previewContent">
+              Payslip content will appear here...
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Employees View -->
       <div class="view-section" id="employeesView">
         <h2 class="section-title">Employee Management</h2>
@@ -3297,6 +3545,12 @@
         businessId = authService.getBusinessId();
         console.log('Business ID:', businessId);
         
+        // Set up WhatsApp logs link with businessId
+        const whatsappLogsLink = document.getElementById('whatsappLogsLink');
+        if (whatsappLogsLink) {
+          whatsappLogsLink.href = `whatsapp-logs.html?businessId=${businessId}`;
+        }
+        
         const businessName = sessionStorage.getItem("businessName");
         const userEmail = sessionStorage.getItem("userEmail") || sessionStorage.getItem("businessId");
         
@@ -3591,6 +3845,7 @@
               }
               
               console.log('🔔 Clock-out detected for', newData.employeeName, '- triggering WhatsApp');
+              console.log('   Employee ID from status:', employeeId, 'Type:', typeof employeeId);
               recentWhatsAppTriggers[employeeId] = now;
               
               // 📊 Get assessment data from cache for complete employee data
@@ -3603,13 +3858,23 @@
                 
                 if (cacheSnap.exists()) {
                   const cacheData = cacheSnap.data();
-                  const employeeCache = (cacheData.employees || []).find(emp => emp.employeeId === employeeId);
+                  console.log('📦 Assessment cache loaded, employees:', cacheData.employees?.length);
+                  console.log('   First employee sample:', cacheData.employees?.[0]);
+                  console.log('   Looking for employeeId:', employeeId);
+                  
+                  // Try both string and number matching
+                  const employeeCache = (cacheData.employees || []).find(emp => {
+                    const match = emp.employeeId == employeeId || emp.employeeId === String(employeeId) || emp.employeeId === Number(employeeId);
+                    console.log(`   Checking emp.employeeId: ${emp.employeeId} (${typeof emp.employeeId}) === ${employeeId} (${typeof employeeId}): ${match}`);
+                    return match;
+                  });
                   
                   if (employeeCache) {
-                    console.log('📊 Found assessment data for employee:', employeeCache);
+                    console.log('✅ Found assessment data for employee:', employeeCache);
                     employeeAssessmentData = employeeCache;
                   } else {
-                    console.warn('⚠️ Employee not found in assessment cache');
+                    console.error('❌ Employee NOT found in assessment cache!');
+                    console.log('   Available employee IDs:', (cacheData.employees || []).map(e => e.employeeId + ' (' + typeof e.employeeId + ')'));
                   }
                 } else {
                   console.warn('⚠️ Assessment cache not found for month:', currentMonth);
@@ -3618,10 +3883,12 @@
                 console.error('❌ Error loading assessment cache:', cacheError);
               }
               
-              // Trigger WhatsApp automation with complete employee data
+              // Trigger WhatsApp automation with complete employee data (phone from cache)
               const employeeDataToSend = {
                 employeeId: employeeId,
                 employeeName: newData.employeeName || employeeAssessmentData.employeeName,
+                phone: employeeAssessmentData.phone || null,  // ✅ Get phone from cached data
+                email: employeeAssessmentData.email || null,  // ✅ Get email from cached data
                 time: new Date(newData.lastClockTime).toLocaleTimeString(),
                 date: new Date(newData.lastClockTime).toLocaleDateString(),
                 // Assessment cache data
@@ -3653,6 +3920,32 @@
                 
                 const result = await response.json();
                 console.log('✅ WhatsApp triggered:', result);
+                
+                // Log detailed message results
+                if (result.messages && result.messages.length > 0) {
+                  result.messages.forEach((msg, idx) => {
+                    console.log(`   📱 Message ${idx + 1}:`, {
+                      to: msg.to,
+                      status: msg.status,
+                      error: msg.error,
+                      result: msg.result
+                    });
+                    
+                    // Show WhatsApp API response details
+                    if (msg.result) {
+                      console.log(`      🔍 WhatsApp API returned:`, msg.result);
+                      if (msg.result.messages && msg.result.messages[0]) {
+                        console.log(`      ✅ Message ID:`, msg.result.messages[0].id);
+                      }
+                      if (msg.result.error) {
+                        console.error(`      ❌ API Error:`, msg.result.error);
+                      }
+                    }
+                    if (msg.error) {
+                      console.error(`      ❌ Send Error:`, msg.error);
+                    }
+                  });
+                }
                 
                 // Check if multiple messages were sent
                 if (result.messagesSent > 1) {
@@ -3854,6 +4147,7 @@
         'timecard': 'timecardView',
         'reports': 'reportsView',
         'assessment': 'assessmentView',
+        'payslips': 'payslipsView',
         'employees': 'employeesView',
         'shifts': 'shiftsView',
         'punches': 'punchesView',
@@ -4074,6 +4368,12 @@
         if (module === 'assessment') {
           console.log('Loading assessment module...');
           await initAssessment();
+          return;
+        }
+
+        if (module === 'payslips') {
+          console.log('Loading payslips module...');
+          await initPayslips();
           return;
         }
 
@@ -7333,9 +7633,12 @@
         closeManualPunchModal();
         
         // Refresh punches if the selected date matches
-        const currentDateFilter = document.getElementById('punchDateFilter').value;
-        if (currentDateFilter === date) {
-          loadPunches();
+        const punchDateFilterElement = document.getElementById('punchDateFilter');
+        if (punchDateFilterElement) {
+          const currentDateFilter = punchDateFilterElement.value;
+          if (currentDateFilter === date) {
+            loadPunches();
+          }
         }
 
       } catch (error) {
@@ -9586,6 +9889,40 @@ Click "Test Connection" after starting the service.`);
 
   <!-- Shift Management Module Script -->
   <script type="module" src="../modules/shift/shiftManager.js"></script>
+
+  <!-- Payslips Module Styles -->
+  <link rel="stylesheet" href="../modules/payslips/payslips.css">
+
+  <!-- Payslips Module Script -->
+  <script type="module">
+    import PayslipsModule from '../modules/payslips/payslips.js';
+    
+    // Initialize payslips module
+    window.initPayslips = async function() {
+      try {
+        console.log('Initializing payslips module...');
+        const businessId = window.businessId;
+        
+        if (!businessId) {
+          console.error('Business ID not available');
+          return;
+        }
+        
+        // Create payslips module instance
+        if (!window.payslipsModule) {
+          window.payslipsModule = new PayslipsModule(businessId);
+          await window.payslipsModule.init();
+        } else {
+          // Reload if already initialized
+          await window.payslipsModule.init();
+        }
+        
+        console.log('✅ Payslips module initialized successfully');
+      } catch (error) {
+        console.error('❌ Error initializing payslips module:', error);
+      }
+    };
+  </script>
 
   <!-- Mobile Menu Toggle Script -->
   <script>

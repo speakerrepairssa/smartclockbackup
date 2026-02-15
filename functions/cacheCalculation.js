@@ -417,6 +417,8 @@ async function calculateSingleEmployeeAssessment(businessId, employeeId, month =
       employeeId: employeeId,
       employeeIndex: slot,
       employeeName: employeeName,
+      phone: employee.phone || null,  // ✅ Add phone from staff record
+      email: employee.email || null,  // ✅ Add email from staff record
       shiftId: employee.shiftId || null,
       shiftName: shiftSchedule ? shiftSchedule.shiftName : 'No Shift Assigned',
       currentHours: currentHours,
