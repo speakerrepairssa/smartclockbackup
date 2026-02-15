@@ -33,6 +33,46 @@ export const DEFAULT_PAYSLIP_TEMPLATE = {
     footer: true
   },
   
+  // Deduction Configuration (South African Standard)
+  deductionTypes: {
+    uif: {
+      enabled: true,
+      label: "UIF (Unemployment Insurance Fund)",
+      rate: 1.0, // 1% of gross
+      description: "1% of gross salary"
+    },
+    paye: {
+      enabled: true,
+      label: "PAYE (Income Tax)",
+      rate: 0, // Calculated based on tax brackets
+      description: "As per SARS tax tables"
+    },
+    pension: {
+      enabled: false,
+      label: "Pension Fund Contribution",
+      rate: 7.5, // Percentage of gross
+      description: "Retirement annuity contribution"
+    },
+    medicalAid: {
+      enabled: false,
+      label: "Medical Aid Contribution",
+      rate: 0, // Fixed amount
+      description: "Monthly medical aid premium"
+    },
+    providentFund: {
+      enabled: false,
+      label: "Provident Fund",
+      rate: 7.5,
+      description: "Provident fund contribution"
+    },
+    other: {
+      enabled: false,
+      label: "Other Deductions",
+      rate: 0,
+      description: "Miscellaneous deductions"
+    }
+  },
+  
   // Custom Messages
   headerMessage: "",
   footerMessage: "This is a computer-generated payslip. No signature is required.",
@@ -375,7 +415,43 @@ export const DEFAULT_PAYSLIP_TEMPLATE = {
             </tr>
           </thead>
           <tbody>
+            ${this.deductionTypes.uif.enabled ? `
             <tr>
+              <td>${this.deductionTypes.uif.label}</td>
+              <td class="amount">R {{uif}}</td>
+            </tr>
+            ` : ''}
+            ${this.deductionTypes.paye.enabled ? `
+            <tr>
+              <td>${this.deductionTypes.paye.label}</td>
+              <td class="amount">R {{paye}}</td>
+            </tr>
+            ` : ''}
+            ${this.deductionTypes.pension.enabled ? `
+            <tr>
+              <td>${this.deductionTypes.pension.label}</td>
+              <td class="amount">R {{pension}}</td>
+            </tr>
+            ` : ''}
+            ${this.deductionTypes.medicalAid.enabled ? `
+            <tr>
+              <td>${this.deductionTypes.medicalAid.label}</td>
+              <td class="amount">R {{medicalAid}}</td>
+            </tr>
+            ` : ''}
+            ${this.deductionTypes.providentFund.enabled ? `
+            <tr>
+              <td>${this.deductionTypes.providentFund.label}</td>
+              <td class="amount">R {{providentFund}}</td>
+            </tr>
+            ` : ''}
+            ${this.deductionTypes.other.enabled ? `
+            <tr>
+              <td>${this.deductionTypes.other.label}</td>
+              <td class="amount">R {{otherDeductions}}</td>
+            </tr>
+            ` : ''}
+            <tr style="font-weight: 700; background: #f8fafc; border-top: 2px solid ${this.primaryColor};">
               <td>Total Deductions</td>
               <td class="amount">R {{deductions}}</td>
             </tr>

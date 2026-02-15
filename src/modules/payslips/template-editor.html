@@ -6,6 +6,7 @@
     <button class="editor-tab active" data-tab="company">🏢 Company Info</button>
     <button class="editor-tab" data-tab="styling">🎨 Styling</button>
     <button class="editor-tab" data-tab="sections">📋 Sections</button>
+    <button class="editor-tab" data-tab="deductions">💰 Deductions</button>
     <button class="editor-tab" data-tab="messages">💬 Messages</button>
   </div>
 
@@ -181,6 +182,78 @@
             <small>Legal disclaimer and custom message</small>
           </span>
         </label>
+      </div>
+    </div>
+
+    <!-- Deductions Tab -->
+    <div class="editor-tab-content" data-content="deductions">
+      <h3>Deduction Configuration</h3>
+      <p class="tab-description">Enable/disable deductions to show on payslips (South African standard)</p>
+      
+      <div class="toggle-group">
+        <div class="toggle-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="deductionUIF" checked>
+            <span class="toggle-text">
+              <strong>UIF (Unemployment Insurance Fund)</strong>
+              <small>1% of gross salary (statutory requirement)</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="toggle-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="deductionPAYE" checked>
+            <span class="toggle-text">
+              <strong>PAYE (Pay As You Earn)</strong>
+              <small>Income tax as per SARS tax tables</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="toggle-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="deductionPension">
+            <span class="toggle-text">
+              <strong>Pension Fund Contribution</strong>
+              <small>Retirement annuity contribution</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="toggle-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="deductionMedicalAid">
+            <span class="toggle-text">
+              <strong>Medical Aid Contribution</strong>
+              <small>Monthly medical aid premium</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="toggle-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="deductionProvidentFund">
+            <span class="toggle-text">
+              <strong>Provident Fund</strong>
+              <small>Provident fund contribution</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="toggle-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="deductionOther">
+            <span class="toggle-text">
+              <strong>Other Deductions</strong>
+              <small>Loans, garnishee orders, other deductions</small>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <p><strong>ℹ️ Note:</strong> Only enabled deductions will appear on employee payslips. Actual deduction amounts are calculated based on employee data and salary.</p>
       </div>
     </div>
 

@@ -148,7 +148,14 @@ export class TemplateEditor {
       'sectionEarnings',
       'sectionDeductions',
       'sectionSummary',
-      'sectionFooter'
+      'sectionFooter',
+      // Deduction toggles
+      'deductionUIF',
+      'deductionPAYE',
+      'deductionPension',
+      'deductionMedicalAid',
+      'deductionProvidentFund',
+      'deductionOther'
     ];
 
     toggles.forEach(toggleId => {
@@ -191,6 +198,46 @@ export class TemplateEditor {
       deductions: document.getElementById('sectionDeductions')?.checked || false,
       summary: document.getElementById('sectionSummary')?.checked || false,
       footer: document.getElementById('sectionFooter')?.checked || false
+    };
+
+    // Deduction Types
+    this.currentConfig.deductionTypes = {
+      uif: {
+        enabled: document.getElementById('deductionUIF')?.checked || false,
+        label: "UIF (Unemployment Insurance Fund)",
+        rate: 1.0,
+        description: "1% of gross salary"
+      },
+      paye: {
+        enabled: document.getElementById('deductionPAYE')?.checked || false,
+        label: "PAYE (Income Tax)",
+        rate: 0,
+        description: "As per SARS tax tables"
+      },
+      pension: {
+        enabled: document.getElementById('deductionPension')?.checked || false,
+        label: "Pension Fund Contribution",
+        rate: 7.5,
+        description: "Retirement annuity contribution"
+      },
+      medicalAid: {
+        enabled: document.getElementById('deductionMedicalAid')?.checked || false,
+        label: "Medical Aid Contribution",
+        rate: 0,
+        description: "Monthly medical aid premium"
+      },
+      providentFund: {
+        enabled: document.getElementById('deductionProvidentFund')?.checked || false,
+        label: "Provident Fund",
+        rate: 7.5,
+        description: "Provident fund contribution"
+      },
+      other: {
+        enabled: document.getElementById('deductionOther')?.checked || false,
+        label: "Other Deductions",
+        rate: 0,
+        description: "Miscellaneous deductions"
+      }
     };
 
     // Messages
@@ -244,6 +291,16 @@ export class TemplateEditor {
       setChecked('sectionFooter', config.sections.footer);
     }
 
+    // Deduction Types
+    if (config.deductionTypes) {
+      setChecked('deductionUIF', config.deductionTypes.uif?.enabled);
+      setChecked('deductionPAYE', config.deductionTypes.paye?.enabled);
+      setChecked('deductionPension', config.deductionTypes.pension?.enabled);
+      setChecked('deductionMedicalAid', config.deductionTypes.medicalAid?.enabled);
+      setChecked('deductionProvidentFund', config.deductionTypes.providentFund?.enabled);
+      setChecked('deductionOther', config.deductionTypes.other?.enabled);
+    }
+
     // Messages
     setValue('editorHeaderMessage', config.headerMessage);
     setValue('editorFooterMessage', config.footerMessage);
@@ -274,7 +331,14 @@ export class TemplateEditor {
       regularPay: '4000.00',
       overtimePay: '600.00',
       grossPay: '4600.00',
-      deductions: '460.00',
+      // Sample deductions
+      uif: '46.00', // 1% of gross
+      paye: '230.00', // Sample PAYE
+      pension: '345.00', // 7.5% of gross
+      medicalAid: '1200.00', // Sample fixed amount
+      providentFund: '345.00', // 7.5% of gross
+      otherDeductions: '50.00', // Sample other deductions
+      deductions: '460.00', // Total (UIF + PAYE in this example)
       netPay: '4140.00',
       businessName: this.currentConfig.companyName || 'Your Company Name'
     };
