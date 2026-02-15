@@ -3543,6 +3543,7 @@
         }
 
         businessId = authService.getBusinessId();
+        window.businessId = businessId; // Expose to global scope for modules
         console.log('Business ID:', businessId);
         
         // Set up WhatsApp logs link with businessId
