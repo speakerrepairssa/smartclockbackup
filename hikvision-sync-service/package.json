@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "websdk": "node websdk-server.js",
     "dev": "nodemon server.js",
+    "dev-websdk": "nodemon websdk-server.js",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {

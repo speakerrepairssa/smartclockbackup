@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Integration - AI Clock</title>
+  <link rel="stylesheet" href="../styles/main.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      padding: 1.5rem 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+    }
+
+    .btn-back {
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .settings-card {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+
+    .settings-card h2 {
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #667eea;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    .form-group small {
+      color: #666;
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+      display: block;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-block;
+      margin-right: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .status-active {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .status-inactive {
+      background: #fed7d7;
+      color: #742a2a;
+    }
+
+    .connection-status {
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+
+    .status-success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+
+    .status-error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+
+    .account-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+
+    .label {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .value {
+      color: #666;
+    }
+
+    .template-mapping {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .template-info {
+      flex: 1;
+    }
+
+    .template-name {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .template-details {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+
+    .event-mapping {
+      min-width: 200px;
+      margin-left: 1rem;
+    }
+
+    .test-container {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+    }
+
+    .template-preview {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      min-height: 100px;
+      white-space: pre-wrap;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    .test-results {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 8px;
+      border-left: 4px solid #007bff;
+    }
+
+    .test-success {
+      background: #d4edda;
+      border-left-color: #28a745;
+      color: #155724;
+    }
+
+    .test-error {
+      background: #f8d7da;
+      border-left-color: #dc3545;
+      color: #721c24;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .account-details {
+        grid-template-columns: 1fr;
+      }
+      
+      .template-mapping {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .event-mapping {
+        margin-left: 0;
+        margin-top: 1rem;
+        min-width: auto;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📱 WhatsApp Integration</h1>
+      <a href="business-dashboard.html" class="btn-back">← Back to Dashboard</a>
+    </div>
+
+    <!-- Connection Setup -->
+    <div class="settings-card">
+      <h2>🔗 Connect Your WhatsApp Business</h2>
+      <p style="color: #666; margin-bottom: 1.5rem;">Enter your WhatsApp Business credentials to automatically import your phone number and templates.</p>
+      
+      <form id="connectionForm">
+        <div class="form-group">
+          <label>WhatsApp Business Account ID</label>
+          <input type="text" id="businessAccountId" placeholder="123456789012345" required>
+          <small>Found in Meta Business Manager → WhatsApp → Overview → Business Account ID</small>
+        </div>
+
+        <div class="form-group">
+          <label>Access Token (Permanent)</label>
+          <input type="password" id="accessToken" placeholder="Your permanent access token" required>
+          <small>System User token from Meta Business → System Users → Generate Token</small>
+        </div>
+
+        <div class="connection-status" id="connectionStatus" style="display: none;">
+          <!-- Status messages will appear here -->
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="connectBtn">🔗 Connect & Import Everything</button>
+          <button type="button" class="btn btn-secondary" id="testConnBtn" style="display: none;">🧪 Test Connection</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Connected Account Info -->
+    <div class="settings-card" id="accountInfo" style="display: none;">
+      <h2>✅ Connected WhatsApp Business</h2>
+      
+      <div class="account-details">
+        <div class="detail-item">
+          <span class="label">Business Name:</span>
+          <span class="value" id="connectedBusinessName">-</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Phone Number:</span>
+          <span class="value" id="connectedPhoneNumber">-</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Phone Number ID:</span>
+          <span class="value" id="connectedPhoneNumberId">-</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Status:</span>
+          <span class="value status-badge status-active" id="connectionStatusBadge">Connected</span>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" id="refreshConnection" class="btn btn-secondary">🔄 Refresh Data</button>
+        <button type="button" id="disconnectBtn" class="btn btn-danger">🔌 Disconnect</button>
+      </div>
+    </div>
+
+    <!-- Template Mapping -->
+    <div class="settings-card" id="templateMapping" style="display: none;">
+      <h2>📋 Template Mapping</h2>
+      <p style="color: #666; margin-bottom: 1.5rem;">Map your WhatsApp templates to AiClock events. Only approved templates will be shown.</p>
+      
+      <div id="templateList" class="loading">
+        Loading templates...
+      </div>
+
+      <div class="form-actions">
+        <button type="button" id="refreshTemplates" class="btn btn-secondary">🔄 Refresh Templates</button>
+        <button type="button" id="saveMapping" class="btn btn-primary">💾 Save Mapping</button>
+      </div>
+    </div>
+
+    <!-- Test Section -->
+    <div class="settings-card" id="testSection" style="display: none;">
+      <h2>🧪 Test Your Templates</h2>
+      <p style="color: #666; margin-bottom: 1.5rem;">Send test messages to verify everything works before going live.</p>
+      
+      <div class="test-container">
+        <div class="form-group">
+          <label>Your Phone Number (for testing)</label>
+          <input type="tel" id="testPhoneNumber" placeholder="+27123456789">
+          <small>Include country code. You'll receive the test message here.</small>
+        </div>
+        
+        <div class="form-group">
+          <label>Template to Test</label>
+          <select id="testTemplateSelect">
+            <option value="">Choose a template to test</option>
+          </select>
+        </div>
+        
+        <div id="templatePreview" class="template-preview" style="display: none;">
+          <!-- Template preview will appear here -->
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" id="previewBtn" class="btn btn-secondary">👁️ Preview Message</button>
+          <button type="button" id="sendTestBtn" class="btn btn-primary">📱 Send Test Message</button>
+        </div>
+        
+        <div id="testResults" class="test-results" style="display: none;">
+          <!-- Test results will appear here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { db } from '../config/firebase.js';
+    import authService from '../modules/auth/auth.service.js';
+
+    let businessId = null;
+    let whatsappData = {
+      businessAccountId: '',
+      accessToken: '',
+      phoneNumberId: '',
+      phoneNumber: '',
+      businessName: '',
+      templates: [],
+      mappings: {}
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
+        window.location.href = '/pages/login.html';
+        return;
+      }
+
+      businessId = authService.getBusinessId();
+      await loadExistingSettings();
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      document.getElementById('connectionForm').addEventListener('submit', connectToWhatsApp);
+      document.getElementById('refreshConnection').addEventListener('click', refreshConnection);
+      document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+      document.getElementById('refreshTemplates').addEventListener('click', loadTemplates);
+      document.getElementById('saveMapping').addEventListener('click', saveTemplateMapping);
+      document.getElementById('previewBtn').addEventListener('click', previewTemplate);
+      document.getElementById('sendTestBtn').addEventListener('click', sendTestMessage);
+    }
+
+    async function loadExistingSettings() {
+      try {
+        const settingsRef = doc(db, "businesses", businessId, "settings", "whatsapp");
+        const settingsDoc = await getDoc(settingsRef);
+
+        if (settingsDoc.exists()) {
+          const settings = settingsDoc.data();
+          if (settings.businessAccountId && settings.accessToken) {
+            // Auto-populate and show connected state
+            document.getElementById('businessAccountId').value = settings.businessAccountId;
+            document.getElementById('accessToken').value = settings.accessToken;
+            
+            whatsappData = { ...settings };
+            showConnectedState(settings);
+            await loadTemplates();
+          }
+        }
+      } catch (error) {
+        console.error("Error loading settings:", error);
+      }
+    }
+
+    async function connectToWhatsApp(e) {
+      e.preventDefault();
+      
+      const businessAccountId = document.getElementById('businessAccountId').value;
+      const accessToken = document.getElementById('accessToken').value;
+      const connectBtn = document.getElementById('connectBtn');
+      const statusDiv = document.getElementById('connectionStatus');
+
+      if (!businessAccountId || !accessToken) {
+        showStatus('Please fill in all required fields', 'error');
+        return;
+      }
+
+      connectBtn.textContent = '🔄 Connecting...';
+      connectBtn.disabled = true;
+
+      try {
+        // Test connection and get business info
+        const phoneNumbersResponse = await fetch(`https://graph.facebook.com/v18.0/${businessAccountId}/phone_numbers`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+
+        if (!phoneNumbersResponse.ok) {
+          throw new Error('Failed to connect. Please check your credentials.');
+        }
+
+        const phoneNumbersData = await phoneNumbersResponse.json();
+        
+        if (!phoneNumbersData.data || phoneNumbersData.data.length === 0) {
+          throw new Error('No phone numbers found for this business account.');
+        }
+
+        const phoneInfo = phoneNumbersData.data[0];
+        
+        // Get business info
+        const businessResponse = await fetch(`https://graph.facebook.com/v18.0/${businessAccountId}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+
+        const businessData = businessResponse.ok ? await businessResponse.json() : {};
+
+        // Save connection data
+        whatsappData = {
+          businessAccountId,
+          accessToken,
+          phoneNumberId: phoneInfo.id,
+          phoneNumber: phoneInfo.display_phone_number,
+          businessName: businessData.name || 'WhatsApp Business',
+          connected: true,
+          lastUpdated: new Date().toISOString()
+        };
+
+        // Save to Firebase
+        const settingsRef = doc(db, "businesses", businessId, "settings", "whatsapp");
+        await setDoc(settingsRef, whatsappData);
+
+        showStatus('✅ Successfully connected to WhatsApp Business!', 'success');
+        showConnectedState(whatsappData);
+        
+        // Load templates
+        await loadTemplates();
+
+      } catch (error) {
+        console.error('Connection error:', error);
+        showStatus(`❌ Connection failed: ${error.message}`, 'error');
+      } finally {
+        connectBtn.textContent = '🔗 Connect & Import Everything';
+        connectBtn.disabled = false;
+      }
+    }
+
+    function showConnectedState(data) {
+      document.getElementById('connectedBusinessName').textContent = data.businessName;
+      document.getElementById('connectedPhoneNumber').textContent = data.phoneNumber;
+      document.getElementById('connectedPhoneNumberId').textContent = data.phoneNumberId;
+      
+      document.getElementById('accountInfo').style.display = 'block';
+      document.getElementById('templateMapping').style.display = 'block';
+      document.getElementById('testSection').style.display = 'block';
+    }
+
+    async function loadTemplates() {
+      const templateList = document.getElementById('templateList');
+      const testSelect = document.getElementById('testTemplateSelect');
+      
+      templateList.innerHTML = '<div class="loading">Loading templates...</div>';
+
+      try {
+        if (!whatsappData.businessAccountId || !whatsappData.accessToken) {
+          throw new Error('Not connected to WhatsApp');
+        }
+
+        const templatesResponse = await fetch(`https://graph.facebook.com/v18.0/${whatsappData.businessAccountId}/message_templates`, {
+          headers: {
+            'Authorization': `Bearer ${whatsappData.accessToken}`
+          }
+        });
+
+        if (!templatesResponse.ok) {
+          throw new Error('Failed to load templates');
+        }
+
+        const templatesData = await templatesResponse.json();
+        const approvedTemplates = templatesData.data?.filter(t => t.status === 'APPROVED') || [];
+
+        whatsappData.templates = approvedTemplates;
+
+        // Render template mappings
+        renderTemplateMapping(approvedTemplates);
+        
+        // Update test dropdown
+        testSelect.innerHTML = '<option value="">Choose a template to test</option>';
+        approvedTemplates.forEach(template => {
+          testSelect.innerHTML += `<option value="${template.name}">${template.name}</option>`;
+        });
+
+      } catch (error) {
+        console.error('Error loading templates:', error);
+        templateList.innerHTML = `<div style="color: #dc3545; text-align: center;">Error loading templates: ${error.message}</div>`;
+      }
+    }
+
+    function renderTemplateMapping(templates) {
+      const templateList = document.getElementById('templateList');
+      
+      if (templates.length === 0) {
+        templateList.innerHTML = '<div style="text-align: center; color: #666;">No approved templates found. Create and approve templates in Meta Business Manager first.</div>';
+        return;
+      }
+
+      const eventOptions = [
+        { value: '', text: 'Not Used' },
+        { value: 'clock-in', text: 'Employee Clock In' },
+        { value: 'clock-out', text: 'Employee Clock Out' },
+        { value: 'late-arrival', text: 'Late Arrival' },
+        { value: 'daily-summary', text: 'Daily Summary' },
+        { value: 'weekly-summary', text: 'Weekly Summary' },
+        { value: 'monthly-summary', text: 'Monthly Summary' }
+      ];
+
+      let html = '';
+      
+      templates.forEach(template => {
+        const currentMapping = whatsappData.mappings?.[template.name] || '';
+        
+        html += `
+          <div class="template-mapping">
+            <div class="template-info">
+              <div class="template-name">${template.name}</div>
+              <div class="template-details">
+                Language: ${template.language} | Category: ${template.category}
+              </div>
+            </div>
+            <div class="event-mapping">
+              <select data-template="${template.name}">
+                ${eventOptions.map(opt => 
+                  `<option value="${opt.value}" ${opt.value === currentMapping ? 'selected' : ''}>${opt.text}</option>`
+                ).join('')}
+              </select>
+            </div>
+          </div>
+        `;
+      });
+
+      templateList.innerHTML = html;
+    }
+
+    async function saveTemplateMapping() {
+      try {
+        const mappings = {};
+        const selects = document.querySelectorAll('[data-template]');
+        
+        selects.forEach(select => {
+          const templateName = select.dataset.template;
+          const eventType = select.value;
+          if (eventType) {
+            mappings[templateName] = eventType;
+          }
+        });
+
+        whatsappData.mappings = mappings;
+
+        // Save to Firebase
+        const settingsRef = doc(db, "businesses", businessId, "settings", "whatsapp");
+        await setDoc(settingsRef, whatsappData);
+
+        showStatus('✅ Template mapping saved successfully!', 'success');
+
+      } catch (error) {
+        console.error('Error saving mapping:', error);
+        showStatus(`❌ Error saving: ${error.message}`, 'error');
+      }
+    }
+
+    function previewTemplate() {
+      const templateName = document.getElementById('testTemplateSelect').value;
+      const previewDiv = document.getElementById('templatePreview');
+
+      if (!templateName) {
+        alert('Please select a template first');
+        return;
+      }
+
+      const template = whatsappData.templates.find(t => t.name === templateName);
+      if (!template) {
+        alert('Template not found');
+        return;
+      }
+
+      // Get template body text
+      const bodyComponent = template.components?.find(c => c.type === 'BODY');
+      let messageText = bodyComponent?.text || 'No message body found';
+
+      // Replace sample variables
+      messageText = messageText.replace(/\{\{1\}\}/g, 'John Smith');
+      messageText = messageText.replace(/\{\{2\}\}/g, '160');
+      messageText = messageText.replace(/\{\{3\}\}/g, '80');
+      messageText = messageText.replace(/\{\{4\}\}/g, '75');
+      messageText = messageText.replace(/\{\{5\}\}/g, '5');
+      messageText = messageText.replace(/\{\{6\}\}/g, 'https://aiclock-82608.web.app/timecard');
+      messageText = messageText.replace(/\{\{7\}\}/g, 'R4500.00');
+
+      previewDiv.textContent = messageText;
+      previewDiv.style.display = 'block';
+    }
+
+    async function sendTestMessage() {
+      const phoneNumber = document.getElementById('testPhoneNumber').value;
+      const templateName = document.getElementById('testTemplateSelect').value;
+      const resultsDiv = document.getElementById('testResults');
+      const sendBtn = document.getElementById('sendTestBtn');
+
+      if (!phoneNumber || !templateName) {
+        alert('Please enter phone number and select template');
+        return;
+      }
+
+      sendBtn.textContent = '📱 Sending...';
+      sendBtn.disabled = true;
+
+      try {
+        // Send via WhatsApp Cloud API
+        const template = whatsappData.templates.find(t => t.name === templateName);
+        
+        const messageData = {
+          messaging_product: "whatsapp",
+          to: phoneNumber.replace(/\D/g, ''),
+          type: "template",
+          template: {
+            name: templateName,
+            language: {
+              code: template.language
+            },
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  { type: "text", text: "John Smith" },
+                  { type: "text", text: "160" },
+                  { type: "text", text: "80" },
+                  { type: "text", text: "75" },
+                  { type: "text", text: "5" },
+                  { type: "text", text: "https://aiclock-82608.web.app/timecard" },
+                  { type: "text", text: "R4500.00" }
+                ]
+              }
+            ]
+          }
+        };
+
+        const response = await fetch(`https://graph.facebook.com/v18.0/${whatsappData.phoneNumberId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${whatsappData.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(messageData)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Failed to send message');
+        }
+
+        const result = await response.json();
+
+        resultsDiv.className = 'test-results test-success';
+        resultsDiv.innerHTML = `
+          <h4>✅ Test Message Sent Successfully!</h4>
+          <p><strong>To:</strong> ${phoneNumber}</p>
+          <p><strong>Template:</strong> ${templateName}</p>
+          <p><strong>Message ID:</strong> ${result.messages?.[0]?.id || 'N/A'}</p>
+          <small>Check your phone for the message!</small>
+        `;
+        resultsDiv.style.display = 'block';
+
+      } catch (error) {
+        console.error('Send test error:', error);
+        resultsDiv.className = 'test-results test-error';
+        resultsDiv.innerHTML = `
+          <h4>❌ Test Message Failed</h4>
+          <p><strong>Error:</strong> ${error.message}</p>
+          <p><strong>Troubleshooting:</strong></p>
+          <ul>
+            <li>Verify phone number includes country code (no + symbol)</li>
+            <li>Ensure template is approved in Meta Business Manager</li>
+            <li>Check that access token has proper permissions</li>
+          </ul>
+        `;
+        resultsDiv.style.display = 'block';
+
+      } finally {
+        sendBtn.textContent = '📱 Send Test Message';
+        sendBtn.disabled = false;
+      }
+    }
+
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('connectionStatus');
+      statusDiv.className = `connection-status status-${type}`;
+      statusDiv.textContent = message;
+      statusDiv.style.display = 'block';
+    }
+
+    async function refreshConnection() {
+      if (whatsappData.businessAccountId && whatsappData.accessToken) {
+        await connectToWhatsApp({ preventDefault: () => {} });
+      }
+    }
+
+    function disconnect() {
+      if (confirm('Are you sure you want to disconnect WhatsApp? This will disable all WhatsApp notifications.')) {
+        // Clear UI
+        document.getElementById('accountInfo').style.display = 'none';
+        document.getElementById('templateMapping').style.display = 'none';
+        document.getElementById('testSection').style.display = 'none';
+        document.getElementById('connectionStatus').style.display = 'none';
+        
+        // Clear form
+        document.getElementById('businessAccountId').value = '';
+        document.getElementById('accessToken').value = '';
+        
+        // Clear data
+        whatsappData = {};
+      }
+    }
+  </script>
+</body>
+</html>
