@@ -7319,7 +7319,7 @@
     window.loadAssessment = loadAssessment;
     window.printAssessment = printAssessment;
 
-    // 🚀 NEW: Assessment cache trigger function
+    // 🚀 NEW: Assessment cache trigger function with improved error handling
     async function triggerAssessmentCalculation() {
       const month = document.getElementById('assessmentMonthInput')?.value;
       if (!month) {
@@ -7341,12 +7341,26 @@
           month 
         });
         
-        // Call ISOLATED Cache Calculation Cloud Function
-        // This function is deployed separately to prevent updates from breaking it
-        const functionUrl = `https://us-central1-aiclock-82608.cloudfunctions.net/cacheCalculation?businessId=${businessId}&month=${month}`;
-        const response = await fetch(functionUrl, {
-          method: 'GET'
+        // Try cacheCalculation first (isolated, more stable), fallback to updateAssessmentCache
+        let functionUrl = `https://us-central1-aiclock-82608.cloudfunctions.net/cacheCalculation?businessId=${businessId}&month=${month}`;
+        let response = await fetch(functionUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
         });
+        
+        // If first function fails, try alternative function
+        if (!response.ok) {
+          console.log('⚠️ cacheCalculation failed, trying updateAssessmentCache...');
+          functionUrl = `https://us-central1-aiclock-82608.cloudfunctions.net/updateAssessmentCache?businessId=${businessId}&month=${month}`;
+          response = await fetch(functionUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+        }
         
         if (response.ok) {
           const result = await response.json();
@@ -7358,13 +7372,46 @@
           await loadAssessment();
           
         } else {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to update assessment cache');
+          // Enhanced error handling
+          let errorMessage = 'Server error occurred';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          
+          console.error('❌ Assessment recalculation failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: functionUrl
+          });
+          
+          // Show helpful error with fallback option
+          const shouldRefresh = confirm(
+            `⚠️ Assessment recalculation failed: ${errorMessage}\n\n` +
+            `This may be a temporary server issue. Your cached assessment data is still available.\n\n` +
+            `Click OK to refresh and view your current cached data, or Cancel to stay on this page.`
+          );
+          
+          if (shouldRefresh) {
+            await loadAssessment();
+          }
         }
         
       } catch (error) {
         console.error('❌ Failed to trigger assessment calculation:', error);
-        alert('❌ Failed to recalculate: ' + error.message);
+        
+        // Network or CORS error - offer to reload cached data
+        const shouldRefresh = confirm(
+          `⚠️ Unable to recalculate assessment: ${error.message}\n\n` +
+          `This may be a network or permissions issue. Your cached assessment data is still available.\n\n` +
+          `Click OK to refresh and view your current cached data, or Cancel to try again later.`
+        );
+        
+        if (shouldRefresh) {
+          await loadAssessment();
+        }
       } finally {
         if (btn) {
           btn.innerHTML = originalText;

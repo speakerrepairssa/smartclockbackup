@@ -99,20 +99,95 @@ class ShiftManagerController {
         `https://us-central1-aiclock-82608.cloudfunctions.net/getShifts?businessId=${this.businessId}`
       );
 
+      // Check if response is OK
+      if (!response.ok) {
+        console.log(`⚠️ Shifts API unavailable (${response.status}), loading directly from Firestore...`);
+        // Fallback: Load directly from Firestore
+        await this.loadShiftsFromFirestore();
+        return;
+      }
+
       const result = await response.json();
 
       if (result.success) {
         this.shifts = result.shifts || [];
         this.renderShifts();
+        
+        // Update shifts count
+        const shiftsCount = document.getElementById('shiftsCount');
+        if (shiftsCount) {
+          shiftsCount.textContent = `${this.shifts.length} shift${this.shifts.length !== 1 ? 's' : ''} configured`;
+          shiftsCount.style.color = '#666';
+        }
       } else {
         throw new Error(result.error || 'Failed to load shifts');
       }
 
     } catch (error) {
-      console.error("Error loading shifts:", error);
-      showNotification("Error loading shifts", "error");
+      console.error("Error loading shifts from API:", error);
+      
+      // Fallback: Try loading directly from Firestore
+      console.log('🔄 Attempting to load shifts directly from Firestore...');
+      await this.loadShiftsFromFirestore();
     } finally {
       hideLoader();
+    }
+  }
+
+  /**
+   * Load shifts directly from Firestore (fallback when cloud function is down)
+   */
+  async loadShiftsFromFirestore() {
+    try {
+      console.log('📊 Loading shifts from Firestore for:', this.businessId);
+      
+      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js');
+      
+      const shiftsRef = collection(db, "businesses", this.businessId, "shifts");
+      const q = query(shiftsRef, where("active", "==", true));
+      const querySnapshot = await getDocs(q);
+      
+      this.shifts = [];
+      querySnapshot.forEach((doc) => {
+        this.shifts.push({
+          shiftId: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      // Sort by default first, then by name
+      this.shifts.sort((a, b) => {
+        if (a.isDefault && !b.isDefault) return -1;
+        if (!a.isDefault && b.isDefault) return 1;
+        return (a.shiftName || '').localeCompare(b.shiftName || '');
+      });
+      
+      console.log(`✅ Loaded ${this.shifts.length} shifts from Firestore`);
+      
+      this.renderShifts();
+      
+      // Update shifts count
+      const shiftsCount = document.getElementById('shiftsCount');
+      if (shiftsCount) {
+        shiftsCount.textContent = `${this.shifts.length} shift${this.shifts.length !== 1 ? 's' : ''} configured`;
+        shiftsCount.style.color = '#666';
+      }
+      
+    } catch (firestoreError) {
+      console.error("Error loading shifts from Firestore:", firestoreError);
+      
+      // Initialize with empty shifts on error to prevent infinite loading
+      this.shifts = [];
+      this.renderShifts();
+      
+      // Update UI with error state
+      const shiftsCount = document.getElementById('shiftsCount');
+      if (shiftsCount) {
+        shiftsCount.textContent = 'Error loading shifts';
+        shiftsCount.style.color = '#ff6b6b';
+      }
+      
+      showNotification("Unable to load shifts. You can still create new shifts.", "warning");
     }
   }
 
