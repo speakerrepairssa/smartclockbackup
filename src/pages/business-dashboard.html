@@ -32,6 +32,8 @@
       height: 100vh;
       overflow-y: auto;
       z-index: 10;
+      display: flex;
+      flex-direction: column;
     }
 
     .sidebar-header {
@@ -44,6 +46,8 @@
 
     .sidebar-menu {
       list-style: none;
+      flex: 1;
+      overflow-y: auto;
     }
 
     .sidebar-menu li {
@@ -75,11 +79,11 @@
     }
 
     .sidebar-footer {
-      position: absolute;
-      bottom: 1rem;
-      left: 1rem;
-      right: 1rem;
-      width: calc(100% - 2rem);
+      position: sticky;
+      bottom: 0;
+      padding-top: 1rem;
+      margin-top: auto;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
     .logout-btn {
