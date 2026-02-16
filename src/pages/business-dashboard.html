@@ -489,7 +489,7 @@
       </div>
 
       <!-- Stats Grid -->
-      <div class="stats-grid">
+      <div class="stats-grid" id="statsGrid">
         <div class="stat-card">
           <div class="stat-icon">👥</div>
           <div>
@@ -4183,6 +4183,16 @@
           btn.classList.add('active');
         }
       });
+
+      // Show/hide stats grid - only visible on dashboard
+      const statsGrid = document.getElementById('statsGrid');
+      if (statsGrid) {
+        if (module === 'dashboard') {
+          statsGrid.style.display = 'grid';
+        } else {
+          statsGrid.style.display = 'none';
+        }
+      }
 
       // Update view
       document.querySelectorAll('.view-section').forEach(view => {
