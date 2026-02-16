@@ -6106,6 +6106,11 @@
     }
 
     // Make timecard functions globally available
+    window.editTimecardPunch = editTimecardPunch;
+    window.deleteTimecardPunch = deleteTimecardPunch;
+    window.printTimecard = printTimecard;
+    window.loadTimecard = loadTimecard;
+
     // Function to clean up invalid/test events and duplicates
     async function cleanupAttendanceEvents() {
       if (!confirm('This will clean up duplicate and invalid attendance events. Continue?')) {
