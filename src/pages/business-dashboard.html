@@ -459,6 +459,7 @@
         <li><button class="menu-btn" data-module="assessment" onclick="switchModule('assessment')">📊 Assessment</button></li>
         <li><button class="menu-btn" data-module="payslips" onclick="switchModule('payslips')">💰 Payslips</button></li>
         <li><button class="menu-btn" data-module="employees" onclick="switchModule('employees')">👥 Employees</button></li>
+        <li><a href="employee-credentials.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">🔐 Employee Credentials</button></a></li>
         <li><button class="menu-btn" data-module="shifts" onclick="switchModule('shifts')">📅 Shifts</button></li>
         <li><button class="menu-btn" data-module="timecard" onclick="switchModule('timecard')">🕐 Timecard</button></li>
         <li><button class="menu-btn" data-module="punches" onclick="switchModule('punches')">👊 Punches</button></li>
@@ -4683,6 +4684,21 @@
                   <input type="text" name="badgeNumber" value="${emp.badgeNumber || ''}" readonly>
                 </div>
                 
+                <div class="form-group" style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea;">
+                  <h4 style="margin: 0 0 1rem 0; color: #667eea; font-size: 1rem;">🔐 Employee Portal Access</h4>
+                  <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Set credentials for the employee self-service portal</p>
+                  
+                  <label>Username / Login ID*</label>
+                  <input type="text" name="username" value="${emp.username || emp.badgeNumber || ''}" placeholder="e.g., jsmith or badge number" required>
+                  <small style="color: #666;">This will be used to login to the employee portal</small>
+                </div>
+                
+                <div class="form-group">
+                  <label>Portal Password</label>
+                  <input type="text" name="password" value="${emp.password || ''}" placeholder="Set employee portal password">
+                  <small style="color: #666;">Leave blank to keep current password. Employee will use this with their username to access the portal.</small>
+                </div>
+                
                 <div class="form-group">
                   <label>Phone Number</label>
                   <input type="tel" name="phone" value="${emp.phone || ''}" placeholder="+27 XX XXX XXXX">
@@ -4813,6 +4829,7 @@
 
         const employeeData = {
           employeeName: formData.get('employeeName'),
+          username: formData.get('username'), // Add username for portal login
           phone: formData.get('phone'),
           email: formData.get('email'),
           position: formData.get('position'),
@@ -4824,6 +4841,12 @@
           notes: formData.get('notes'),
           updatedAt: new Date().toISOString()
         };
+
+        // Only update password if a new one is provided
+        const newPassword = formData.get('password');
+        if (newPassword && newPassword.trim() !== '') {
+          employeeData.password = newPassword.trim();
+        }
 
         // Update Firebase with basic info
         const staffRef = doc(db, "businesses", businessId, "staff", employeeId);

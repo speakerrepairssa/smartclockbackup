@@ -335,12 +335,33 @@
 
     /* Print Styles */
     @media print {
-      .sidebar, .logout-btn, .btn {
+      .sidebar, .logout-btn, .btn, .timecard-controls {
         display: none !important;
       }
 
       .main-content {
         margin-left: 0;
+      }
+
+      #printHeader, #printFooter {
+        display: block !important;
+      }
+
+      .section-title, .section-description {
+        display: none;
+      }
+
+      body {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+
+      table {
+        page-break-inside: avoid;
+      }
+
+      thead {
+        display: table-header-group;
       }
     }
   </style>
@@ -436,16 +457,48 @@
         <h2 class="section-title">My Timecard</h2>
         <p class="section-description">View your attendance records and working hours</p>
 
-        <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 200px;">
-            <label for="timecardMonth" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Select Month:</label>
-            <input type="month" id="timecardMonth" onchange="loadEmployeeTimecard()" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;">
+        <!-- Print Header (hidden on screen, visible in print) -->
+        <div id="printHeader" style="display: none;">
+          <div style="text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #333;">
+            <h1 style="margin: 0; font-size: 24px; color: #333;" id="printCompanyName">Company Name</h1>
+            <p style="margin: 5px 0; color: #666;">Attendance Timecard</p>
           </div>
-          <button class="btn btn-primary" onclick="printTimecard()">🖨️ Print</button>
         </div>
 
+        <!-- Timecard Controls -->
+        <div class="timecard-controls" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
+          <div style="display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+              <label for="timecardMonth" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Select Month:</label>
+              <input type="month" id="timecardMonth" onchange="loadEmployeeTimecard()" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;">
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-primary" onclick="loadEmployeeTimecard()" style="white-space: nowrap;">🔄 Refresh</button>
+              <button class="btn btn-primary" onclick="printTimecard()" style="white-space: nowrap;">🖨️ Print</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timecard Display -->
         <div id="timecardDisplay">
-          <div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">Select a month to view your timecard</div>
+          <div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">
+            Select a month to view your timecard
+          </div>
+        </div>
+
+        <!-- Print Footer (hidden on screen, visible in print) -->
+        <div id="printFooter" style="display: none;">
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <div style="display: flex; justify-content: space-between; margin-top: 40px;">
+              <div style="text-align: center; flex: 1;">
+                <div style="border-top: 1px solid #333; padding-top: 5px; margin: 0 20px;">Employee Signature</div>
+              </div>
+              <div style="text-align: center; flex: 1;">
+                <div style="border-top: 1px solid #333; padding-top: 5px; margin: 0 20px;">Manager Signature</div>
+              </div>
+            </div>
+            <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;" id="printDate">Printed: <span></span></p>
+          </div>
         </div>
       </div>
 
@@ -454,15 +507,27 @@
         <h2 class="section-title">My Assessment</h2>
         <p class="section-description">Monthly working hours and payroll information</p>
 
-        <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 200px;">
-            <label for="assessmentMonth" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Select Month:</label>
-            <input type="month" id="assessmentMonth" onchange="loadEmployeeAssessment()" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;">
+        <!-- Monthly Hours Schedule Reference -->
+        <div id="employeeMonthlyHoursSchedule" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
+          <h3 style="font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            📅 Annual Working Hours Schedule
+          </h3>
+          <div id="employeeMonthlyHoursGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
+            <!-- Will be populated dynamically -->
           </div>
         </div>
 
+        <!-- Assessment Controls -->
+        <div class="assessment-controls" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); display: flex; gap: 1rem; align-items: end; margin-bottom: 1.5rem; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 200px;">
+            <label for="assessmentMonth" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Assessment Month:</label>
+            <input type="month" id="assessmentMonth" onchange="loadEmployeeAssessment()" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;">
+          </div>
+          <button onclick="loadEmployeeAssessment()" style="background: #667eea; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.95rem; white-space: nowrap;">🔄 Refresh</button>
+        </div>
+
         <div id="assessmentDisplay">
-          <div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">Select a month to view your assessment</div>
+          <div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">📊 Select a month to view your assessment</div>
         </div>
       </div>
 
@@ -539,27 +604,30 @@
     };
 
     // Check authentication on load
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Get employee ID from URL or session
-        const urlParams = new URLSearchParams(window.location.search);
-        employeeId = urlParams.get('employeeId') || sessionStorage.getItem('employeeId');
-        businessId = urlParams.get('businessId') || sessionStorage.getItem('businessId');
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log('Employee portal loading...');
+      
+      // Check if user is authenticated as employee
+      const userRole = sessionStorage.getItem('userRole');
+      businessId = sessionStorage.getItem('businessId');
+      employeeId = sessionStorage.getItem('employeeId');
+      const employeeName = sessionStorage.getItem('employeeName');
 
-        if (!employeeId || !businessId) {
-          alert('Invalid access. Please log in through your employee portal link.');
-          window.location.href = '/pages/login.html';
-          return;
-        }
+      console.log('Session data:', { userRole, businessId, employeeId, employeeName });
 
-        // Store in session
-        sessionStorage.setItem('employeeId', employeeId);
-        sessionStorage.setItem('businessId', businessId);
+      if (userRole !== 'employee' || !businessId || !employeeId) {
+        alert('Please log in through the employee portal to access this page.');
+        window.location.href = '/pages/employee-login.html';
+        return;
+      }
 
+      try {
         await loadEmployeeData();
-await loadOverview();
-      } else {
-        window.location.href = '/pages/login.html';
+        await loadOverview();
+      } catch (error) {
+        console.error('Error loading employee portal:', error);
+        alert('Error loading your information. Please try logging in again.');
+        window.location.href = '/pages/employee-login.html';
       }
     });
 
@@ -588,9 +656,93 @@ await loadOverview();
         document.getElementById('timecardMonth').value = currentMonth;
         document.getElementById('assessmentMonth').value = currentMonth;
 
+        // Load monthly hours schedule
+        await loadMonthlyHoursSchedule();
+
       } catch (error) {
         console.error('Error loading employee data:', error);
         alert('Error loading your information');
+      }
+    }
+
+    // Load monthly hours schedule
+    async function loadMonthlyHoursSchedule() {
+      try {
+        const grid = document.getElementById('employeeMonthlyHoursGrid');
+        if (!grid) return;
+
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        
+        // Load employee's shift data
+        let employeeShift = null;
+        let hoursPerDay = 8; // Default
+        
+        if (employeeData && employeeData.shiftId) {
+          try {
+            const shiftRef = doc(db, "businesses", businessId, "shifts", employeeData.shiftId);
+            const shiftDoc = await getDoc(shiftRef);
+            if (shiftDoc.exists() && shiftDoc.data().active) {
+              employeeShift = shiftDoc.data();
+              hoursPerDay = employeeShift.hoursPerDay || 8;
+            }
+          } catch (error) {
+            console.error('Error loading shift for schedule:', error);
+          }
+        }
+        
+        let html = '';
+        
+        for (let i = 0; i < 12; i++) {
+          // Calculate working days (Mon-Fri) in this month
+          const firstDay = new Date(currentYear, i, 1);
+          const lastDay = new Date(currentYear, i + 1, 0);
+          let workingDays = 0;
+          
+          for (let day = 1; day <= lastDay.getDate(); day++) {
+            const date = new Date(currentYear, i, day);
+            const dayOfWeek = date.getDay();
+            // Count Mon-Fri (1-5)
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+              workingDays++;
+            }
+          }
+          
+          // Calculate required hours for this month
+          const requiredHours = workingDays * hoursPerDay;
+          
+          // Check if it's current month
+          const isCurrent = (i === currentMonth);
+          
+          html += `
+            <div style="background: ${isCurrent ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'white'}; 
+                        padding: 0.75rem; 
+                        border-radius: 8px; 
+                        border: 1px solid ${isCurrent ? '#667eea' : '#e9ecef'}; 
+                        text-align: center;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+              <div style="font-size: 0.8rem; 
+                          color: ${isCurrent ? 'white' : '#6c757d'}; 
+                          margin-bottom: 0.25rem; 
+                          font-weight: 600; 
+                          text-transform: uppercase;">${months[i]}</div>
+              <div style="font-size: 1.3rem; 
+                          font-weight: 700; 
+                          color: ${isCurrent ? 'white' : '#2c3e50'};">${requiredHours}h</div>
+              <div style="font-size: 0.7rem; 
+                          color: ${isCurrent ? 'rgba(255,255,255,0.8)' : '#999'}; 
+                          margin-top: 0.25rem;">${workingDays} days</div>
+            </div>
+          `;
+        }
+        
+        grid.innerHTML = html;
+        console.log('✅ Monthly hours schedule loaded with', hoursPerDay, 'hours per day');
+        
+      } catch (error) {
+        console.error('Error loading monthly hours schedule:', error);
       }
     }
 
@@ -683,6 +835,13 @@ await loadOverview();
 
     // Load employee timecard
     window.loadEmployeeTimecard = async function() {
+      // Helper function to format decimal hours to hours:minutes
+      function formatHours(decimalHours) {
+        const hrs = Math.floor(decimalHours);
+        const mins = Math.round((decimalHours - hrs) * 60);
+        return decimalHours > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`) : '0h';
+      }
+
       const month = document.getElementById('timecardMonth').value;
       const display = document.getElementById('timecardDisplay');
 
@@ -694,70 +853,359 @@ await loadOverview();
       try {
         display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Loading timecard...</div>';
 
+        // Set print header
+        const printHeader = document.getElementById('printHeader');
+        const printCompanyName = document.getElementById('printCompanyName');
+        const printDate = document.getElementById('printDate');
+        
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+        const businessData = businessDoc.data();
+        
+        if (printCompanyName) printCompanyName.textContent = businessData.businessName || 'Company Name';
+        if (printDate) {
+          const dateSpan = printDate.querySelector('span');
+          if (dateSpan) dateSpan.textContent = new Date().toLocaleDateString('en-US');
+        }
+
+        // Parse month
         const [year, monthNum] = month.split('-');
         const monthDate = new Date(year, monthNum - 1, 1);
         const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        // Get all days in month
         const daysInMonth = new Date(year, monthNum, 0).getDate();
+        const dailyRecords = [];
 
-        let allEvents = [];
+        // Get business schedule and settings
+        const schedule = businessData?.schedule || {};
 
-        // Fetch all events for this month
+        // Load employee's shift if assigned
+        let employeeShift = null;
+        if (employeeData.shiftId) {
+          try {
+            const shiftRef = doc(db, "businesses", businessId, "shifts", employeeData.shiftId);
+            const shiftDoc = await getDoc(shiftRef);
+            if (shiftDoc.exists() && shiftDoc.data().active) {
+              employeeShift = shiftDoc.data();
+            }
+          } catch (shiftError) {
+            console.error('Error loading shift:', shiftError);
+          }
+        }
+
+        // Get attendance events for this employee and month (check both nested and flat structures)
+        const eventsByDate = new Map();
+        
+        // Strategy 1: Query nested structure (attendance_events/{date}/{employeeId}/*)
         for (let day = 1; day <= daysInMonth; day++) {
           const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const eventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
-          const eventsSnap = await getDocs(eventsRef);
-
-          eventsSnap.forEach(doc => {
-            const event = doc.data();
-            allEvents.push({
-              ...event,
-              eventId: doc.id,
-              date: dateStr
+          
+          try {
+            const dayEventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
+            const dayEventsSnap = await getDocs(dayEventsRef);
+            
+            dayEventsSnap.forEach(doc => {
+              const event = doc.data();
+              
+              // Skip test events and unresolved pending punches
+              if (event.testMode || (event.status === 'pending' && !event.resolvedManually)) {
+                return;
+              }
+              
+              if (event.timestamp) {
+                const eventDate = new Date(event.timestamp);
+                
+                let eventType = null;
+                if (event.type) eventType = event.type;
+                else if (event.attendanceStatus) {
+                  eventType = event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out';
+                }
+                
+                if (eventType) {
+                  if (!eventsByDate.has(dateStr)) {
+                    eventsByDate.set(dateStr, []);
+                  }
+                  
+                  const existing = eventsByDate.get(dateStr);
+                  const isDuplicate = existing.some(e => {
+                    const timeDiff = Math.abs(new Date(e.timestamp).getTime() - new Date(event.timestamp).getTime());
+                    return timeDiff < 30000 && e.type === eventType;
+                  });
+                  
+                  if (!isDuplicate) {
+                    existing.push({
+                      type: eventType,
+                      timestamp: event.timestamp,
+                      time: eventDate
+                    });
+                  }
+                }
+              }
             });
+          } catch (dayError) {
+            // Day might not exist - that's ok
+          }
+        }
+        
+        // Strategy 2: Fallback to flat structure (legacy format)
+        try {
+          const flatAttendanceRef = collection(db, "businesses", businessId, "attendance_events");
+          const flatAttendanceSnap = await getDocs(flatAttendanceRef);
+          
+          const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+          const endDate = `${year}-${String(monthNum).padStart(2, '0')}-${daysInMonth}`;
+          
+          flatAttendanceSnap.forEach(doc => {
+            const event = doc.data();
+            if (event.employeeId === employeeId && event.timestamp) {
+              const eventDate = new Date(event.timestamp);
+              const dateStr = eventDate.toISOString().split('T')[0];
+              
+              if (dateStr >= startDate && dateStr <= endDate && !event.testMode) {
+                if (event.status === 'pending' && !event.resolvedManually) {
+                  return;
+                }
+                
+                let eventType = null;
+                if (event.type) eventType = event.type;
+                else if (event.attendanceStatus) {
+                  eventType = event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out';
+                }
+                
+                if (eventType) {
+                  if (!eventsByDate.has(dateStr)) {
+                    eventsByDate.set(dateStr, []);
+                  }
+                  
+                  const existing = eventsByDate.get(dateStr);
+                  const isDuplicate = existing.some(e => {
+                    const timeDiff = Math.abs(new Date(e.timestamp).getTime() - new Date(event.timestamp).getTime());
+                    return timeDiff < 30000 && e.type === eventType;
+                  });
+                  
+                  if (!isDuplicate) {
+                    existing.push({
+                      type: eventType,
+                      timestamp: event.timestamp,
+                      time: eventDate
+                    });
+                  }
+                }
+              }
+            }
           });
+        } catch (flatError) {
+          console.log('No flat events found');
         }
 
-        // Sort by timestamp
-        allEvents.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        // Build daily records array for all days in month
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(year, monthNum - 1, day, 12, 0, 0);
+          const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+          const fullDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+          
+          // Check if this day is configured as a working day (shift schedule takes priority)
+          let daySchedule = null;
+          if (employeeShift && employeeShift.schedule && employeeShift.schedule[fullDayName]) {
+            daySchedule = employeeShift.schedule[fullDayName];
+          } else {
+            daySchedule = schedule[fullDayName];
+          }
+          const isWorkingDay = daySchedule?.enabled || false;
 
-        if (allEvents.length === 0) {
-          display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">No attendance records found for this month</div>';
-          return;
+          const events = eventsByDate.get(dateStr) || [];
+          
+          if (events.length > 0) {
+            // Sort events chronologically
+            events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            // Calculate work periods by pairing sequential in/out events
+            let totalMinutes = 0;
+            let currentClockIn = null;
+            
+            for (let i = 0; i < events.length; i++) {
+              const event = events[i];
+              const eventTime = new Date(event.timestamp);
+              
+              if (event.type === 'clock-in') {
+                currentClockIn = eventTime;
+              } 
+              else if (event.type === 'clock-out' && currentClockIn) {
+                const diffMs = eventTime.getTime() - currentClockIn.getTime();
+                const diffMinutes = Math.max(0, diffMs / (1000 * 60));
+                totalMinutes += diffMinutes;
+                currentClockIn = null;
+              }
+            }
+            
+            const actualHours = Math.round((totalMinutes / 60) * 100) / 100;
+
+            // Get break duration
+            let breakMinutes = 60; // Default
+            if (daySchedule && daySchedule.breakDuration !== undefined) {
+              breakMinutes = daySchedule.breakDuration;
+            } else if (employeeShift && employeeShift.defaultBreakDuration !== undefined) {
+              breakMinutes = employeeShift.defaultBreakDuration;
+            } else if (businessData.breakDuration !== undefined) {
+              breakMinutes = businessData.breakDuration;
+            }
+
+            // Calculate scheduled work hours
+            let scheduledWorkHours = 8;
+            let scheduledStartTime = '08:30';
+            let scheduledEndTime = '17:30';
+
+            if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
+              scheduledStartTime = daySchedule.startTime;
+              scheduledEndTime = daySchedule.endTime;
+              const [startH, startM] = scheduledStartTime.split(':').map(Number);
+              const [endH, endM] = scheduledEndTime.split(':').map(Number);
+              const shiftDuration = (endH + endM/60) - (startH + startM/60);
+              scheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
+            } else if (businessData.workStartTime && businessData.workEndTime) {
+              scheduledStartTime = businessData.workStartTime;
+              scheduledEndTime = businessData.workEndTime;
+              const [startH, startM] = scheduledStartTime.split(':').map(Number);
+              const [endH, endM] = scheduledEndTime.split(':').map(Number);
+              const shiftDuration = (endH + endM/60) - (startH + startM/60);
+              scheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
+            }
+            
+            // Get actual first clock-in and last clock-out
+            const firstClockIn = events.find(e => e.type === 'clock-in');
+            const lastClockOut = events.filter(e => e.type === 'clock-out').pop();
+            
+            let payableHours = 0;
+            
+            if (firstClockIn && lastClockOut) {
+              const actualStart = new Date(firstClockIn.timestamp);
+              const actualEnd = new Date(lastClockOut.timestamp);
+              
+              const [schedStartH, schedStartM] = scheduledStartTime.split(':').map(Number);
+              const [schedEndH, schedEndM] = scheduledEndTime.split(':').map(Number);
+              
+              const schedStart = new Date(actualStart);
+              schedStart.setHours(schedStartH, schedStartM, 0, 0);
+              
+              const schedEnd = new Date(actualStart);
+              schedEnd.setHours(schedEndH, schedEndM, 0, 0);
+              
+              const payableStart = new Date(Math.max(actualStart.getTime(), schedStart.getTime()));
+              const payableEnd = new Date(Math.min(actualEnd.getTime(), schedEnd.getTime()));
+              
+              const payableDuration = Math.max(0, (payableEnd.getTime() - payableStart.getTime()) / (1000 * 60 * 60));
+              payableHours = Math.max(0, payableDuration - (breakMinutes / 60));
+              payableHours = Math.min(payableHours, scheduledWorkHours);
+            }
+            
+            const finalHours = Math.round(payableHours * 100) / 100;
+
+            dailyRecords.push({
+              date: dateStr,
+              day: day,
+              dayName: dayName,
+              isWorkingDay: isWorkingDay,
+              clockIns: events.filter(e => e.type === 'clock-in').map(e => e.time),
+              clockOuts: events.filter(e => e.type === 'clock-out').map(e => e.time),
+              totalHours: finalHours,
+              hasData: true,
+              shiftStart: scheduledStartTime,
+              shiftEnd: scheduledEndTime,
+              shiftName: employeeShift?.shiftName || 'Default'
+            });
+          } else {
+            // Get shift schedule even for days without attendance
+            let scheduledStartTime = '08:30';
+            let scheduledEndTime = '17:30';
+            if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
+              scheduledStartTime = daySchedule.startTime;
+              scheduledEndTime = daySchedule.endTime;
+            } else if (businessData.workStartTime && businessData.workEndTime) {
+              scheduledStartTime = businessData.workStartTime;
+              scheduledEndTime = businessData.workEndTime;
+            }
+
+            dailyRecords.push({
+              date: dateStr,
+              day: day,
+              dayName: dayName,
+              isWorkingDay: isWorkingDay,
+              clockIns: [],
+              clockOuts: [],
+              totalHours: 0,
+              hasData: false,
+              shiftStart: scheduledStartTime,
+              shiftEnd: scheduledEndTime,
+              shiftName: employeeShift?.shiftName || 'Default'
+            });
+          }
         }
 
+        // Calculate totals
+        const totalHours = dailyRecords.reduce((sum, record) => sum + record.totalHours, 0);
+        const daysWorked = dailyRecords.filter(r => r.hasData).length;
+
+        // Render timecard
         display.innerHTML = `
-          <div class="timecard-table">
-            <h3 style="margin-bottom: 1rem;">${monthName} - ${employeeData.employeeName}</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Day</th>
-                  <th>Clock In</th>
-                  <th>Clock Out</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${allEvents.map(event => {
-                  const date = new Date(event.timestamp);
-                  const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                  const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                  const dateStr = date.toLocaleDateString();
-                  const status = event.attendanceStatus === 'in' ? '🟢 In' : '🔴 Out';
+          <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+            <div style="margin-bottom: 2rem;">
+              <h3 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; color: #2c3e50;">${employeeData.employeeName} - ${monthName}</h3>
+              <p style="margin: 0; color: #666;">Badge: ${employeeData.badgeNumber || 'N/A'}${employeeShift ? ` • Shift: ${employeeShift.shiftName}` : ''}</p>
+            </div>
 
-                  return `
-                    <tr>
-                      <td>${dateStr}</td>
-                      <td>${dayName}</td>
-                      <td>${event.attendanceStatus === 'in' ? timeStr : '-'}</td>
-                      <td>${event.attendanceStatus === 'out' ? timeStr : '-'}</td>
-                      <td>${status}</td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
+            <div style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+                <thead>
+                  <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <th style="padding: 1rem; text-align: left; font-weight: 600; color: #495057;">Date</th>
+                    <th style="padding: 1rem; text-align: left; font-weight: 600; color: #495057;">Day</th>
+                    <th style="padding: 1rem; text-align: left; font-weight: 600; color: #495057;">Clock In</th>
+                    <th style="padding: 1rem; text-align: left; font-weight: 600; color: #495057;">Clock Out</th>
+                    <th style="padding: 1rem; text-align: center; font-weight: 600; color: #495057;">Shift</th>
+                    <th style="padding: 1rem; text-align: right; font-weight: 600; color: #495057;">Hours</th>
+                    <th style="padding: 1rem; text-align: center; font-weight: 600; color: #495057;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${dailyRecords.map(record => {
+                    const clockIns = record.clockIns.map(t => t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })).join('<br>');
+                    const clockOuts = record.clockOuts.map(t => t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })).join('<br>');
+                    
+                    let statusBadge = '';
+                    if (record.hasData) {
+                      statusBadge = '<span style="background: #d4edda; color: #155724; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Present</span>';
+                    } else if (record.isWorkingDay) {
+                      statusBadge = '<span style="background: #f8d7da; color: #721c24; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Absent</span>';
+                    } else {
+                      statusBadge = '<span style="background: #e2e3e5; color: #383d41; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Off</span>';
+                    }
+
+                    const shiftDisplay = record.isWorkingDay ? `${record.shiftStart} - ${record.shiftEnd}` : '-';
+                    
+                    return `
+                      <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td style="padding: 1rem; color: #495057;">${record.day}</td>
+                        <td style="padding: 1rem; color: #495057;">${record.dayName}</td>
+                        <td style="padding: 1rem; color: ${clockIns ? '#155724' : '#999'};">${clockIns || '-'}</td>
+                        <td style="padding: 1rem; color: ${clockOuts ? '#721c24' : '#999'};">${clockOuts || '-'}</td>
+                        <td style="padding: 1rem; text-align: center; color: #666; font-size: 0.9rem;">${shiftDisplay}</td>
+                        <td style="padding: 1rem; text-align: right; font-weight: 600; color: ${record.totalHours > 0 ? '#2c3e50' : '#999'};">${record.totalHours > 0 ? formatHours(record.totalHours) : '-'}</td>
+                        <td style="padding: 1rem; text-align: center;">${statusBadge}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+                <tfoot>
+                  <tr style="background: #f8f9fa; border-top: 2px solid #dee2e6;">
+                    <td colspan="5" style="padding: 1rem; text-align: right; font-weight: 600; color: #2c3e50;">Total Hours:</td>
+                    <td style="padding: 1rem; text-align: right; font-weight: 700; color: #2c3e50; font-size: 1.1rem;">${formatHours(totalHours)}</td>
+                    <td style="padding: 1rem; text-align: center; color: #666;">${daysWorked} days</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         `;
 
@@ -768,80 +1216,160 @@ await loadOverview();
     };
 
     // Load employee assessment
+    // Helper function to format hours
+    function formatAssessmentHours(decimalHours) {
+      const hrs = Math.floor(decimalHours);
+      const mins = Math.round((decimalHours - hrs) * 60);
+      return decimalHours > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`) : '0h';
+    }
+
     window.loadEmployeeAssessment = async function() {
       const month = document.getElementById('assessmentMonth').value;
       const display = document.getElementById('assessmentDisplay');
 
       if (!month) {
-        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Select a month to view your assessment</div>';
+        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">📊 Select a month to view your assessment</div>';
         return;
       }
 
       try {
-        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Loading assessment...</div>';
+        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">⏳ Loading assessment...</div>';
 
+        console.log('🔍 Loading assessment for employee:', employeeId, 'month:', month);
+
+        // Load from assessment_cache
         const assessmentRef = doc(db, "businesses", businessId, "assessment_cache", month);
         const assessmentDoc = await getDoc(assessmentRef);
 
         if (!assessmentDoc.exists()) {
-          display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">No assessment data available for this month</div>';
+          display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">❌ No assessment data available for this month</div>';
           return;
         }
 
         const data = assessmentDoc.data();
-        const myAssessment = data.employees?.find(emp => emp.employeeId === employeeId);
+        console.log('📊 Assessment cache data:', data);
+        
+        // Find employee in the cache (try multiple field names)
+        const myAssessment = data.employees?.find(emp => 
+          emp.employeeId === employeeId || 
+          emp.employeeId === employeeData.employeeName ||
+          emp.name === employeeData.employeeName
+        );
+
+        console.log('👤 My assessment:', myAssessment);
 
         if (!myAssessment) {
-          display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Your assessment data is not available for this month</div>';
+          display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">⚠️ Your assessment data is not available for this month</div>';
           return;
         }
 
         const monthDate = new Date(month + '-01');
         const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-        display.innerHTML = `
-          <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-            <h3 style="margin-bottom: 1.5rem;">${monthName} Assessment</h3>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-              <div style="background: #48bb7815; padding: 1.5rem; border-radius: 8px;">
-                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">Required Hours</p>
-                <p style="font-size: 1.8rem; font-weight: bold; color: #48bb78;">${myAssessment.requiredHours || 176}h</p>
-              </div>
-              
-              <div style="background: #667eea15; padding: 1.5rem; border-radius: 8px;">
-                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">Current Hours</p>
-                <p style="font-size: 1.8rem; font-weight: bold; color: #667eea;">${(myAssessment.currentHours || 0).toFixed(1)}h</p>
-              </div>
-              
-              <div style="background: ${(myAssessment.hoursShort || 0) > 0 ? '#ed8a3615' : '#48bb7815'}; padding: 1.5rem; border-radius: 8px;">
-                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">Hours Short</p>
-                <p style="font-size: 1.8rem; font-weight: bold; color: ${(myAssessment.hoursShort || 0) > 0 ? '#ed8a36' : '#48bb78'};">${Math.max(0, myAssessment.hoursShort || 0).toFixed(1)}h</p>
-              </div>
-              
-              <div style="background: #764ba215; padding: 1.5rem; border-radius: 8px;">
-                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">Status</p>
-                <p style="font-size: 1.2rem; font-weight: bold; color: #764ba2;">${myAssessment.status || 'Pending'}</p>
-              </div>
-            </div>
+        // Calculate status details
+        const requiredHours = myAssessment.requiredHours || 176;
+        const currentHours = parseFloat(myAssessment.currentHours) || 0;
+        const hoursShort = Math.max(0, requiredHours - currentHours);
+        const payRate = parseFloat(myAssessment.payRate) || 0;
+        const currentIncome = currentHours * payRate;
+        const potentialIncome = requiredHours * payRate;
+        
+        let status = 'On Track';
+        let statusColor = '#28a745';
+        if (hoursShort > 40) {
+          status = 'Critical';
+          statusColor = '#dc3545';
+        } else if (hoursShort > 0) {
+          status = 'Behind';
+          statusColor = '#fd7e14';
+        }
 
-            ${myAssessment.payRate ? `
-            <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
-              <h4 style="margin-bottom: 1rem;">Earnings Summary</h4>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
-                <div>
-                  <p style="color: #666; font-size: 0.85rem;">Pay Rate</p>
-                  <p style="font-weight: bold;">R${myAssessment.payRate.toFixed(2)}/hr</p>
-                </div>
-                <div>
-                  <p style="color: #666; font-size: 0.85rem;">Current Income</p>
-                  <p style="font-weight: bold;">R${(myAssessment.currentIncomeDue || 0).toFixed(2)}</p>
-                </div>
-                <div>
-                  <p style="color: #666; font-size: 0.85rem;">Potential Income</p>
-                  <p style="font-weight: bold;">R${(myAssessment.potentialIncome || 0).toFixed(2)}</p>
-                </div>
-              </div>
+        display.innerHTML = `
+          <!-- Assessment Stats Cards -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Required Hours</div>
+              <div style="font-size: 1.8rem; font-weight: 700; color: #2c3e50;">${formatAssessmentHours(requiredHours)}</div>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #48bb78; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Current Hours</div>
+              <div style="font-size: 1.8rem; font-weight: 700; color: #48bb78;">${formatAssessmentHours(currentHours)}</div>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid ${hoursShort > 0 ? '#dc3545' : '#28a745'}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Hours Short</div>
+              <div style="font-size: 1.8rem; font-weight: 700; color: ${hoursShort > 0 ? '#dc3545' : '#28a745'};">${formatAssessmentHours(hoursShort)}</div>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid ${statusColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Status</div>
+              <div style="font-size: 1.4rem; font-weight: 700; color: ${statusColor};">${status}</div>
+            </div>
+          </div>
+
+          <!-- Detailed Assessment Table -->
+          <div style="background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 1.5rem;">
+            <div style="background: #667eea; color: white; padding: 1rem;">
+              <h3 style="margin: 0; font-size: 1.2rem;">${monthName} - ${employeeData.employeeName}</h3>
+            </div>
+            <div style="padding: 1.5rem;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+                <tbody>
+                  <tr style="border-bottom: 1px solid #e9ecef;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">Shift</td>
+                    <td style="padding: 0.75rem; color: #2c3e50;">${myAssessment.shiftName || 'Default Shift'}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e9ecef; background: #f8f9fa;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">Required Hours</td>
+                    <td style="padding: 0.75rem; color: #2c3e50;">${formatAssessmentHours(requiredHours)}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e9ecef;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">Hours Worked</td>
+                    <td style="padding: 0.75rem; color: #28a745; font-weight: 600;">${formatAssessmentHours(currentHours)}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e9ecef; background: #f8f9fa;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">Hours Short</td>
+                    <td style="padding: 0.75rem; color: ${hoursShort > 0 ? '#dc3545' : '#28a745'}; font-weight: 600;">${formatAssessmentHours(hoursShort)}</td>
+                  </tr>
+                  ${payRate > 0 ? `
+                  <tr style="border-bottom: 1px solid #e9ecef;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">Pay Rate</td>
+                    <td style="padding: 0.75rem; color: #2c3e50;">R${payRate.toFixed(2)} /hour</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e9ecef; background: #f8f9fa;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">Current Income Due</td>
+                    <td style="padding: 0.75rem; color: #28a745; font-weight: 700; font-size: 1.1rem;">R${currentIncome.toFixed(2)}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e9ecef;">
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">Potential Income (100%)</td>
+                    <td style="padding: 0.75rem; color: #667eea; font-weight: 600;">R${potentialIncome.toFixed(2)}</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="padding: 0.75rem; font-weight: 600; color: #495057;">Attendance Status</td>
+                    <td style="padding: 0.75rem;">
+                      <span style="background-color: ${statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">
+                        ${status}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Summary Cards -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #4285f4, #34a853); color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);">
+              <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Attendance Rate</div>
+              <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem;">${((currentHours / requiredHours) * 100).toFixed(1)}%</div>
+            </div>
+            ${payRate > 0 ? `
+            <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #ff9800, #ff5722); color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);">
+              <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Current Earnings</div>
+              <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem;">R${currentIncome.toFixed(0)}</div>
+            </div>
+            <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #4caf50, #2196f3); color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);">
+              <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Potential Earnings</div>
+              <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem;">R${potentialIncome.toFixed(0)}</div>
             </div>
             ` : ''}
           </div>
@@ -855,15 +1383,27 @@ await loadOverview();
 
     // Print timecard
     window.printTimecard = function() {
+      // Show print header and footer
+      const printHeader = document.getElementById('printHeader');
+      const printFooter = document.getElementById('printFooter');
+      if (printHeader) printHeader.style.display = 'block';
+      if (printFooter) printFooter.style.display = 'block';
+      
       window.print();
+      
+      // Hide them again after printing
+      setTimeout(() => {
+        if (printHeader) printHeader.style.display = 'none';
+        if (printFooter) printFooter.style.display = 'none';
+      }, 1000);
     };
 
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       try {
-        await signOut(auth);
+        // Clear employee session
         sessionStorage.clear();
-        window.location.href = '/pages/login.html';
+        window.location.href = '/pages/employee-login.html';
       } catch (error) {
         console.error('Error logging out:', error);
         alert('Error logging out');

@@ -1,0 +1,26 @@
+{
+  "name": "employee-self-service-functions",
+  "version": "1.0.0",
+  "description": "Isolated Cloud Functions for Employee Self-Service Portal credential management",
+  "main": "index.js",
+  "private": true,
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.0.0",
+    "firebase-functions": "^4.0.0"
+  },
+  "scripts": {
+    "deploy": "firebase deploy --only functions:employeeSelfService"
+  },
+  "keywords": [
+    "employee",
+    "self-service",
+    "credentials",
+    "whatsapp",
+    "email"
+  ],
+  "author": "SmartClock AI",
+  "license": "UNLICENSED"
+}

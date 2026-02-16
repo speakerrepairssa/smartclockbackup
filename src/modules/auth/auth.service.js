@@ -128,6 +128,90 @@ class AuthService {
   }
 
   /**
+   * Employee Login
+   * @param {string} businessId
+   * @param {string} username - Employee username or badge number
+   * @param {string} password
+   * @returns {Promise<Object>} Employee data with role
+   */
+  async employeeLogin(businessId, username, password) {
+    try {
+      console.log("Starting employee login for username:", username, "in business:", businessId);
+      
+      // Check if business exists
+      const businessRef = doc(db, "businesses", businessId);
+      const businessSnap = await getDoc(businessRef);
+      
+      if (!businessSnap.exists()) {
+        throw new Error("Invalid Business ID. Please check your credentials.");
+      }
+
+      // Find employee in staff collection by username or badgeNumber
+      const staffRef = collection(db, "businesses", businessId, "staff");
+      const staffSnapshot = await getDocs(staffRef);
+
+      let employeeSlot = null;
+      let employeeData = null;
+
+      // Search through staff slots for matching username or badgeNumber
+      staffSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.username === username || data.badgeNumber === username || data.employeeId === username) {
+          employeeSlot = doc.id;
+          employeeData = data;
+        }
+      });
+
+      if (!employeeData) {
+        throw new Error("Invalid username. Please check your credentials.");
+      }
+
+      // Verify password (check if password field exists on employee record)
+      if (!employeeData.password) {
+        throw new Error("Account not configured. Please contact your administrator.");
+      }
+
+      if (employeeData.password !== password) {
+        throw new Error("Invalid password. Please try again.");
+      }
+
+      // Check if employee is active
+      if (employeeData.active === false || employeeData.status === "inactive") {
+        throw new Error("Your account is not active. Please contact your administrator.");
+      }
+
+      // Set user data
+      this.currentUser = {
+        uid: employeeSlot,
+        username: employeeData.username || employeeData.badgeNumber,
+        name: employeeData.employeeName,
+        businessId: businessId
+      };
+      this.userRole = "employee";
+
+      // Store in session
+      sessionStorage.setItem("userRole", "employee");
+      sessionStorage.setItem("employeeId", employeeSlot);
+      sessionStorage.setItem("businessId", businessId);
+      sessionStorage.setItem("employeeUsername", employeeData.username || employeeData.badgeNumber);
+      sessionStorage.setItem("employeeName", employeeData.employeeName);
+      sessionStorage.setItem("employeeEmail", employeeData.email || "");
+
+      return {
+        employeeId: employeeSlot,
+        username: employeeData.username || employeeData.badgeNumber,
+        name: employeeData.employeeName,
+        email: employeeData.email,
+        businessId: businessId,
+        role: "employee"
+      };
+    } catch (error) {
+      console.error("Employee login error:", error);
+      throw new Error(error.message);
+    }
+  }
+
+  /**
    * Register New Business
    * @param {Object} businessData 
    * @returns {Promise<string>} Business ID

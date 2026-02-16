@@ -43,6 +43,22 @@ const {
 // exports.sendPayslips = sendPayslips;
 // exports.processScheduledPayslips = processScheduledPayslips;
 
+// [EMPLOYEE SELF-SERVICE MODULE - ISOLATED]
+// Import employee self-service functions (isolated module)
+// These functions handle employee portal credential management
+const {
+  sendCredentials,
+  generateCredentials,
+  bulkSendCredentials
+} = require('./employee-self-service/index.js');
+
+// Export employee self-service functions with namespace
+exports.employeeSelfService = {
+  sendCredentials,
+  generateCredentials,
+  bulkSendCredentials
+};
+
 /**
  * Cloud Function to handle attendance webhooks from Hikvision devices
  * Dynamically maps deviceId to the correct business
