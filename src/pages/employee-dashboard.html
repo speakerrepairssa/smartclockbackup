@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Employee Dashboard - SmartClock</title>
+  <title>Employee Portal - SmartClock</title>
+  
   <style>
     * {
       margin: 0;
@@ -12,122 +13,298 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 1rem;
-    }
-
-    .dashboard {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      width: 100%;
-      max-width: 500px;
-      padding: 2rem;
-      text-align: center;
-    }
-
-    .header {
-      margin-bottom: 2rem;
-    }
-
-    .logo {
-      font-size: 3rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .title {
-      font-size: 1.5rem;
-      font-weight: 700;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: #f5f7fa;
       color: #333;
-      margin-bottom: 0.5rem;
     }
 
-    .status-display {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .employee-wrapper {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
       color: white;
-      padding: 2rem;
-      border-radius: 12px;
+      padding: 2rem 1rem;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      font-size: 1.5rem;
       margin-bottom: 2rem;
-      text-align: center;
-    }
-
-    .status-label {
-      font-size: 0.9rem;
-      opacity: 0.9;
-      margin-bottom: 0.5rem;
-    }
-
-    .status-value {
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    .status-time {
-      font-size: 1.1rem;
-      opacity: 0.9;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: bold;
     }
 
     .employee-info {
-      background: #f5f7fa;
-      padding: 1.5rem;
-      border-radius: 12px;
-      margin-bottom: 2rem;
-      text-align: left;
-    }
-
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 0.75rem;
-      font-size: 0.95rem;
-    }
-
-    .info-label {
-      color: #666;
-      font-weight: 600;
-    }
-
-    .info-value {
-      color: #333;
-      font-weight: 700;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 1.2rem;
-      border: none;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 1rem;
       border-radius: 8px;
+      margin-bottom: 2rem;
+    }
+
+    .employee-info h3 {
       font-size: 1.1rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.3s ease;
+      margin-bottom: 0.5rem;
+    }
+
+    .employee-info p {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .sidebar-menu {
+      list-style: none;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .sidebar-menu li {
       margin-bottom: 1rem;
     }
 
+    .sidebar-menu button {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .sidebar-menu button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateX(5px);
+    }
+
+    .sidebar-menu button.active {
+      background: rgba(255, 255, 255, 0.3);
+      border-left: 3px solid white;
+    }
+
+    .sidebar-footer {
+      position: sticky;
+      bottom: 0;
+      padding-top: 1rem;
+      margin-top: auto;
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    }
+
+    .logout-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(255, 67, 67, 0.8);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255, 67, 67, 1);
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: 220px;
+      flex: 1;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .employee-header {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .employee-header h1 {
+      font-size: 1.8rem;
+      color: #48bb78;
+      margin-bottom: 0.25rem;
+    }
+
+    .employee-header p {
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .view-section {
+      display: none;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .view-section.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      color: #2c3e50;
+      margin-bottom: 0.5rem;
+    }
+
+    .section-description {
+      color: #666;
+      margin-bottom: 2rem;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: transform 0.2s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+    }
+
+    .stat-info h3 {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-info p {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    /* Timecard Table */
+    .timecard-table {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow-x: auto;
+    }
+
+    .timecard-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .timecard-table th {
+      background: #48bb78;
+      color: white;
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .timecard-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .timecard-table tr:hover {
+      background: #f8f9fa;
+    }
+
+    /* Leave Section */
+    .leave-balance {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+
+    .leave-types {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .leave-type-card {
+      background: linear-gradient(135deg, #48bb7815 0%, #38a16915 100%);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .leave-type-card h4 {
+      color: #48bb78;
+      margin-bottom: 0.5rem;
+    }
+
+    .leave-type-card p {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    /* Button Styles */
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
     .btn-primary {
-      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      background: #48bb78;
       color: white;
     }
 
     .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-      color: white;
-    }
-
-    .btn-danger:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(220, 53, 69, 0.4);
+      background: #38a169;
     }
 
     .btn-secondary {
@@ -139,277 +316,560 @@
       background: #d0d0d0;
     }
 
-    .message {
-      padding: 1rem;
-      border-radius: 8px;
-      margin-bottom: 1.5rem;
-      display: none;
-      font-weight: 600;
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
-    .message.success {
-      background: #d4edda;
-      color: #155724;
-      display: block;
-    }
+    /* Print Styles */
+    @media print {
+      .sidebar, .logout-btn, .btn {
+        display: none !important;
+      }
 
-    .message.error {
-      background: #f8d7da;
-      color: #721c24;
-      display: block;
-    }
-
-    .loading {
-      display: none;
-      text-align: center;
-      color: #667eea;
-      margin-top: 1rem;
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #667eea;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background: #f5f7fa;
-      padding: 1rem;
-      border-radius: 8px;
-      text-align: center;
-    }
-
-    .stat-label {
-      color: #666;
-      font-size: 0.85rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .stat-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #333;
+      .main-content {
+        margin-left: 0;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="dashboard">
-    <div class="header">
-      <div class="logo">⏰</div>
-      <div class="title">SmartClock</div>
-    </div>
-
-    <div id="message" class="message"></div>
-
-    <div class="status-display">
-      <div class="status-label">Current Status</div>
-      <div class="status-value" id="statusText">CLOCKED IN</div>
-      <div class="status-time" id="currentTime">12:34:56</div>
-    </div>
-
-    <div class="employee-info">
-      <div class="info-row">
-        <span class="info-label">Employee:</span>
-        <span class="info-value" id="employeeName">John Smith</span>
+  <div class="employee-wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">👤 My Portal</div>
+      
+      <div class="employee-info" id="employeeInfoCard">
+        <h3 id="employeeNameSidebar">Loading...</h3>
+        <p id="employeeSlotSidebar">Slot: -</p>
       </div>
-      <div class="info-row">
-        <span class="info-label">Badge ID:</span>
-        <span class="info-value" id="badgeNumber">1001</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Business:</span>
-        <span class="info-value" id="businessDisplay">Company Name</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Slot:</span>
-        <span class="info-value" id="slotNumber">1</span>
-      </div>
-    </div>
 
-    <div class="stats" id="statsContainer">
-      <div class="stat-card">
-        <div class="stat-label">Clock In Time</div>
-        <div class="stat-value" id="clockInTimeDisplay">10:30</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Hours Worked</div>
-        <div class="stat-value" id="hoursWorked">2h 45m</div>
-      </div>
-    </div>
+      <ul class="sidebar-menu">
+        <li><button class="menu-btn active" data-section="overview" onclick="switchSection('overview')">📊 Overview</button></li>
+        <li><button class="menu-btn" data-section="timecard" onclick="switchSection('timecard')">🕐 My Timecard</button></li>
+        <li><button class="menu-btn" data-section="assessment" onclick="switchSection('assessment')">📈 Assessment</button></li>
+        <li><button class="menu-btn" data-section="leave" onclick="switchSection('leave')">🏖️ Leave</button></li>
+      </ul>
 
-    <button class="btn btn-danger" onclick="handleClockOut()">🔴 Clock Out</button>
-    <button class="btn btn-secondary" onclick="goBack()">← Back</button>
+      <div class="sidebar-footer">
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </aside>
 
-    <div class="loading" id="loading">
-      <div class="spinner"></div>
-      <p>Processing...</p>
-    </div>
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <div class="employee-header">
+        <h1 id="employeeNameHeader">Employee Portal</h1>
+        <p id="employeeDetails">Loading your information...</p>
+      </div>
+
+      <!-- Overview Section -->
+      <div class="view-section active" id="overviewView">
+        <h2 class="section-title">Overview</h2>
+        <p class="section-description">Your current work summary and statistics</p>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #48bb7820; color: #48bb78;">
+              📅
+            </div>
+            <div class="stat-info">
+              <h3>This Month</h3>
+              <p id="monthHours">0h</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #667eea20; color: #667eea;">
+              ⏰
+            </div>
+            <div class="stat-info">
+              <h3>Hours Required</h3>
+              <p id="requiredHours">176h</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #f6ad5520; color: #f6ad55;">
+              ⚠️
+            </div>
+            <div class="stat-info">
+              <h3>Hours Short</h3>
+              <p id="hoursShort">0h</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon" style="background: #ed8a3620; color: #ed8a36;">
+              🏖️
+            </div>
+            <div class="stat-info">
+              <h3>Leave Days</h3>
+              <p id="leaveDays">0</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+          <h3 style="margin-bottom: 1rem;">Recent Activity</h3>
+          <div id="recentActivity">
+            <p style="color: #999; text-align: center; padding: 2rem;">Loading recent activity...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timecard Section -->
+      <div class="view-section" id="timecardView">
+        <h2 class="section-title">My Timecard</h2>
+        <p class="section-description">View your attendance records and working hours</p>
+
+        <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 200px;">
+            <label for="timecardMonth" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Select Month:</label>
+            <input type="month" id="timecardMonth" onchange="loadEmployeeTimecard()" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;">
+          </div>
+          <button class="btn btn-primary" onclick="printTimecard()">🖨️ Print</button>
+        </div>
+
+        <div id="timecardDisplay">
+          <div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">Select a month to view your timecard</div>
+        </div>
+      </div>
+
+      <!-- Assessment Section -->
+      <div class="view-section" id="assessmentView">
+        <h2 class="section-title">My Assessment</h2>
+        <p class="section-description">Monthly working hours and payroll information</p>
+
+        <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 200px;">
+            <label for="assessmentMonth" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Select Month:</label>
+            <input type="month" id="assessmentMonth" onchange="loadEmployeeAssessment()" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;">
+          </div>
+        </div>
+
+        <div id="assessmentDisplay">
+          <div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">Select a month to view your assessment</div>
+        </div>
+      </div>
+
+      <!-- Leave Section -->
+      <div class="view-section" id="leaveView">
+        <h2 class="section-title">Leave Management</h2>
+        <p class="section-description">Your leave balance and history</p>
+
+        <div class="leave-balance">
+          <h3 style="margin-bottom: 1rem;">Leave Balance</h3>
+          <div class="leave-types" id="leaveBalanceDisplay">
+            <div class="leave-type-card">
+              <h4>Annual Leave</h4>
+              <p>15 days</p>
+            </div>
+            <div class="leave-type-card">
+              <h4>Sick Leave</h4>
+              <p>10 days</p>
+            </div>
+            <div class="leave-type-card">
+              <h4>Family Leave</h4>
+              <p>5 days</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+          <h3 style="margin-bottom: 1rem;">Leave History</h3>
+          <div id="leaveHistoryDisplay">
+            <p style="color: #999; text-align: center; padding: 2rem;">No leave records found</p>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 
+  <!-- Firebase SDK -->
   <script type="module">
-    import { 
-      collection, 
-      doc, 
-      getDoc,
-      updateDoc,
-      onSnapshot
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { db } from "../config/firebase.js";
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, doc, getDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-    let businessId = sessionStorage.getItem("businessId");
-    let slotId = sessionStorage.getItem("slotId");
-    let badgeNumber = sessionStorage.getItem("employeeBadge");
-    let clockInTime = null;
+    const firebaseConfig = {
+      apiKey: "AIzaSyDUYfiPoK69W8VWk3eHMQPpuvZPzB00qCA",
+      authDomain: "aiclock-82608.firebaseapp.com",
+      projectId: "aiclock-82608",
+      storageBucket: "aiclock-82608.firebasestorage.app",
+      messagingSenderId: "423585289758",
+      appId: "1:423585289758:web:7cdc7de3d8f91ed88d3dc7"
+    };
 
-    async function initializeDashboard() {
-      try {
-        if (!businessId || !slotId || !badgeNumber) {
-          window.location.href = "/pages/employee-login.html";
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.db = db;
+    window.auth = auth;
+
+    let employeeId = null;
+    let businessId = null;
+    let employeeData = null;
+
+    // Switch between sections
+    window.switchSection = function(section) {
+      document.querySelectorAll('.view-section').forEach(view => {
+        view.classList.remove('active');
+      });
+      document.querySelectorAll('.sidebar-menu button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
+      document.getElementById(section + 'View').classList.add('active');
+      document.querySelector(`[data-section="${section}"]`).classList.add('active');
+    };
+
+    // Check authentication on load
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Get employee ID from URL or session
+        const urlParams = new URLSearchParams(window.location.search);
+        employeeId = urlParams.get('employeeId') || sessionStorage.getItem('employeeId');
+        businessId = urlParams.get('businessId') || sessionStorage.getItem('businessId');
+
+        if (!employeeId || !businessId) {
+          alert('Invalid access. Please log in through your employee portal link.');
+          window.location.href = '/pages/login.html';
           return;
         }
 
-        // Get employee data
-        const staffRef = doc(db, "businesses", businessId, "staff", slotId);
-        const staffSnap = await getDoc(staffRef);
+        // Store in session
+        sessionStorage.setItem('employeeId', employeeId);
+        sessionStorage.setItem('businessId', businessId);
 
-        if (!staffSnap.exists()) {
-          throw new Error("Session data not found");
-        }
-
-        const staffData = staffSnap.data();
-        document.getElementById('employeeName').textContent = staffData.employeeName || "Employee";
-        document.getElementById('badgeNumber').textContent = badgeNumber;
-        document.getElementById('slotNumber').textContent = slotId;
-
-        // Get business name
-        const businessRef = doc(db, "businesses", businessId);
-        const businessSnap = await getDoc(businessRef);
-        if (businessSnap.exists()) {
-          document.getElementById('businessDisplay').textContent = businessSnap.data().businessName;
-        }
-
-        // Set clock in time
-        if (staffData.clockInTimestamp) {
-          clockInTime = staffData.clockInTimestamp;
-          const clockInDate = new Date(clockInTime);
-          const hours = String(clockInDate.getHours()).padStart(2, '0');
-          const minutes = String(clockInDate.getMinutes()).padStart(2, '0');
-          document.getElementById('clockInTimeDisplay').textContent = `${hours}:${minutes}`;
-        }
-
-        // Start time updates
-        updateTime();
-        setInterval(updateTime, 1000);
-
-      } catch (error) {
-        console.error("Dashboard init error:", error);
-        showMessage("Error loading dashboard: " + error.message, "error");
+        await loadEmployeeData();
+await loadOverview();
+      } else {
+        window.location.href = '/pages/login.html';
       }
-    }
+    });
 
-    function updateTime() {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      document.getElementById('currentTime').textContent = `${hours}:${minutes}:${seconds}`;
-
-      // Calculate hours worked
-      if (clockInTime) {
-        const elapsedMs = now.getTime() - clockInTime;
-        const totalSeconds = Math.floor(elapsedMs / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        document.getElementById('hoursWorked').textContent = `${hours}h ${minutes}m`;
-      }
-    }
-
-    window.handleClockOut = async function() {
+    // Load employee data
+    async function loadEmployeeData() {
       try {
-        console.log('🔴 Clock-out button clicked');
-        document.getElementById('loading').style.display = 'block';
+        const staffRef = doc(db, "businesses", businessId, "staff", employeeId);
+        const staffDoc = await getDoc(staffRef);
 
-        // Get employee data from staff document
-        const slotRef = doc(db, "businesses", businessId, "staff", slotId);
-        const slotDoc = await getDoc(slotRef);
-        const employeeData = slotDoc.data();
-
-        console.log('📋 Employee data:', employeeData);
-        console.log('🌐 Calling webhook...');
-
-        // Call attendance webhook to trigger proper processing including WhatsApp
-        const webhookResponse = await fetch('https://attendancewebhook-4q7htrps4q-uc.a.run.app', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            deviceId: 'WEBAPP',
-            verifyNo: slotId,
-            employeeName: employeeData.employeeName || badgeNumber,
-            attendanceStatus: 'out',
-            timestamp: new Date().toISOString(),
-            businessId: businessId,
-            isManual: true,
-            manualNotes: 'Clock-out from employee dashboard'
-          })
-        });
-
-        console.log('✅ Webhook response:', webhookResponse.status, webhookResponse.statusText);
-
-        if (!webhookResponse.ok) {
-          const errorText = await webhookResponse.text();
-          console.error('❌ Webhook error response:', errorText);
-          throw new Error('Failed to process clock-out: ' + errorText);
+        if (!staffDoc.exists()) {
+          alert('Employee record not found');
+          return;
         }
 
-        const webhookResult = await webhookResponse.json();
-        console.log('✅ Webhook result:', webhookResult);
+        employeeData = staffDoc.data();
 
-        // Clear session
-        sessionStorage.removeItem("employeeLoggedIn");
-        sessionStorage.removeItem("employeeBadge");
-        sessionStorage.removeItem("businessId");
-        sessionStorage.removeItem("slotId");
+        // Update UI with employee info
+        document.getElementById('employeeNameHeader').textContent = employeeData.employeeName || 'Employee Portal';
+        document.getElementById('employeeNameSidebar').textContent = employeeData.employeeName || 'Employee';
+        document.getElementById('employeeSlotSidebar').textContent = `Slot: ${employeeData.slot || employeeId}`;
+        document.getElementById('employeeDetails').textContent = `${employeeData.email || ''} • Slot ${employeeData.slot || employeeId}`;
 
-        showMessage("✅ Clocked out successfully!", "success");
-        setTimeout(() => {
-          window.location.href = "/pages/employee-login.html";
-        }, 1000);
+        // Set default months
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        document.getElementById('timecardMonth').value = currentMonth;
+        document.getElementById('assessmentMonth').value = currentMonth;
 
       } catch (error) {
-        console.error("Clock out error:", error);
-        showMessage("Error: " + error.message, "error");
-        document.getElementById('loading').style.display = 'none';
+        console.error('Error loading employee data:', error);
+        alert('Error loading your information');
+      }
+    }
+
+    // Load overview
+    async function loadOverview() {
+      try {
+        const now = new Date();
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        // Load assessment for current month
+        const assessmentRef = doc(db, "businesses", businessId, "assessment_cache", currentMonth);
+        const assessmentDoc = await getDoc(assessmentRef);
+
+        if (assessmentDoc.exists()) {
+          const data = assessmentDoc.data();
+          const myAssessment = data.employees?.find(emp => emp.employeeId === employeeId);
+
+          if (myAssessment) {
+            document.getElementById('monthHours').textContent = (myAssessment.currentHours || 0).toFixed(1) + 'h';
+            document.getElementById('requiredHours').textContent = (myAssessment.requiredHours || 176) + 'h';
+            document.getElementById('hoursShort').textContent = Math.max(0, (myAssessment.requiredHours || 176) - (myAssessment.currentHours || 0)).toFixed(1) + 'h';
+          }
+        }
+
+        // Load recent activity (last 5 punches)
+        await loadRecentActivity();
+
+      } catch (error) {
+        console.error('Error loading overview:', error);
+      }
+    }
+
+    // Load recent activity
+    async function loadRecentActivity() {
+      try {
+        const activityDiv = document.getElementById('recentActivity');
+        const now = new Date();
+        const dates = [];
+
+        // Get last 7 days
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(now);
+          date.setDate(date.getDate() - i);
+          dates.push(date.toISOString().split('T')[0]);
+        }
+
+        let allEvents = [];
+
+        // Fetch events for last 7 days
+        for (const dateStr of dates) {
+          const eventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
+          const eventsSnap = await getDocs(eventsRef);
+
+          eventsSnap.forEach(doc => {
+            const event = doc.data();
+            allEvents.push({
+              ...event,
+              eventId: doc.id,
+              date: dateStr
+            });
+          });
+        }
+
+        // Sort by timestamp
+        allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        allEvents = allEvents.slice(0, 5);
+
+        if (allEvents.length === 0) {
+          activityDiv.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">No recent activity</p>';
+          return;
+        }
+
+        activityDiv.innerHTML = allEvents.map(event => {
+          const time = new Date(event.timestamp).toLocaleString();
+          const status = event.attendanceStatus === 'in' ? '🟢 Clock In' : '🔴 Clock Out';
+          return `
+            <div style="padding: 0.75rem; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>${status}</strong>
+                <p style="font-size: 0.85rem; color: #666;">${time}</p>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (error) {
+        console.error('Error loading recent activity:', error);
+      }
+    }
+
+    // Load employee timecard
+    window.loadEmployeeTimecard = async function() {
+      const month = document.getElementById('timecardMonth').value;
+      const display = document.getElementById('timecardDisplay');
+
+      if (!month) {
+        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Select a month to view your timecard</div>';
+        return;
+      }
+
+      try {
+        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Loading timecard...</div>';
+
+        const [year, monthNum] = month.split('-');
+        const monthDate = new Date(year, monthNum - 1, 1);
+        const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const daysInMonth = new Date(year, monthNum, 0).getDate();
+
+        let allEvents = [];
+
+        // Fetch all events for this month
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const eventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
+          const eventsSnap = await getDocs(eventsRef);
+
+          eventsSnap.forEach(doc => {
+            const event = doc.data();
+            allEvents.push({
+              ...event,
+              eventId: doc.id,
+              date: dateStr
+            });
+          });
+        }
+
+        // Sort by timestamp
+        allEvents.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        if (allEvents.length === 0) {
+          display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">No attendance records found for this month</div>';
+          return;
+        }
+
+        display.innerHTML = `
+          <div class="timecard-table">
+            <h3 style="margin-bottom: 1rem;">${monthName} - ${employeeData.employeeName}</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Day</th>
+                  <th>Clock In</th>
+                  <th>Clock Out</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${allEvents.map(event => {
+                  const date = new Date(event.timestamp);
+                  const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                  const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                  const dateStr = date.toLocaleDateString();
+                  const status = event.attendanceStatus === 'in' ? '🟢 In' : '🔴 Out';
+
+                  return `
+                    <tr>
+                      <td>${dateStr}</td>
+                      <td>${dayName}</td>
+                      <td>${event.attendanceStatus === 'in' ? timeStr : '-'}</td>
+                      <td>${event.attendanceStatus === 'out' ? timeStr : '-'}</td>
+                      <td>${status}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+      } catch (error) {
+        console.error('Error loading timecard:', error);
+        display.innerHTML = '<div style="text-align: center; color: #e53e3e; padding: 3rem;">Error loading timecard</div>';
       }
     };
 
-    window.goBack = function() {
-      window.location.href = "/";
+    // Load employee assessment
+    window.loadEmployeeAssessment = async function() {
+      const month = document.getElementById('assessmentMonth').value;
+      const display = document.getElementById('assessmentDisplay');
+
+      if (!month) {
+        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Select a month to view your assessment</div>';
+        return;
+      }
+
+      try {
+        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Loading assessment...</div>';
+
+        const assessmentRef = doc(db, "businesses", businessId, "assessment_cache", month);
+        const assessmentDoc = await getDoc(assessmentRef);
+
+        if (!assessmentDoc.exists()) {
+          display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">No assessment data available for this month</div>';
+          return;
+        }
+
+        const data = assessmentDoc.data();
+        const myAssessment = data.employees?.find(emp => emp.employeeId === employeeId);
+
+        if (!myAssessment) {
+          display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Your assessment data is not available for this month</div>';
+          return;
+        }
+
+        const monthDate = new Date(month + '-01');
+        const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        display.innerHTML = `
+          <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+            <h3 style="margin-bottom: 1.5rem;">${monthName} Assessment</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+              <div style="background: #48bb7815; padding: 1.5rem; border-radius: 8px;">
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">Required Hours</p>
+                <p style="font-size: 1.8rem; font-weight: bold; color: #48bb78;">${myAssessment.requiredHours || 176}h</p>
+              </div>
+              
+              <div style="background: #667eea15; padding: 1.5rem; border-radius: 8px;">
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">Current Hours</p>
+                <p style="font-size: 1.8rem; font-weight: bold; color: #667eea;">${(myAssessment.currentHours || 0).toFixed(1)}h</p>
+              </div>
+              
+              <div style="background: ${(myAssessment.hoursShort || 0) > 0 ? '#ed8a3615' : '#48bb7815'}; padding: 1.5rem; border-radius: 8px;">
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">Hours Short</p>
+                <p style="font-size: 1.8rem; font-weight: bold; color: ${(myAssessment.hoursShort || 0) > 0 ? '#ed8a36' : '#48bb78'};">${Math.max(0, myAssessment.hoursShort || 0).toFixed(1)}h</p>
+              </div>
+              
+              <div style="background: #764ba215; padding: 1.5rem; border-radius: 8px;">
+                <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.5rem;">Status</p>
+                <p style="font-size: 1.2rem; font-weight: bold; color: #764ba2;">${myAssessment.status || 'Pending'}</p>
+              </div>
+            </div>
+
+            ${myAssessment.payRate ? `
+            <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+              <h4 style="margin-bottom: 1rem;">Earnings Summary</h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                <div>
+                  <p style="color: #666; font-size: 0.85rem;">Pay Rate</p>
+                  <p style="font-weight: bold;">R${myAssessment.payRate.toFixed(2)}/hr</p>
+                </div>
+                <div>
+                  <p style="color: #666; font-size: 0.85rem;">Current Income</p>
+                  <p style="font-weight: bold;">R${(myAssessment.currentIncomeDue || 0).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p style="color: #666; font-size: 0.85rem;">Potential Income</p>
+                  <p style="font-weight: bold;">R${(myAssessment.potentialIncome || 0).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+            ` : ''}
+          </div>
+        `;
+
+      } catch (error) {
+        console.error('Error loading assessment:', error);
+        display.innerHTML = '<div style="text-align: center; color: #e53e3e; padding: 3rem;">Error loading assessment</div>';
+      }
     };
 
-    function showMessage(msg, type) {
-      const msgEl = document.getElementById('message');
-      msgEl.textContent = msg;
-      msgEl.className = `message ${type}`;
-    }
+    // Print timecard
+    window.printTimecard = function() {
+      window.print();
+    };
 
-    // Initialize on page load
-    initializeDashboard();
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        sessionStorage.clear();
+        window.location.href = '/pages/login.html';
+      } catch (error) {
+        console.error('Error logging out:', error);
+        alert('Error logging out');
+      }
+    });
+
   </script>
 </body>
 </html>
