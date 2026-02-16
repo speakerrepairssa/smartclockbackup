@@ -285,6 +285,15 @@ export class EmployeeCredentialsUI {
       ? '<span class="credential-status status-active">✓ Active</span>' 
       : '<span class="credential-status status-pending">⚠ Not Set</span>';
 
+    // Get current permissions (default all to true if not set)
+    const permissions = employee.permissions || {
+      overview: true,
+      timecard: true,
+      assessment: true,
+      leave: true,
+      applyFor: true
+    };
+
     return `
       <div class="credential-item">
         <div class="employee-info">
@@ -295,6 +304,50 @@ export class EmployeeCredentialsUI {
             ${employee.phoneNumber || 'No phone'} | 
             ${employee.email || 'No email'}
           </div>
+          
+          <!-- Access Permissions -->
+          ${hasCredentials ? `
+            <div class="permissions-section" style="margin-top: 0.75rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+              <div style="font-weight: 600; color: #495057; margin-bottom: 0.5rem; font-size: 0.9rem;">📋 Access Permissions:</div>
+              <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${permissions.overview ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updatePermission('${employee.slot}', 'overview', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>Overview</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${permissions.timecard ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updatePermission('${employee.slot}', 'timecard', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>Timecard</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${permissions.assessment ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updatePermission('${employee.slot}', 'assessment', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>Assessment</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${permissions.leave ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updatePermission('${employee.slot}', 'leave', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>Leave</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${permissions.applyFor ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updatePermission('${employee.slot}', 'applyFor', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>Apply For</span>
+                </label>
+              </div>
+            </div>
+          ` : ''}
         </div>
         
         ${statusBadge}
@@ -558,6 +611,55 @@ export class EmployeeCredentialsUI {
     setTimeout(() => {
       container.innerHTML = '';
     }, 5000);
+  }
+
+  /**
+   * Update employee permission
+   */
+  async updatePermission(employeeSlot, permissionType, isEnabled) {
+    try {
+      // Import Firebase dynamically
+      const { getFirestore, doc, updateDoc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      const db = getFirestore();
+      
+      // Find employee by slot
+      const staffQuery = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      const { collection, query, where, getDocs } = staffQuery;
+      
+      const staffRef = collection(db, 'businesses', this.businessId, 'staff');
+      const q = query(staffRef, where('slot', '==', parseInt(employeeSlot)));
+      const staffSnap = await getDocs(q);
+      
+      if (staffSnap.empty) {
+        throw new Error('Employee not found');
+      }
+      
+      const employeeDoc = staffSnap.docs[0];
+      const employeeData = employeeDoc.data();
+      
+      // Update permissions
+      const currentPermissions = employeeData.permissions || {
+        overview: true,
+        timecard: true,
+        assessment: true,
+        leave: true,
+        applyFor: true
+      };
+      
+      currentPermissions[permissionType] = isEnabled;
+      
+      // Save to Firestore
+      await updateDoc(doc(db, 'businesses', this.businessId, 'staff', employeeDoc.id), {
+        permissions: currentPermissions
+      });
+      
+      const statusText = isEnabled ? 'enabled' : 'disabled';
+      this.showAlert('success', `✓ ${permissionType} access ${statusText} for ${employeeData.employeeName}`);
+      
+    } catch (error) {
+      console.error('Error updating permission:', error);
+      this.showAlert('error', 'Failed to update permission: ' + error.message);
+    }
   }
 
   /**

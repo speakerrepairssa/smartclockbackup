@@ -460,6 +460,7 @@
         <li><button class="menu-btn" data-module="payslips" onclick="switchModule('payslips')">💰 Payslips</button></li>
         <li><button class="menu-btn" data-module="employees" onclick="switchModule('employees')">👥 Employees</button></li>
         <li><a href="employee-credentials.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">🔐 Employee Credentials</button></a></li>
+        <li><button class="menu-btn" data-module="applications" onclick="switchModule('applications')">📝 Applications</button></li>
         <li><button class="menu-btn" data-module="shifts" onclick="switchModule('shifts')">📅 Shifts</button></li>
         <li><button class="menu-btn" data-module="timecard" onclick="switchModule('timecard')">🕐 Timecard</button></li>
         <li><button class="menu-btn" data-module="punches" onclick="switchModule('punches')">👊 Punches</button></li>
@@ -3307,6 +3308,49 @@
       </div>
 
       <!-- Settings View -->
+      <!-- Applications View -->
+      <div class="view-section" id="applicationsView">
+        <h2 class="section-title">📝 Employee Applications</h2>
+        <p class="section-description">Review and manage employee leave requests, sick leave, cash advances, and other applications</p>
+        
+        <div class="applications-filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+          <div class="filter-group">
+            <label style="font-weight: 600; color: #495057; margin-right: 0.5rem;">Status:</label>
+            <select id="filterStatus" onchange="loadApplications()" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
+              <option value="all">All</option>
+              <option value="pending" selected>Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label style="font-weight: 600; color: #495057; margin-right: 0.5rem;">Type:</label>
+            <select id="filterType" onchange="loadApplications()" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
+              <option value="all">All Types</option>
+              <option value="leave">Leave</option>
+              <option value="sickleave">Sick Leave</option>
+              <option value="cashadvance">Cash Advance</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label style="font-weight: 600; color: #495057; margin-right: 0.5rem;">Employee:</label>
+            <select id="filterEmployee" onchange="loadApplications()" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
+              <option value="all">All Employees</option>
+            </select>
+          </div>
+        </div>
+        
+        <div id="applicationsContainer">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading applications...</p>
+          </div>
+        </div>
+      </div>
+
       <div class="view-section" id="settingsView">
         <h2 class="section-title">Business Settings</h2>
         <p class="section-description">Configure your business preferences and working hours</p>
@@ -3536,7 +3580,7 @@
 
   <script type="module">
     import authService from '../modules/auth/auth.service.js';
-    import { doc, getDoc, collection, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, collection, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getDatabase, ref, get, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { db } from '../config/firebase.js';
 
@@ -4209,6 +4253,7 @@
         'assessment': 'assessmentView',
         'payslips': 'payslipsView',
         'employees': 'employeesView',
+        'applications': 'applicationsView',
         'shifts': 'shiftsView',
         'punches': 'punchesView',
         'sync': 'syncView',
@@ -4437,6 +4482,12 @@
           return;
         }
 
+        if (module === 'applications') {
+          console.log('Loading applications module...');
+          await loadApplications();
+          return;
+        }
+
         if (module === 'downloads') {
           console.log('Loading downloads module...');
           await loadDownloads();
@@ -4473,6 +4524,282 @@
 
     // Update global reference to loadModuleData
     window.loadModuleData = loadModuleData;
+
+    // ========== APPLICATIONS MODULE ==========
+    
+    async function loadApplications() {
+      try {
+        const container = document.getElementById('applicationsContainer');
+        const filterStatus = document.getElementById('filterStatus').value;
+        const filterType = document.getElementById('filterType').value;
+        const filterEmployee = document.getElementById('filterEmployee').value;
+        
+        container.innerHTML = `
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading applications...</p>
+          </div>
+        `;
+        
+        // Load applications from Firestore
+        const applicationsRef = collection(db, "businesses", businessId, "applications");
+        let q = applicationsRef;
+        
+        // Apply status filter
+        if (filterStatus !== 'all') {
+          q = query(q, where('status', '==', filterStatus));
+        }
+        
+        // Apply type filter
+        if (filterType !== 'all') {
+          q = query(q, where('type', '==', filterType));
+        }
+        
+        // Order by submitted date (newest first)
+        q = query(q, orderBy('submittedDate', 'desc'));
+        
+        const applicationsSnap = await getDocs(q);
+        
+        // Filter by employee if selected (done client-side as compound queries need indexes)
+        let applications = [];
+        applicationsSnap.forEach(doc => {
+          const app = { id: doc.id, ...doc.data() };
+          if (filterEmployee === 'all' || app.employeeId === filterEmployee) {
+            applications.push(app);
+          }
+        });
+        
+        // Load employee dropdown if not loaded yet
+        const employeeSelect = document.getElementById('filterEmployee');
+        if (employeeSelect.options.length === 1) {
+          await loadApplicationEmployees();
+        }
+        
+        // Render applications
+        if (applications.length === 0) {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #666;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">📝</div>
+              <h3 style="color: #495057;">No applications found</h3>
+              <p>There are no applications matching the current filters.</p>
+            </div>
+          `;
+          return;
+        }
+        
+        // Render application cards
+        const cards = applications.map(app => renderApplicationCard(app)).join('');
+        container.innerHTML = `
+          <div style="display: grid; gap: 1rem;">
+            ${cards}
+          </div>
+        `;
+        
+      } catch (error) {
+        console.error('Error loading applications:', error);
+        document.getElementById('applicationsContainer').innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: #dc3545;">
+            <p>Error loading applications: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    async function loadApplicationEmployees() {
+      try {
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const staffSnap = await getDocs(staffRef);
+        
+        const employeeSelect = document.getElementById('filterEmployee');
+        
+        staffSnap.forEach(doc => {
+          const staff = doc.data();
+          const option = document.createElement('option');
+          option.value = doc.id;
+          option.textContent = staff.employeeName || `Employee ${doc.id}`;
+          employeeSelect.appendChild(option);
+        });
+        
+      } catch (error) {
+        console.error('Error loading employees for filter:', error);
+      }
+    }
+    
+    function renderApplicationCard(app) {
+      const statusColors = {
+        pending: { bg: '#fff3cd', border: '#ffc107', text: '#856404' },
+        approved: { bg: '#d4edda', border: '#28a745', text: '#155724' },
+        rejected: { bg: '#f8d7da', border: '#dc3545', text: '#721c24' }
+      };
+      
+      const typeEmojis = {
+        leave: '🏖️',
+        sickleave: '🤒',
+        cashadvance: '💵',
+        other: '📋'
+      };
+      
+      const typeLabels = {
+        leave: 'Leave Request',
+        sickleave: 'Sick Leave',
+        cashadvance: 'Cash Advance',
+        other: 'Other Request'
+      };
+      
+      const status = app.status || 'pending';
+      const colors = statusColors[status];
+      const emoji = typeEmojis[app.type] || '📋';
+      const label = typeLabels[app.type] || 'Application';
+      
+      const date = new Date(app.submittedDate);
+      const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+      
+      // Build details HTML based on type
+      let detailsHtml = '';
+      if (app.type === 'leave' || app.type === 'sickleave') {
+        detailsHtml = `
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin: 1rem 0;">
+            <div>
+              <strong style="color: #6c757d; font-size: 0.85rem;">Start Date:</strong>
+              <div>${app.startDate || 'N/A'}</div>
+            </div>
+            <div>
+              <strong style="color: #6c757d; font-size: 0.85rem;">End Date:</strong>
+              <div>${app.endDate || 'N/A'}</div>
+            </div>
+          </div>
+          <div style="margin: 1rem 0;">
+            <strong style="color: #6c757d; font-size: 0.85rem;">Reason:</strong>
+            <div style="margin-top: 0.25rem;">${app.reason || 'No reason provided'}</div>
+          </div>
+        `;
+      } else if (app.type === 'cashadvance') {
+        detailsHtml = `
+          <div style="margin: 1rem 0;">
+            <strong style="color: #6c757d; font-size: 0.85rem;">Amount Requested:</strong>
+            <div style="font-size: 1.5rem; font-weight: bold; color: #28a745; margin-top: 0.25rem;">
+              R ${parseFloat(app.amount || 0).toFixed(2)}
+            </div>
+          </div>
+          <div style="margin: 1rem 0;">
+            <strong style="color: #6c757d; font-size: 0.85rem;">Reason:</strong>
+            <div style="margin-top: 0.25rem;">${app.reason || 'No reason provided'}</div>
+          </div>
+        `;
+      } else {
+        detailsHtml = `
+          <div style="margin: 1rem 0;">
+            <strong style="color: #6c757d; font-size: 0.85rem;">Description:</strong>
+            <div style="margin-top: 0.25rem;">${app.reason || app.description || 'No details provided'}</div>
+          </div>
+        `;
+      }
+      
+      // Action buttons for pending applications
+      let actionsHtml = '';
+      if (status === 'pending') {
+        actionsHtml = `
+          <div style="display: flex; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+            <button onclick="approveApplication('${app.id}')" 
+                    style="flex: 1; padding: 0.75rem; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              ✓ Approve
+            </button>
+            <button onclick="rejectApplication('${app.id}')" 
+                    style="flex: 1; padding: 0.75rem; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              ✗ Reject
+            </button>
+          </div>
+        `;
+      } else {
+        // Show who approved/rejected and when
+        const actionDate = app.actionDate ? new Date(app.actionDate).toLocaleString() : 'N/A';
+        const actionBy = app.actionBy || 'N/A';
+        actionsHtml = `
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6; font-size: 0.85rem; color: #6c757d;">
+            <div><strong>${status === 'approved' ? 'Approved' : 'Rejected'} by:</strong> ${actionBy}</div>
+            <div><strong>Date:</strong> ${actionDate}</div>
+            ${app.rejectionReason ? `<div style="margin-top: 0.5rem;"><strong>Reason:</strong> ${app.rejectionReason}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      return `
+        <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid ${colors.border};">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <div>
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">${emoji}</div>
+              <h3 style="margin: 0; color: #212529;">${label}</h3>
+              <div style="color: #6c757d; font-size: 0.9rem; margin-top: 0.25rem;">
+                ${app.employeeName} (Slot ${app.employeeSlot})
+              </div>
+            </div>
+            <div style="background: ${colors.bg}; color: ${colors.text}; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; border: 2px solid ${colors.border};">
+              ${status}
+            </div>
+          </div>
+          
+          <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 1rem;">
+            📅 Submitted: ${dateStr}
+          </div>
+          
+          ${detailsHtml}
+          ${actionsHtml}
+        </div>
+      `;
+    }
+    
+    async function approveApplication(applicationId) {
+      if (!confirm('Are you sure you want to approve this application?')) {
+        return;
+      }
+      
+      try {
+        const appRef = doc(db, "businesses", businessId, "applications", applicationId);
+        await updateDoc(appRef, {
+          status: 'approved',
+          actionDate: new Date().toISOString(),
+          actionBy: auth.currentUser?.email || 'admin'
+        });
+        
+        alert('Application approved successfully!');
+        await loadApplications();
+        
+      } catch (error) {
+        console.error('Error approving application:', error);
+        alert('Error approving application: ' + error.message);
+      }
+    }
+    
+    async function rejectApplication(applicationId) {
+      const reason = prompt('Please enter a reason for rejection (optional):');
+      if (reason === null) {
+        return; // User cancelled
+      }
+      
+      try {
+        const appRef = doc(db, "businesses", businessId, "applications", applicationId);
+        const updateData = {
+          status: 'rejected',
+          actionDate: new Date().toISOString(),
+          actionBy: auth.currentUser?.email || 'admin'
+        };
+        
+        if (reason && reason.trim()) {
+          updateData.rejectionReason = reason.trim();
+        }
+        
+        await updateDoc(appRef, updateData);
+        
+        alert('Application rejected.');
+        await loadApplications();
+        
+      } catch (error) {
+        console.error('Error rejecting application:', error);
+        alert('Error rejecting application: ' + error.message);
+      }
+    }
+    
+    // ========== END APPLICATIONS MODULE ==========
 
     async function loadEmployees() {
       try {

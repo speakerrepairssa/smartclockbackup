@@ -377,11 +377,12 @@
         <p id="employeeSlotSidebar">Slot: -</p>
       </div>
 
-      <ul class="sidebar-menu">
-        <li><button class="menu-btn active" data-section="overview" onclick="switchSection('overview')">📊 Overview</button></li>
-        <li><button class="menu-btn" data-section="timecard" onclick="switchSection('timecard')">🕐 My Timecard</button></li>
-        <li><button class="menu-btn" data-section="assessment" onclick="switchSection('assessment')">📈 Assessment</button></li>
-        <li><button class="menu-btn" data-section="leave" onclick="switchSection('leave')">🏖️ Leave</button></li>
+      <ul class="sidebar-menu" id="employeeSidebarMenu">
+        <li id="menu-overview"><button class="menu-btn active" data-section="overview" onclick="switchSection('overview')">📊 Overview</button></li>
+        <li id="menu-timecard"><button class="menu-btn" data-section="timecard" onclick="switchSection('timecard')">🕐 My Timecard</button></li>
+        <li id="menu-assessment"><button class="menu-btn" data-section="assessment" onclick="switchSection('assessment')">📈 Assessment</button></li>
+        <li id="menu-leave"><button class="menu-btn" data-section="leave" onclick="switchSection('leave')">🏖️ Leave</button></li>
+        <li id="menu-applyFor"><button class="menu-btn" data-section="applyFor" onclick="switchSection('applyFor')">📝 Apply For</button></li>
       </ul>
 
       <div class="sidebar-footer">
@@ -561,6 +562,62 @@
           </div>
         </div>
       </div>
+
+      <!-- Apply For Section -->
+      <div class="view-section" id="applyForView">
+        <h2 class="section-title">Apply For</h2>
+        <p class="section-description">Submit requests for leave, cash advance, and more</p>
+
+        <!-- Application Options Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          
+          <!-- Apply for Leave -->
+          <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); cursor: pointer; transition: transform 0.2s;" onclick="showApplyLeaveForm()">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🏖️</div>
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.5rem;">Apply for Leave</h3>
+            <p style="margin: 0; opacity: 0.9;">Request annual, sick, or family leave</p>
+          </div>
+
+          <!-- Apply for Sick Leave -->
+          <div style="background: linear-gradient(135deg, #f093fb, #f5576c); color: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3); cursor: pointer; transition: transform 0.2s;" onclick="showApplySickLeaveForm()">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🤒</div>
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.5rem;">Apply for Sick Leave</h3>
+            <p style="margin: 0; opacity: 0.9;">Request medical/sick day off</p>
+          </div>
+
+          <!-- Apply for Cash Advance -->
+          <div style="background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3); cursor: pointer; transition: transform 0.2s;" onclick="showApplyCashAdvanceForm()">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">💰</div>
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.5rem;">Cash Advance</h3>
+            <p style="margin: 0; opacity: 0.9;">Request salary advance</p>
+          </div>
+
+          <!-- Apply for Other -->
+          <div style="background: linear-gradient(135deg, #43e97b, #38f9d7); color: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(67, 233, 123, 0.3); cursor: pointer; transition: transform 0.2s;" onclick="showApplyOtherForm()">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.5rem;">Other Requests</h3>
+            <p style="margin: 0; opacity: 0.9;">Submit custom request to management</p>
+          </div>
+
+        </div>
+
+        <!-- Application Form Container (Hidden by default) -->
+        <div id="applicationFormContainer" style="display: none; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #f0f0f0;">
+            <h3 id="formTitle" style="margin: 0; color: #667eea;">Application Form</h3>
+            <button onclick="hideApplicationForm()" style="background: #f0f0f0; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600;">✕ Close</button>
+          </div>
+          <div id="applicationFormContent"></div>
+        </div>
+
+        <!-- My Applications History -->
+        <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+          <h3 style="margin-bottom: 1rem;">My Applications</h3>
+          <div id="applicationsHistory">
+            <p style="color: #999; text-align: center; padding: 2rem;">No applications submitted yet</p>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -601,6 +658,11 @@
 
       document.getElementById(section + 'View').classList.add('active');
       document.querySelector(`[data-section="${section}"]`).classList.add('active');
+      
+      // Load data for specific sections
+      if (section === 'applyFor') {
+        loadApplicationsHistory();
+      }
     };
 
     // Check authentication on load
@@ -649,6 +711,32 @@
         document.getElementById('employeeNameSidebar').textContent = employeeData.employeeName || 'Employee';
         document.getElementById('employeeSlotSidebar').textContent = `Slot: ${employeeData.slot || employeeId}`;
         document.getElementById('employeeDetails').textContent = `${employeeData.email || ''} • Slot ${employeeData.slot || employeeId}`;
+
+        // Check and apply permissions (default all to true if not set)
+        const permissions = employeeData.permissions || {
+          overview: true,
+          timecard: true,
+          assessment: true,
+          leave: true,
+          applyFor: true
+        };
+        
+        console.log('Employee permissions:', permissions);
+        
+        // Show/hide menu items based on permissions
+        if (!permissions.overview) document.getElementById('menu-overview')?.style.setProperty('display', 'none');
+        if (!permissions.timecard) document.getElementById('menu-timecard')?.style.setProperty('display', 'none');
+        if (!permissions.assessment) document.getElementById('menu-assessment')?.style.setProperty('display', 'none');
+        if (!permissions.leave) document.getElementById('menu-leave')?.style.setProperty('display', 'none');
+        if (!permissions.applyFor) document.getElementById('menu-applyFor')?.style.setProperty('display', 'none');
+        
+        // If overview is disabled, switch to first available section
+        if (!permissions.overview) {
+          const firstVisibleSection = ['timecard', 'assessment', 'leave', 'applyFor'].find(s => permissions[s]);
+          if (firstVisibleSection) {
+            setTimeout(() => switchSection(firstVisibleSection), 100);
+          }
+        }
 
         // Set default months
         const now = new Date();
@@ -1397,6 +1485,219 @@
         if (printFooter) printFooter.style.display = 'none';
       }, 1000);
     };
+
+    // Apply For Form Functions
+    window.showApplyLeaveForm = function() {
+      const container = document.getElementById('applicationFormContainer');
+      const title = document.getElementById('formTitle');
+      const content = document.getElementById('applicationFormContent');
+      
+      title.textContent = '🏖️ Apply for Leave';
+      content.innerHTML = `
+        <form onsubmit="submitApplication(event, 'leave')">
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Leave Type:</label>
+            <select name="leaveType" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+              <option value="">Select type...</option>
+              <option value="annual">Annual Leave</option>
+              <option value="sick">Sick Leave</option>
+              <option value="family">Family Leave</option>
+              <option value="unpaid">Unpaid Leave</option>
+            </select>
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Start Date:</label>
+            <input type="date" name="startDate" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">End Date:</label>
+            <input type="date" name="endDate" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Reason:</label>
+            <textarea name="reason" required rows="4" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;"></textarea>
+          </div>
+          <button type="submit" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 0.75rem 2rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 1rem;">Submit Application</button>
+        </form>
+      `;
+      container.style.display = 'block';
+      container.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.showApplySickLeaveForm = function() {
+      const container = document.getElementById('applicationFormContainer');
+      const title = document.getElementById('formTitle');
+      const content = document.getElementById('applicationFormContent');
+      
+      title.textContent = '🤒 Apply for Sick Leave';
+      content.innerHTML = `
+        <form onsubmit="submitApplication(event, 'sickleave')">
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Date:</label>
+            <input type="date" name="date" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Number of Days:</label>
+            <input type="number" name="days" min="1" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Symptoms/Reason:</label>
+            <textarea name="reason" required rows="4" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;"></textarea>
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+              <input type="checkbox" name="hasMedicalCertificate" style="width: 18px; height: 18px; cursor: pointer;">
+              <span>I have a medical certificate</span>
+            </label>
+          </div>
+          <button type="submit" style="background: linear-gradient(135deg, #f093fb, #f5576c); color: white; border: none; padding: 0.75rem 2rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 1rem;">Submit Application</button>
+        </form>
+      `;
+      container.style.display = 'block';
+      container.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.showApplyCashAdvanceForm = function() {
+      const container = document.getElementById('applicationFormContainer');
+      const title = document.getElementById('formTitle');
+      const content = document.getElementById('applicationFormContent');
+      
+      title.textContent = '💰 Apply for Cash Advance';
+      content.innerHTML = `
+        <form onsubmit="submitApplication(event, 'cashadvance')">
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Amount Requested (R):</label>
+            <input type="number" name="amount" min="100" step="100" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Reason:</label>
+            <textarea name="reason" required rows="4" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;" placeholder="Please explain why you need this advance..."></textarea>
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Repayment Period (months):</label>
+            <select name="repaymentMonths" required style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+              <option value="1">1 month</option>
+              <option value="2">2 months</option>
+              <option value="3">3 months</option>
+              <option value="6">6 months</option>
+            </select>
+          </div>
+          <button type="submit" style="background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; border: none; padding: 0.75rem 2rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 1rem;">Submit Request</button>
+        </form>
+      `;
+      container.style.display = 'block';
+      container.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.showApplyOtherForm = function() {
+      const container = document.getElementById('applicationFormContainer');
+      const title = document.getElementById('formTitle');
+      const content = document.getElementById('applicationFormContent');
+      
+      title.textContent = '📋 Other Request';
+      content.innerHTML = `
+        <form onsubmit="submitApplication(event, 'other')">
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Request Type:</label>
+            <input type="text" name="requestType" required placeholder="e.g., Equipment, Schedule Change, etc." style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #495057;">Details:</label>
+            <textarea name="details" required rows="6" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit;" placeholder="Please provide detailed information about your request..."></textarea>
+          </div>
+          <button type="submit" style="background: linear-gradient(135deg, #43e97b, #38f9d7); color: white; border: none; padding: 0.75rem 2rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 1rem;">Submit Request</button>
+        </form>
+      `;
+      container.style.display = 'block';
+      container.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.hideApplicationForm = function() {
+      document.getElementById('applicationFormContainer').style.display = 'none';
+    };
+
+    window.submitApplication = async function(event, type) {
+      event.preventDefault();
+      
+      try {
+        const formData = new FormData(event.target);
+        const data = Object.fromEntries(formData.entries());
+        
+        // Add metadata
+        data.employeeId = employeeId;
+        data.employeeName = employeeData.employeeName;
+        data.employeeSlot = employeeData.slot;
+        data.businessId = businessId;
+        data.type = type;
+        data.status = 'pending';
+        data.submittedDate = new Date().toISOString();
+        
+        console.log('Submitting application:', data);
+        
+        // Save to Firestore
+        const { addDoc, collection: firestoreCollection } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await addDoc(firestoreCollection(db, 'businesses', businessId, 'applications'), data);
+        
+        alert('✅ Application submitted successfully! Management will review your request.');
+        hideApplicationForm();
+        
+        // Reload applications
+        loadApplicationsHistory();
+        
+      } catch (error) {
+        console.error('Error submitting application:', error);
+        alert('❌ Failed to submit application: ' + error.message);
+      }
+    };
+
+    async function loadApplicationsHistory() {
+      try {
+        const { collection: firestoreCollection, query, where, getDocs, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const applicationsRef = firestoreCollection(db, 'businesses', businessId, 'applications');
+        const q = query(applicationsRef, where('employeeId', '==', employeeId), orderBy('submittedDate', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        const container = document.getElementById('applicationsHistory');
+        
+        if (snapshot.empty) {
+          container.innerHTML = '<p style="color: #999; text-align: center; padding: 2rem;">No applications submitted yet</p>';
+          return;
+        }
+        
+        const applications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        container.innerHTML = applications.map(app => {
+          const date = new Date(app.submittedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+          const statusColors = {
+            'pending': '#ffa500',
+            'approved': '#28a745',
+            'rejected': '#dc3545'
+          };
+          const statusColor = statusColors[app.status] || '#999';
+          
+          return `
+            <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; background: #f9f9f9;">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                <div>
+                  <strong style="color: #667eea; font-size: 1.1rem;">${app.type.toUpperCase()}</strong>
+                  <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">${date}</div>
+                </div>
+                <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">${app.status.toUpperCase()}</span>
+              </div>
+              <div style="font-size: 0.9rem; color: #495057;">
+                ${app.reason ? `<p><strong>Reason:</strong> ${app.reason}</p>` : ''}
+                ${app.amount ? `<p><strong>Amount:</strong> R${app.amount}</p>` : ''}
+                ${app.startDate ? `<p><strong>Dates:</strong> ${app.startDate} to ${app.endDate}</p>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+      } catch (error) {
+        console.error('Error loading applications:', error);
+      }
+    }
 
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', async () => {
