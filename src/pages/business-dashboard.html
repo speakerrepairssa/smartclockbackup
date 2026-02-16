@@ -31,7 +31,7 @@
       position: fixed;
       height: 100vh;
       overflow-y: auto;
-      z-index: 100;
+      z-index: 10;
     }
 
     .sidebar-header {
@@ -77,7 +77,9 @@
     .sidebar-footer {
       position: absolute;
       bottom: 1rem;
-      width: 180px;
+      left: 1rem;
+      right: 1rem;
+      width: calc(100% - 2rem);
     }
 
     .logout-btn {
@@ -101,6 +103,8 @@
       margin-left: 200px;
       flex: 1;
       padding: 2rem;
+      position: relative;
+      z-index: 1;
     }
 
     .dashboard-header {
