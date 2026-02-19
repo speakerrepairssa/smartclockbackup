@@ -347,6 +347,41 @@ export class EmployeeCredentialsUI {
                 </label>
               </div>
             </div>
+            
+            <!-- Application Types -->
+            <div class="application-types-section" style="margin-top: 0.75rem; padding: 0.75rem; background: #fff3cd; border-radius: 6px; border-left: 3px solid #ffc107;">
+              <div style="font-weight: 600; color: #856404; margin-bottom: 0.5rem; font-size: 0.9rem;">📝 Application Types:</div>
+              <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${(employee.applicationTypes?.leave !== false) ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updateApplicationType('${employee.slot}', 'leave', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>🏖️ Leave</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${(employee.applicationTypes?.sickleave !== false) ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updateApplicationType('${employee.slot}', 'sickleave', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>🤒 Sick Leave</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${(employee.applicationTypes?.cashadvance !== false) ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updateApplicationType('${employee.slot}', 'cashadvance', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>💰 Cash Advance</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                  <input type="checkbox" 
+                         ${(employee.applicationTypes?.other !== false) ? 'checked' : ''} 
+                         onchange="employeeCredentialsUI.updateApplicationType('${employee.slot}', 'other', this.checked)"
+                         style="width: 16px; height: 16px; cursor: pointer;">
+                  <span>📋 Other</span>
+                </label>
+              </div>
+            </div>
           ` : ''}
         </div>
         
@@ -659,6 +694,60 @@ export class EmployeeCredentialsUI {
     } catch (error) {
       console.error('Error updating permission:', error);
       this.showAlert('error', 'Failed to update permission: ' + error.message);
+    }
+  }
+
+  /**
+   * Update employee application type
+   */
+  async updateApplicationType(employeeSlot, applicationType, isEnabled) {
+    try {
+      // Import Firebase dynamically
+      const { getFirestore, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      const db = getFirestore();
+      
+      // Find employee by slot
+      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      
+      const staffRef = collection(db, 'businesses', this.businessId, 'staff');
+      const q = query(staffRef, where('slot', '==', parseInt(employeeSlot)));
+      const staffSnap = await getDocs(q);
+      
+      if (staffSnap.empty) {
+        throw new Error('Employee not found');
+      }
+      
+      const employeeDoc = staffSnap.docs[0];
+      const employeeData = employeeDoc.data();
+      
+      // Update application types (default all to true)
+      const currentTypes = employeeData.applicationTypes || {
+        leave: true,
+        sickleave: true,
+        cashadvance: true,
+        other: true
+      };
+      
+      currentTypes[applicationType] = isEnabled;
+      
+      // Save to Firestore
+      await updateDoc(doc(db, 'businesses', this.businessId, 'staff', employeeDoc.id), {
+        applicationTypes: currentTypes
+      });
+      
+      const typeNames = {
+        leave: 'Leave',
+        sickleave: 'Sick Leave',
+        cashadvance: 'Cash Advance',
+        other: 'Other'
+      };
+      
+      const statusText = isEnabled ? 'enabled' : 'disabled';
+      this.showAlert('success', `✓ ${typeNames[applicationType]} application ${statusText} for ${employeeData.employeeName}`);
+      
+    } catch (error) {
+      console.error('Error updating application type:', error);
+      this.showAlert('error', 'Failed to update application type: ' + error.message);
     }
   }
 

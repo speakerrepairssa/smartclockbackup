@@ -1,0 +1,236 @@
+<!-- VPS Management View - TO BE ADDED TO ADMIN DASHBOARD -->
+      <div class="view-section" id="vpsManagement View">
+        <h2 class="section-title">🖥️ VPS Relay Server Management</h2>
+        <p class="section-description">Manage and migrate your HTTP-to-HTTPS relay server</p>
+
+        <div class="vps-management-container">
+          <!-- Current VPS Status -->
+          <div class="vps-status-card" style="background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+              <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🖥️</div>
+              <div>
+                <h3 style="margin: 0; color: #333;">Current Relay Server</h3>
+                <p style="margin: 5px 0 0 0; color: #666;">Active relay forwarding device webhooks to Firebase</p>
+              </div>
+            </div>
+            
+            <div style="background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div>
+                  <strong>Current VPS IP:</strong><br>
+                  <span style="color: #667eea; font-weight: 600;">69.62.109.168</span>
+                </div>
+                <div>
+                  <strong>Relay Port:</strong><br>
+                  <span>7660</span>
+                </div>
+                <div>
+                  <strong>Webhook Endpoint:</strong><br>
+                  <span>/admin-webhook</span>
+                </div>
+                <div>
+                  <strong>Status:</strong><br>
+                  <span id="vpsRelayStatus" style="color: #28a745; font-weight: 600;">● Active</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="background: #e7f3ff; border-left: 4px solid #2196F3; padding: 1rem; border-radius: 4px; margin-top: 1rem;">
+              <strong>ℹ️ How It Works:</strong>
+              <p style="margin: 0.5rem 0 0 0; color: #555;">
+                The VPS relay receives HTTP webhooks from your Hikvision device and forwards them to Firebase HTTPS endpoints.
+                The web app never communicates with the VPS directly - it only reads from Firestore.
+              </p>
+            </div>
+          </div>
+
+          <!-- Migration Wizard -->
+          <div class="vps-migration-card" style="background: white; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+              <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🚀</div>
+              <div>
+                <h3 style="margin: 0; color: #333;">Migrate to New VPS</h3>
+                <p style="margin: 5px 0 0 0; color: #666;">Copy/paste deployment commands</p>
+              </div>
+            </div>
+
+            <!-- Step Indicator -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 2rem; overflow-x: auto;">
+              <div class="migration-step active" data-step="1" style="flex: 1; min-width: 150px; background: #e7f3ff; border-radius: 8px; padding: 1rem; text-align: center; border: 2px solid #2196F3;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">1️⃣</div>
+                <div style="font-weight: 600; color: #333;">VPS Details</div>
+              </div>
+              <div class="migration-step" data-step="2" style="flex: 1; min-width: 150px; background: #f5f5f5; border-radius: 8px; padding: 1rem; text-align: center; border: 2px solid #ddd;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">2️⃣</div>
+                <div style="font-weight: 600; color: #666;">Deploy Relay</div>
+              </div>
+              <div class="migration-step" data-step="3" style="flex: 1; min-width: 150px; background: #f5f5f5; border-radius: 8px; padding: 1rem; text-align: center; border: 2px solid #ddd;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">3️⃣</div>
+                <div style="font-weight: 600; color: #666;">Update Device</div>
+              </div>
+              <div class="migration-step" data-step="4" style="flex: 1; min-width: 150px; background: #f5f5f5; border-radius: 8px; padding: 1rem; text-align: center; border: 2px solid #ddd;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">4️⃣</div>
+                <div style="font-weight: 600; color: #666;">Test & Activate</div>
+              </div>
+            </div>
+
+            <!-- Step 1: VPS Details -->
+            <div id="vpsStep1" class="vps-step">
+              <h4 style="margin-bottom: 1rem; color: #333;">Step 1: Enter New VPS Details</h4>
+              
+              <div style="display: grid; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                  <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">VPS IP Address or Hostname</label>
+                  <input type="text" id="vpsHost" class="form-control" placeholder="e.g., 192.168.1.100 or vps.example.com" />
+                </div>
+              </div>
+
+              <button id="vpsProceedStep2Btn" class="btn btn-primary" onclick="proceedToStep2VPS()">
+                Continue to Deployment →
+              </button>
+            </div>
+
+            <!-- Step 2: Deploy Relay -->
+            <div id="vpsStep2" class="vps-step" style="display: none;">
+              <h4 style="margin-bottom: 1rem; color: #333;">Step 2: Deploy Relay Server</h4>
+              
+              <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                <strong>📋 Copy and Run Commands:</strong>
+                <p style="margin: 0.5rem 0 0 0;">SSH into your VPS and run these commands:</p>
+              </div>
+
+              <div style="background: #282c34; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; color: #fff; font-family: monospace; font-size: 0.9rem;">
+                <div style="margin-bottom: 1rem;">
+                  <div style="color: #98c379; margin-bottom: 0.5rem;"># SSH into your VPS</div>
+                  <div style="background: #1e2127; padding: 0.75rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="sshCommand">ssh root@IP_ADDRESS</span>
+                    <button onclick="copyToClipboard('sshCommand')" style="background: #61afef; border: none; padding: 0.25rem 0.75rem; border-radius: 4px; cursor: pointer; color: white;">Copy</button>
+                  </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                  <div style="color: #98c379; margin-bottom: 0.5rem;"># Create directory</div>
+                  <div style="background: #1e2127; padding: 0.75rem; border-radius: 4px;">
+                    <div>mkdir -p /opt/aiclock && cd /opt/aiclock</div>
+                  </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                  <div style="color: #98c379; margin-bottom: 0.5rem;"># Download relay script</div>
+                  <div style="background: #1e2127; padding: 0.75rem; border-radius: 4px;">
+                    <div id="downloadCommand">wget https://aiclock-82608.web.app/http-relay-working.js -O relay.js</div>
+                  </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                  <div style="color: #98c379; margin-bottom: 0.5rem;"># Install Node.js (if needed)</div>
+                  <div style="background: #1e2127; padding: 0.75rem; border-radius: 4px;">
+                    <div>curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs</div>
+                  </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                  <div style="color: #98c379; margin-bottom: 0.5rem;"># Install PM2</div>
+                  <div style="background: #1e2127; padding: 0.75rem; border-radius: 4px;">
+                    <div>npm install -g pm2</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style="color: #98c379; margin-bottom: 0.5rem;"># Start relay</div>
+                  <div style="background: #1e2127; padding: 0.75rem; border-radius: 4px;">
+                    <div>pm2 start relay.js --name aiclock-relay && pm2 save && pm2 startup</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background: #e7f3ff; border-left: 4px solid #2196F3; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                <strong>💡 Download Script:</strong>
+                <p style="margin: 0.5rem 0;">Or download a ready-to-run deployment script:</p>
+                <button class="btn btn-success" onclick="downloadDeployScriptVPS()">
+                  📥 Download Deploy Script
+                </button>
+              </div>
+
+              <div style="margin-top: 1rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                  <input type="checkbox" id="deploymentConfirm" onchange="toggleStep2ProceedVPS()">
+                  <span>I have deployed the relay server</span>
+                </label>
+              </div>
+
+              <button id="vpsProceedStep3Btn" class="btn btn-primary" onclick="proceedToStep3VPS()" disabled>
+                Continue to Device Setup →
+              </button>
+            </div>
+
+            <!-- Step 3: Update Device -->
+            <div id="vpsStep3" class="vps-step" style="display: none;">
+              <h4 style="margin-bottom: 1rem; color: #333;">Step 3: Update Device Configuration</h4>
+              
+              <div style="background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+                <h5 style="margin-top: 0;">Update Device Webhook URL:</h5>
+                <ol style="line-height: 1.8;">
+                  <li>Open device web interface: <strong>http://192.168.7.4</strong></li>
+                  <li>Login with admin credentials</li>
+                  <li>Go to: <strong>Configuration → Network → Advanced Settings → HTTP Listening</strong></li>
+                  <li>Set webhook URL to: <code id="newWebhookUrl" style="background: #fff; padding: 4px 8px; border-radius: 4px; display: inline-block; margin: 4px 0;">http://[NEW_IP]:7660/admin-webhook</code></li>
+                  <li>Click <strong>Save</strong></li>
+                </ol>
+              </div>
+
+              <button id="vpsProceedStep4Btn" class="btn btn-primary" onclick="proceedToStep4VPS()">
+                Continue to Testing →
+              </button>
+            </div>
+
+            <!-- Step 4: Test & Activate -->
+            <div id="vpsStep4" class="vps-step" style="display: none;">
+              <h4 style="margin-bottom: 1rem; color: #333;">Step 4: Test & Activate New Relay</h4>
+              
+              <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                <strong>🧪 Testing:</strong>
+                <p style="margin: 0.5rem 0 0 0;">Scan a fingerprint on your device. If successful, the attendance event should appear within 1-3 seconds.</p>
+              </div>
+
+              <div style="background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                <h5 style="margin-top: 0;">Test Results:</h5>
+                <div id="testResults" style="font-family: monospace; color: #666;">
+                  Waiting for test...
+                </div>
+              </div>
+
+              <button class="btn btn-primary" onclick="testNewRelayVPS()">
+                🧪 Test Relay Connection
+              </button>
+              <button id="vpsActivateBtn" class="btn btn-success" onclick="activateNewVpsVPS()" disabled>
+                ✅ Activate New VPS
+              </button>
+            </div>
+          </div>
+
+          <!-- Documentation Section -->
+          <div class="vps-docs-card" style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="margin-top: 0; color: #333;">📚 VPS Migration Documentation</h3>
+            
+            <div style="background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+              <h4 style="margin-top: 0;">What Gets Deployed?</h4>
+              <ul style="line-height: 1.8;">
+                <li><code>http-relay-working.js</code> - The relay server script</li>
+                <li><code>pm2</code> process manager (keeps relay running 24/7)</li>
+                <li>Automatic restart on VPS reboot</li>
+              </ul>
+            </div>
+
+            <div style="background: #e7f3ff; border-left: 4px solid #2196F3; padding: 1rem; border-radius: 4px;">
+              <strong>💡 Important Notes:</strong>
+              <ul style="margin: 0.5rem 0 0 1rem; padding-left: 1rem;">
+                <li>Firebase Cloud Functions don't need any changes</li>
+                <li>Web app continues working without updates</li>
+                <li>Only device webhook URL needs to be updated</li>
+                <li>Relay forwards to: <code>https://us-central1-aiclock-82608.cloudfunctions.net/attendanceWebhook</code></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>

@@ -702,6 +702,8 @@ Best regards,
       const employeeId = this.selectedEmployees[0];
       const payslipData = await this.getEmployeePayslipData(employeeId);
       
+      console.log('Payslip data:', payslipData);
+      
       // Get template customization data
       const templateData = {
         companyAddress: document.getElementById('companyAddress')?.value.trim() || '',
@@ -712,15 +714,37 @@ Best regards,
       };
       
       // Generate professional HTML using visual editor
-      const payslipHTML = this.visualEditor.generatePayslipHTML(payslipData, templateData);
+      let payslipHTML;
+      if (this.visualEditor && typeof this.visualEditor.generatePayslipHTML === 'function') {
+        payslipHTML = this.visualEditor.generatePayslipHTML(payslipData, templateData);
+      } else {
+        console.warn('Visual editor not available, using fallback template');
+        payslipHTML = this.generateFallbackPayslipHTML(payslipData, templateData);
+      }
       
-      // Display in modal with iframe for proper styling
+      console.log('Generated HTML length:', payslipHTML.length);
+      
+      // Display in modal with iframe for proper styling and download button
       const modal = document.getElementById('previewModal');
       const previewContent = document.getElementById('previewContent');
       
       if (modal && previewContent) {
+        // Store payslip HTML and data for download
+        this.currentPreviewHTML = payslipHTML;
+        this.currentPreviewData = payslipData;
+        
         // Use iframe to render the complete HTML with styles
-        previewContent.innerHTML = `<iframe id="payslipPreviewFrame" style="width: 100%; height: 800px; border: none; background: white;"></iframe>`;
+        previewContent.innerHTML = `
+          <div style="margin-bottom: 15px; display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="downloadPayslipBtn" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+              <span>📥</span> Download PDF
+            </button>
+            <button id="printPayslipBtn" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+              <span>🖨️</span> Print
+            </button>
+          </div>
+          <iframe id="payslipPreviewFrame" style="width: 100%; height: 800px; border: none; background: white;"></iframe>
+        `;
         
         const iframe = document.getElementById('payslipPreviewFrame');
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -728,12 +752,257 @@ Best regards,
         iframeDoc.write(payslipHTML);
         iframeDoc.close();
         
+        // Add download button event listener
+        const downloadBtn = document.getElementById('downloadPayslipBtn');
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => this.downloadPayslip());
+        }
+        
+        // Add print button event listener
+        const printBtn = document.getElementById('printPayslipBtn');
+        if (printBtn) {
+          printBtn.addEventListener('click', () => this.printPayslip());
+        }
+        
         modal.style.display = 'block';
       }
       
     } catch (error) {
       console.error("❌ Error previewing payslip:", error);
-      showNotification("Failed to generate preview", "error");
+      console.error("Error stack:", error.stack);
+      showNotification("Failed to generate preview: " + error.message, "error");
+    }
+  }
+  
+  /**
+   * Generate fallback payslip HTML if visual editor is not available
+   */
+  generateFallbackPayslipHTML(employeeData, templateData = {}) {
+    const {
+      companyAddress = '',
+      companyContact = '',
+      customMessage = '',
+      payslipFooter = 'This is a computer-generated payslip. No signature is required.',
+      taxNumber = ''
+    } = templateData;
+    
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+    .payslip { max-width: 800px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+    .header h1 { color: #2563eb; font-size: 28px; margin-bottom: 10px; }
+    .header h2 { color: #666; font-size: 18px; font-weight: normal; }
+    .info-section { margin-bottom: 30px; }
+    .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; background: #f8f9fa; padding: 20px; border-radius: 8px; }
+    .info-item { display: flex; flex-direction: column; }
+    .info-label { font-size: 12px; color: #666; font-weight: 600; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-value { font-size: 15px; color: #333; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+    thead { background: #f8f9fa; }
+    th { text-align: left; padding: 12px; font-size: 13px; font-weight: 700; color: #333; border-bottom: 2px solid #2563eb; }
+    td { padding: 12px; font-size: 13px; color: #555; border-bottom: 1px solid #e9ecef; }
+    .amount { text-align: right; font-weight: 600; }
+    .total-row { background: #f8f9fa; font-weight: 700; font-size: 14px; }
+    .total-row td { border-top: 2px solid #2563eb; }
+    .net-pay { background: linear-gradient(135deg, #2563eb, #1e40af); color: white; padding: 25px; margin: 30px 0; text-align: center; border-radius: 8px; }
+    .net-pay-label { font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
+    .net-pay-amount { font-size: 36px; font-weight: 700; }
+    .footer { background: #f8f9fa; padding: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #dee2e6; }
+  </style>
+</head>
+<body>
+  <div class="payslip">
+    <div class="header">
+      <h1>${employeeData.businessName || 'Company Name'}</h1>
+      <h2>Payslip for ${employeeData.month} ${employeeData.year}</h2>
+      ${companyAddress ? `<p style="margin-top: 10px; color: #666; font-size: 13px;">${companyAddress.replace(/\n/g, '<br>')}</p>` : ''}
+    </div>
+    
+    <div class="info-section">
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">Employee Name</span>
+          <span class="info-value">${employeeData.employeeName}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Employee ID</span>
+          <span class="info-value">${employeeData.employeeId}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Period</span>
+          <span class="info-value">${employeeData.period}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Pay Date</span>
+          <span class="info-value">${employeeData.payDate || new Date().toLocaleDateString()}</span>
+        </div>
+      </div>
+    </div>
+    
+    <h3 style="color: #2563eb; margin-bottom: 15px;">Earnings</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="amount">Rate</th>
+          <th class="amount">Hours</th>
+          <th class="amount">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Basic Salary</td>
+          <td class="amount">R ${employeeData.payRate}</td>
+          <td class="amount">${employeeData.regularHours}h</td>
+          <td class="amount">R ${employeeData.regularPay}</td>
+        </tr>
+        ${parseFloat(employeeData.overtimeHours) > 0 ? `
+        <tr>
+          <td>Overtime (1.5x)</td>
+          <td class="amount">R ${(parseFloat(employeeData.payRate) * 1.5).toFixed(2)}</td>
+          <td class="amount">${employeeData.overtimeHours}h</td>
+          <td class="amount">R ${employeeData.overtimePay}</td>
+        </tr>
+        ` : ''}
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="3">Gross Pay</td>
+          <td class="amount">R ${employeeData.grossPay}</td>
+        </tr>
+      </tfoot>
+    </table>
+    
+    <h3 style="color: #2563eb; margin-bottom: 15px;">Deductions</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="amount">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Deductions</td>
+          <td class="amount">R ${employeeData.deductions}</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <div class="net-pay">
+      <div class="net-pay-label">NETT PAY</div>
+      <div class="net-pay-amount">R ${employeeData.netPay}</div>
+    </div>
+    
+    ${customMessage ? `
+    <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; font-size: 13px; color: #666;">
+      ${customMessage.replace(/\n/g, '<br>')}
+    </div>
+    ` : ''}
+    
+    <div class="footer">
+      <p>${payslipFooter}</p>
+      ${companyContact ? `<p style="margin-top: 10px;">${companyContact}</p>` : ''}
+      ${taxNumber ? `<p style="margin-top: 10px; font-size: 11px; color: #999;">${taxNumber}</p>` : ''}
+    </div>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Download the current payslip preview as PDF
+   */
+  async downloadPayslip() {
+    if (!this.currentPreviewHTML || !this.currentPreviewData) {
+      showNotification("No payslip preview available", "warning");
+      return;
+    }
+    
+    try {
+      showNotification("Generating PDF...", "info");
+      
+      // Load html2pdf library if not already loaded
+      if (typeof html2pdf === 'undefined') {
+        await this.loadHtml2PdfLibrary();
+      }
+      
+      // Get the iframe content
+      const iframe = document.getElementById('payslipPreviewFrame');
+      if (!iframe) {
+        throw new Error("Preview iframe not found");
+      }
+      
+      const element = iframe.contentDocument.body;
+      
+      // PDF options
+      const opt = {
+        margin: 10,
+        filename: `Payslip - ${this.currentPreviewData.employeeName} ${this.currentPreviewData.period}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          letterRendering: true
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait' 
+        }
+      };
+      
+      // Generate PDF
+      await html2pdf().set(opt).from(element).save();
+      
+      showNotification("Payslip PDF downloaded successfully", "success");
+    } catch (error) {
+      console.error("❌ Error downloading payslip:", error);
+      showNotification("Failed to download payslip: " + error.message, "error");
+    }
+  }
+
+  /**
+   * Load html2pdf library dynamically
+   */
+  async loadHtml2PdfLibrary() {
+    return new Promise((resolve, reject) => {
+      if (typeof html2pdf !== 'undefined') {
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
+   * Print the current payslip preview
+   */
+  printPayslip() {
+    const iframe = document.getElementById('payslipPreviewFrame');
+    if (!iframe) {
+      showNotification("No payslip preview available", "warning");
+      return;
+    }
+    
+    try {
+      iframe.contentWindow.print();
+    } catch (error) {
+      console.error("❌ Error printing payslip:", error);
+      showNotification("Failed to print payslip", "error");
     }
   }
 

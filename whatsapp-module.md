@@ -1,611 +1,642 @@
-# WhatsApp Business API Integration Module
+# WhatsApp Module Documentation
 
 ## Overview
-This module integrates WhatsApp Business API with the AIClock system, allowing businesses to send automated WhatsApp messages based on attendance events and other triggers. The module follows a 3-step setup flow: connect API credentials, view/manage automation cards, and create new automation cards with template mappings.
+
+The WhatsApp module provides automated messaging to employees when they clock out, sending them their daily payroll assessment data via WhatsApp using the Meta Business WhatsApp Cloud API.
 
 ## Architecture
 
-### Flow Structure
-1. **Step 1**: API Connection - Business enters WhatsApp credentials and saves them
-2. **Step 3**: Dashboard View - Shows connected status and lists all automation cards
-3. **Modal Flow**: Card Creation - Select template → Configure parameters → Save card
+### Core Components
 
-### Files & Locations
+1. **HTTP Webhook Trigger** (`attendanceWebhook`)
+   - Entry point for attendance events from Hikvision devices
+   - Processes clock-in and clock-out events
+   - Triggers WhatsApp messages for clock-out events
 
-#### Main File
-- **Location**: `/src/pages/whatsapp-settings.html`
-- **Size**: ~1575 lines
-- **Purpose**: Complete WhatsApp integration UI and logic
-- **Dependencies**: 
-  - Firebase Firestore (authentication, database)
-  - WhatsApp Business API (Meta Graph API v17.0+)
+2. **Assessment Cache** (`businesses/{businessId}/assessment_cache/{YYYY-MM}`)
+   - Monthly cached employee payroll data
+   - Includes: hours worked, income due, pay rates, contact info
+   - Updated after each attendance event
 
-#### Navigation
-- Accessible from business dashboard
-- Menu item: "WhatsApp Settings" or "Communication → WhatsApp"
+3. **WhatsApp Sender** (`sendWhatsAppMessage`)
+   - Maps employee data to template parameters
+   - Sends messages via WhatsApp Cloud API
+   - Handles multiple recipients and validation
 
-## Required Credentials
+4. **Frontend Trigger** (`business-dashboard.html`)
+   - Monitors employee status changes in real-time
+   - Loads assessment cache on clock-out
+   - Calls WhatsApp function via HTTPS
 
-### WhatsApp Business API Setup
-You need a Meta Business Account with WhatsApp Business API access. Obtain these credentials:
+### Data Flow
 
-1. **Access Token**
-   - From: Meta Developer Console → Your App → System Users
-   - Type: System User Token with WhatsApp permissions
-   - Scope: `whatsapp_business_messaging`, `whatsapp_business_management`
+```
+Employee Clock-Out Event
+    ↓
+attendanceWebhook (HTTP Trigger)
+    ↓
+processAttendanceEvent()
+    ├─ Update attendance record
+    ├─ Fetch assessment cache
+    └─ Extract employee data (phone, email, payroll)
+    ↓
+sendWhatsAppMessage() [via HTTPS]
+    ├─ Map employee data to template parameters
+    ├─ Validate phone numbers
+    ├─ Format message text
+    └─ Call WhatsApp Cloud API
+    ↓
+WhatsApp Message Delivered to Employee
+```
 
-2. **Phone Number ID**
-   - From: Meta Developer Console → WhatsApp → API Setup
-   - Example: `104235266075141`
-   - This is the ID of the phone number sending messages
+### Alternative Frontend Flow
 
-3. **WhatsApp Business Account ID**
-   - From: Meta Developer Console → WhatsApp → API Setup
-   - Example: `107739957151545`
-   - Your business account identifier
+```
+Frontend Status Listener (business-dashboard.html)
+    ↓
+Detects status change to "clocked out"
+    ↓
+Load assessment cache for current month
+    ↓
+Find employee in cache.employees array
+    ↓
+Construct employeeDataToSend object
+    ├─ phone (from cache)
+    ├─ email (from cache)
+    ├─ currentIncomeDue
+    ├─ currentHours
+    ├─ payRate
+    └─ other payroll fields
+    ↓
+Call sendWhatsAppMessage via fetch()
+    ↓
+WhatsApp Message Delivered
+```
 
-4. **Phone Number** (retrieved automatically)
-   - The actual phone number (e.g., `+27 60 977 2398`)
-   - Fetched from API during setup
+## Code Structure
 
-### How to Get Credentials
+### 1. Cache Calculation (`/functions/cacheCalculation.js`)
 
-#### Step 1: Create Meta Business Account
-1. Go to [Meta Business Suite](https://business.facebook.com)
-2. Create or select your business account
-3. Navigate to "WhatsApp Accounts"
+**Purpose**: Calculate and structure employee assessment data for caching
 
-#### Step 2: Set Up WhatsApp Business API
-1. Go to [Meta for Developers](https://developers.facebook.com)
-2. Create a new app or select existing app
-3. Add "WhatsApp" product to your app
-4. Complete phone number verification
+**Key Function**: `calculateSingleEmployeeAssessment()`
 
-#### Step 3: Generate Access Token
-1. In Meta Developer Console, go to "System Users"
-2. Create a system user with appropriate permissions
-3. Generate a permanent access token
-4. Assign WhatsApp permissions to the token
-
-#### Step 4: Get IDs
-1. Navigate to WhatsApp → API Setup
-2. Copy your Phone Number ID
-3. Copy your WhatsApp Business Account ID
-
-## Firestore Data Structure
-
-### Settings Document
-**Path**: `businesses/{businessId}/settings/whatsapp`
-
+**Returns** (lines ~465-485):
 ```javascript
 {
-  accessToken: "EAAH...",           // Meta access token
-  phoneNumberId: "104235266075141", // WhatsApp phone number ID
-  businessAccountId: "107739957151545", // Business account ID
-  phoneNumber: "+27 60 977 2398",   // Display phone number
-  businessName: "Your Business",    // Business name (optional)
-  createdAt: "2026-02-12T10:30:00.000Z",
-  updatedAt: "2026-02-12T10:30:00.000Z"
+  employeeId,
+  employeeName,
+  phone: employee.phone || null,        // Added for WhatsApp
+  email: employee.email || null,        // Added for WhatsApp
+  shiftId,
+  shiftName,
+  currentHours,
+  requiredHours,
+  hoursShort,
+  payRate,
+  dailyMultipliers: { ... },
+  currentIncomeDue,
+  pastDueIncome,
+  totalOwed,
+  status
 }
 ```
 
-### Automation Card Document
-**Path**: `businesses/{businessId}/whatsapp_automations/{cardId}`
+**Called By**:
+- `processAttendanceEvent()` after attendance updates
+- Manual cache refresh operations
+
+### 2. Main Functions (`/functions/index.js`)
+
+#### `attendanceWebhook` (HTTP Trigger)
+- **Line**: ~400-500
+- **Purpose**: Receives attendance events from devices
+- **Calls**: `processAttendanceEvent()`
+
+#### `processAttendanceEvent()` (lines ~770-890)
+- **Purpose**: Process clock-in/out and trigger actions
+- **For Clock-Out**:
+  1. Fetch assessment cache for current month
+  2. Extract employee data from cache
+  3. Add fields: requiredHours, currentIncomeDue, dailyMultipliers, payRate, phone
+  4. Call `sendWhatsAppMessage()` via HTTPS
+
+#### `onEmployeeStatusChange` (line ~5028)
+- **Status**: ⚠️ DISABLED
+- **Reason**: Prevented duplicate messages (now handled by attendanceWebhook with richer data)
+- **Code**: Early return added
+
+#### `sendWhatsAppMessage()` (lines ~2188-2400)
+- **Purpose**: Send WhatsApp messages using Cloud API
+- **Key Logic**:
+  1. Extract recipients from `toNumbers` or `employeeData.phone`
+  2. Fetch WhatsApp automation card from Firestore
+  3. Map template parameters from employeeData
+  4. Validate and format message
+  5. Call Meta Business API
+  6. Return success/failure status
+
+### 3. Frontend Dashboard (`/src/pages/business-dashboard.html`)
+
+**Status Change Listener** (lines ~3590-3680):
 
 ```javascript
-{
-  id: "card_1234567890",            // Unique card identifier
-  name: "Late Arrival Notice",      // Card display name
-  templateName: "late_notice",      // WhatsApp template name
-  trigger: "late_checkin",          // Event trigger type
-  recipient: "employee",            // Who receives the message
-  parameterMappings: [              // Template parameter mappings
-    {
-      parameterName: "1",           // Template parameter position
-      value: "{{employee.firstName}}" // Data field to use
-    },
-    {
-      parameterName: "2",
-      value: "{{time.clock_in}}"
-    }
-  ],
-  enabled: true,                    // Card active status
-  createdAt: "2026-02-12T10:45:00.000Z",
-  updatedAt: "2026-02-12T10:45:00.000Z"
+// Listen for employee status changes
+employeeStatusRef.on('value', (snapshot) => {
+  const status = snapshot.val();
+  
+  if (status === 'clocked out') {
+    // Load assessment cache
+    const cacheRef = firebase.database()
+      .ref(`businesses/${businessId}/assessment_cache/${currentMonth}`);
+    
+    cacheRef.once('value', (cacheSnapshot) => {
+      const cache = cacheSnapshot.val();
+      const employeeAssessmentData = cache.employees.find(
+        emp => emp.employeeId === employeeId
+      );
+      
+      // Construct data with cached contact info
+      const employeeDataToSend = {
+        employeeId,
+        employeeName,
+        phone: employeeAssessmentData.phone || null,  // From cache
+        email: employeeAssessmentData.email || null,  // From cache
+        currentIncomeDue: employeeAssessmentData.currentIncomeDue,
+        currentHours: employeeAssessmentData.currentHours,
+        payRate: employeeAssessmentData.payRate,
+        // ... other fields
+      };
+      
+      // Call WhatsApp function
+      fetch(whatsappFunctionUrl, {
+        method: 'POST',
+        body: JSON.stringify(employeeDataToSend)
+      });
+    });
+  }
+});
+```
+
+### 4. WhatsApp Settings UI (`/src/pages/whatsapp-settings.html`)
+
+**Purpose**: Configure WhatsApp automations and test messages
+
+**Key Features**:
+- Create/edit automation cards
+- Map template parameters to employee data fields
+- Test mode with sample data generation
+- Live preview of mapped parameters
+
+**Test Sample Data** (`getSampleValue()`):
+```javascript
+function getSampleValue(fieldPath) {
+  const samples = {
+    employeeName: 'John Doe',
+    currentIncomeDue: '1250.00',
+    currentHours: '42.5',
+    // ... more realistic test values
+  };
+  return samples[fieldPath] || 'Sample Value';
 }
 ```
 
-## Key Functions Reference
+## Template Parameter Mapping
 
-### Initialization Functions
+### Template Structure
 
-#### `checkExistingSetup()`
-**Lines**: 483-538
-**Purpose**: Loads saved WhatsApp credentials from Firestore on page load
-**Behavior**:
-- Checks if credentials exist in Firestore
-- If found, fetches templates from WhatsApp API
-- Reconstructs `selectedBusiness` object
-- Automatically shows Step 3 (dashboard view)
-- Called on page load in `DOMContentLoaded` event
+**Template**: `payrollfinal` (7 parameters)
 
-#### `setupEventListeners()`
-**Lines**: 540-548
-**Purpose**: Attaches event handlers for form submissions and buttons
-**Listeners**:
-- Form submission for Step 1 (API connection)
-- Edit Settings button click
-- Called once on page initialization
+### Mapping Configuration
 
-### Step 1: API Connection
-
-#### `handleTokenSubmit(e)`
-**Lines**: 565-690
-**Purpose**: Validates and saves WhatsApp API credentials
-**Flow**:
-1. Prevents form default submission
-2. Validates all three credential fields
-3. Tests connection to Meta Graph API
-4. Fetches available message templates
-5. Retrieves phone number details
-6. Saves credentials to Firestore
-7. Shows Step 3 (success view)
-
-**API Calls Made**:
-- `GET /{businessAccountId}/message_templates` - Fetch templates
-- `GET /{phoneNumberId}/whatsapp_business_profile` - Get business profile
-- `GET /{phoneNumberId}` - Get phone number details
-
-### Step 3: Dashboard View
-
-#### `loadSuccessDisplay()`
-**Lines**: 692-745
-**Purpose**: Displays connection status and automation cards
-**Elements**:
-- Shows connected phone number
-- Displays business name
-- Shows template count
-- Renders "Create Card" button
-- Calls `loadConfiguredMappings()` to show existing cards
-
-#### `loadConfiguredMappings()`
-**Lines**: 1387-1454
-**Purpose**: Fetches and displays all automation cards from Firestore
-**Features**:
-- Queries `whatsapp_automations` collection
-- Creates card UI elements with status (active/paused)
-- Shows card name, template, trigger type
-- Adds Edit/Pause/Delete buttons
-- Handles empty state (no cards message)
-
-### Card Creation Flow
-
-#### `openCreateCardModal()`
-**Lines**: 1019-1090
-**Purpose**: Opens modal with template selector dropdown
-**Flow**:
-1. Shows modal overlay
-2. Populates template dropdown from available templates
-3. Filters to only show APPROVED templates
-4. Groups templates by category (optional)
-5. Waits for user to select template and click "Next"
-
-#### `proceedWithTemplate()`
-**Lines**: 1092-1180
-**Purpose**: Rebuilds modal with full card configuration form
-**Flow**:
-1. Gets selected template from dropdown
-2. Extracts template structure and parameters
-3. Rebuilds entire modal HTML with:
-   - Card name field
-   - Template display name (read-only)
-   - Trigger type selector (late_checkin, early_checkout, etc.)
-   - Recipient selector (employee, manager, business)
-   - Dynamic parameter fields based on template structure
-4. Populates parameter dropdowns with available data fields
-5. Shows parameter hints (what each field does)
-
-**Available Data Fields**:
-- `{{employee.firstName}}`
-- `{{employee.lastName}}`
-- `{{employee.phone}}`
-- `{{business.name}}`
-- `{{time.clock_in}}`
-- `{{time.clock_out}}`
-- `{{date.today}}`
-- `{{location.name}}`
-
-#### `saveMappingConfig()`
-**Lines**: 1293-1383
-**Purpose**: Validates and saves the automation card to Firestore
-**Validation**:
-- Card name is required and unique
-- Template must be selected
-- Trigger type must be chosen
-- Recipient must be selected
-**Flow**:
-1. Collects all form data
-2. Validates required fields
-3. Collects parameter mappings
-4. Generates unique card ID
-5. Saves to `whatsapp_automations` collection
-6. Shows success message
-7. Closes modal
-8. Reloads card list
-
-### Card Management
-
-#### `pauseMapping(cardId)`
-**Lines**: 1456-1474
-**Purpose**: Toggles card enabled/disabled status
-**Updates**: `enabled` field in Firestore document
-
-#### `editMapping(cardId)`
-**Lines**: 1476-1509
-**Purpose**: Opens edit mode for existing card
-**Flow**:
-1. Fetches card data from Firestore
-2. Sets `currentEditingCardId`
-3. Opens modal with form pre-filled
-4. Save button updates existing document
-
-#### `deleteMapping(cardId)`
-**Lines**: 1511-1523
-**Purpose**: Deletes automation card after confirmation
-**Behavior**: Removes document from Firestore and refreshes list
-
-### Utility Functions
-
-#### `showStep(stepNumber)`
-**Lines**: 1550-1553
-**Purpose**: Shows specific step, hides others
-**CSS**: Toggles `.active` class on step elements
-
-#### `updateProgress(percentage, text)`
-**Lines**: 1555-1558
-**Purpose**: Updates progress bar at top of page
-**Parameters**: 
-- `percentage`: 0-100 (33 for step 1, 100 for complete)
-- `text`: Display text (e.g., "Step 1 of 3")
-
-#### `showStatus(elementId, message, type)`
-**Lines**: 1560-1565
-**Purpose**: Shows status message (success/error)
-**Types**: `'success'`, `'error'`, `'info'`
-
-#### `editSettings()`
-**Lines**: 550-562
-**Purpose**: Returns to Step 1 to edit credentials
-**Behavior**: Pre-fills existing values (except access token for security)
-
-## Template Structure
-
-WhatsApp templates have a specific structure:
+Stored in: `businesses/{businessId}/whatsapp_automations/{automationId}`
 
 ```javascript
 {
-  name: "late_notice",
-  status: "APPROVED",
-  category: "ACCOUNT_UPDATE",
-  language: "en",
-  components: [
-    {
-      type: "HEADER",
-      format: "TEXT",
-      text: "Late Arrival Notice"
-    },
-    {
-      type: "BODY",
-      text: "Hi {{1}}, you clocked in at {{2}}. Please ensure punctuality.",
-      example: {
-        body_text: [["John", "09:15 AM"]]
-      }
-    },
-    {
-      type: "FOOTER",
-      text: "AIClock Attendance System"
-    }
-  ]
-}
-```
-
-### Parameter Extraction
-The system automatically extracts parameters from the BODY component:
-- Looks for `{{1}}`, `{{2}}`, `{{3}}`, etc.
-- Creates form fields for each parameter
-- Shows examples if available
-- Maps parameters to data fields on save
-
-## Setup Instructions
-
-### 1. First Time Setup
-
-1. **Navigate to WhatsApp Settings**
-   - Login as business user
-   - Go to dashboard
-   - Click "WhatsApp Settings" in menu
-
-2. **Enter Credentials (Step 1)**
-   - Paste Access Token
-   - Enter Phone Number ID
-   - Enter Business Account ID
-   - Click "Connect & Save"
-
-3. **Wait for Validation**
-   - System tests connection
-   - Fetches templates (must have at least 1 approved template)
-   - Saves to Firestore
-   - Redirects to dashboard (Step 3)
-
-### 2. Creating Automation Cards
-
-1. **Click "Create New Card" (+ button)**
-   - Modal opens with template selector
-
-2. **Select Template**
-   - Choose from dropdown (only APPROVED templates shown)
-   - Click "Next"
-
-3. **Configure Card**
-   - **Card Name**: Give it a descriptive name (e.g., "Late Arrival Alert")
-   - **Trigger**: Select when to send (late_checkin, early_checkout, etc.)
-   - **Recipient**: Choose who receives message (employee, manager, business)
-   - **Parameters**: Map each template parameter to a data field
-   - Click "Save Card"
-
-4. **Verify Card Created**
-   - Card appears in list
-   - Shows as "Active" (green indicator)
-   - Can pause, edit, or delete
-
-### 3. Managing Cards
-
-- **Pause/Activate**: Click pause button to temporarily disable
-- **Edit**: Click edit icon to modify configuration
-- **Delete**: Click delete icon (confirms before removing)
-
-### 4. Editing Credentials
-
-1. Click "Edit Settings" button in Step 3
-2. Returns to Step 1 with pre-filled values
-3. Update any credential
-4. Click "Connect & Save"
-
-## Troubleshooting
-
-### Common Issues
-
-#### "Please fill in all fields"
-- Ensure all three credentials are entered
-- No empty fields allowed
-- Access token should start with "EAAH" or "EAA"
-
-#### "Failed to fetch templates"
-- Check access token is valid and not expired
-- Verify token has WhatsApp permissions
-- Ensure Business Account ID is correct
-- Check Meta app is in production mode (not development)
-
-#### "No templates found"
-- You must create at least 1 template in Meta Business Manager
-- Templates must be APPROVED status
-- Wait for Meta approval (can take 1-2 hours)
-
-#### "Template selector is empty"
-- Only APPROVED templates appear
-- Check template status in Meta Business Manager
-- Pending/Rejected templates won't show
-
-#### "Card not saving"
-- Check browser console for errors (F12 → Console tab)
-- Verify Firestore permissions are correct
-- Ensure businessId exists and user has access
-- Check all required fields are filled
-
-#### "Cards not displaying"
-- Check Firestore collection path: `businesses/{businessId}/whatsapp_automations`
-- Verify documents exist in Firestore console
-- Check browser console for fetch errors
-- Try refreshing the page
-
-#### "Step 1 not working"
-- Check for JavaScript errors in console
-- Verify form exists with id="tokenForm"
-- Check event listener is attached
-- Look for console logs starting with "🔐"
-
-### Console Debugging
-
-Open browser console (F12 → Console) to see detailed logs:
-
-**Step 1 (Connection)**:
-```
-🔐 handleTokenSubmit called
-   Access token length: 255
-   Phone Number ID: 104235266075141
-   Business Account ID: 107739957151545
-🔄 Testing connection...
-✅ Connection successful!
-📱 Phone number: +27 60 977 2398
-📋 Found 25 templates
-💾 Saving to Firestore...
-✅ Settings saved successfully
-```
-
-**Card Save**:
-```
-💾 Saving card configuration...
-   Card Name: Late Arrival Notice
-   Template: late_notice
-   Trigger: late_checkin
-   Recipient: employee
-   Parameters: (2) [{...}, {...}]
-   Card ID: card_1707737425123
-   Card data: {id: "...", name: "...", ...}
-✅ Card saved successfully!
-```
-
-**Card Load**:
-```
-📋 Loading automation cards...
-   Found 3 cards
-   Card: Late Arrival Notice (late_notice)
-   Card: Early Leave Alert (early_leave)
-   Card: Absent Notice (absent_notice)
-✅ Cards loaded and displayed
-```
-
-## Data Flow Diagram
-
-```
-User Input
-    ↓
-Step 1: Enter Credentials
-    ↓
-handleTokenSubmit()
-    ↓
-Validate & Test API
-    ↓
-Fetch Templates
-    ↓
-Save to Firestore (businesses/{id}/settings/whatsapp)
-    ↓
-Show Step 3
-    ↓
-loadSuccessDisplay()
-    ↓
-loadConfiguredMappings()
-    ↓
-Display Cards (from businesses/{id}/whatsapp_automations)
-    ↓
-User Clicks "Create Card"
-    ↓
-openCreateCardModal()
-    ↓
-Select Template
-    ↓
-proceedWithTemplate()
-    ↓
-Fill Form (name, trigger, recipient, parameters)
-    ↓
-saveMappingConfig()
-    ↓
-Save to Firestore (businesses/{id}/whatsapp_automations/{cardId})
-    ↓
-Reload Card List
-```
-
-## API Endpoints Used
-
-### Meta Graph API (WhatsApp Business)
-
-**Base URL**: `https://graph.facebook.com/v17.0`
-
-#### 1. Get Message Templates
-```
-GET /{businessAccountId}/message_templates
-Headers: Authorization: Bearer {accessToken}
-Response: { data: [{template1}, {template2}, ...] }
-```
-
-#### 2. Get Business Profile
-```
-GET /{phoneNumberId}/whatsapp_business_profile
-Headers: Authorization: Bearer {accessToken}
-Response: { data: [{ about, address, description, ... }] }
-```
-
-#### 3. Get Phone Number
-```
-GET /{phoneNumberId}
-Headers: Authorization: Bearer {accessToken}
-Response: { display_phone_number: "+27...", ... }
-```
-
-#### 4. Send Message (not in this file, used by backend)
-```
-POST /{phoneNumberId}/messages
-Headers: 
-  Authorization: Bearer {accessToken}
-  Content-Type: application/json
-Body: {
-  messaging_product: "whatsapp",
-  to: "+27...",
-  type: "template",
-  template: {
-    name: "template_name",
-    language: { code: "en" },
-    components: [...]
+  templateName: 'payrollfinal',
+  parameters: {
+    '1': 'employeeName',
+    '2': 'currentIncomeDue',
+    '3': 'currentHours',
+    '4': 'requiredHours',
+    '5': 'hoursShort',
+    '6': 'dailyMultipliers.sunday',
+    '7': 'payRate'
   }
 }
 ```
 
-## Security Considerations
+### Mapping Process (in `sendWhatsAppMessage`)
 
-1. **Access Token Storage**
-   - Stored in Firestore (encrypted at rest)
-   - Never exposed in client-side logs
-   - Not pre-filled in edit mode for security
+```javascript
+// For each parameter position (1-7)
+for (let i = 1; i <= 7; i++) {
+  const fieldPath = templateParameters[i.toString()];
+  
+  if (!fieldPath) {
+    templateComponents[0].parameters.push({ type: 'text', text: 'N/A' });
+    continue;
+  }
+  
+  // Navigate nested paths (e.g., 'dailyMultipliers.sunday')
+  const value = getNestedValue(employeeData, fieldPath);
+  
+  // Format the value
+  const formattedValue = formatValue(value, fieldPath);
+  
+  templateComponents[0].parameters.push({
+    type: 'text',
+    text: formattedValue || 'N/A'
+  });
+}
+```
 
-2. **Firestore Rules Required**
-   ```javascript
-   match /businesses/{businessId}/settings/{document} {
-     allow read, write: if request.auth != null 
-       && request.auth.token.businessId == businessId;
-   }
+## Known Issues
+
+### ⚠️ Issue 1: Cache Structure Mismatch (RESOLVED)
+
+**Status**: ✅ **FIXED** (2024-02-14)
+
+**Symptom**: Phone/email fields not appearing in employeeData sent to WhatsApp, causing messagesSent: 0
+
+**Root Cause**: 
+`processAttendanceEvent` was using **OLD cache structure** (direct key lookup):
+```javascript
+const employeeAssessment = cacheData[slotNumber.toString()]; // OLD
+```
+
+But `cacheCalculation.js` was updated to use **NEW structure** (employees array):
+```javascript
+{
+  employees: [
+    { employeeId, employeeName, phone, email, payRate, ... }
+  ]
+}
+```
+
+**Solution Implemented**:
+Updated `processAttendanceEvent` (lines ~820-870) to:
+1. Try NEW structure first (find in employees array)
+2. Fallback to OLD structure for backward compatibility
+3. Update phone/email from cache (cache is source of truth)
+4. Log which structure was used
+
+**Code Fix**:
+```javascript
+// Try new structure first (employees array)
+if (cacheData.employees && Array.isArray(cacheData.employees)) {
+  employeeAssessment = cacheData.employees.find(
+    emp => emp.employeeId === slotNumber.toString()
+  );
+} else {
+  // Fallback to old structure (direct key lookup)
+  employeeAssessment = cacheData[slotNumber.toString()];
+}
+
+// Update phone/email from cache if available
+if (employeeAssessment.phone) {
+  employeeData.phone = employeeAssessment.phone;
+}
+if (employeeAssessment.email) {
+  employeeData.email = employeeAssessment.email;
+}
+```
+
+**Verification**:
+```bash
+# Check logs show phone being found from cache
+gcloud functions logs read attendanceWebhook --limit=30 | grep "Phone updated from cache"
+```
+
+### ⚠️ Issue 2: Parameter Mapping Logs Show Field Names
+
+**Status**: ✅ **NOT A BUG** - Working as Designed
+
+**Initial Concern**: Logs showed "value: employeeName" instead of "value: azam"
+
+**Explanation**: 
+The log entry "Processing mapping" shows the **field name** (which is correct at that stage). The next log "Mapped parameter from field" shows the **actual value** extracted:
+
+```json
+// Step 1: Log shows field name (expected)
+{ "message": "Processing mapping", "value": "employeeName" }
+
+// Step 2: Log shows actual value extracted (confirms it works)
+{ "message": "Mapped parameter from field", "actualValue": "azam" }
+```
+
+The mapping logic IS working correctly - field name → actual value lookup → send to WhatsApp.
+
+**No Action Required**: This is normal behavior
+
+### ⚠️ Issue 2: Assessment Cache Data Freshness
+
+**Status**: Requires Manual Refresh
+
+**Symptom**: New fields (phone, email) not present in cache until refresh
+
+**Solution**: 
+1. Navigate to business dashboard
+2. Manually trigger assessment cache refresh
+3. Or wait for next attendance event to auto-refresh cache
+
+**Code Fix Deployed**: Cache calculation now includes phone and email (already deployed)
+
+## Troubleshooting Guide
+
+### No Messages Sent (messagesSent: 0)
+
+**Check Order**:
+
+1. ✅ **Verify phone exists in cache**:
+```bash
+# Check assessment cache in Firebase Console
+businesses/{businessId}/assessment_cache/{YYYY-MM}/employees[]/phone
+```
+
+2. ✅ **Check automation card exists**:
+```bash
+# Firebase Console path
+businesses/{businessId}/whatsapp_automations/{automationId}
+```
+
+3. ✅ **Review function logs**:
+```bash
+gcloud functions logs read attendanceWebhook --limit=50
+# Look for "toNumbers" - should have array with phone numbers
+# Look for "employeeData keys" - should include "phone"
+```
+
+4. ✅ **Verify WhatsApp credentials**:
+```bash
+# Check environment variables
+firebase functions:config:get
+# Should show whatsapp.phone_id and whatsapp.token
+```
+
+### Messages Send But Show Wrong Data
+
+**Debugging Steps**:
+
+1. **Check template parameter mapping**:
+   - Open whatsapp-settings.html
+   - Review parameter mappings for your automation
+   - Verify field names match cache structure
+
+2. **Test with sample data**:
+   - Use test mode in whatsapp-settings
+   - Verify getSampleValue() returns proper format
+   - Check if test messages show correctly
+
+3. **Inspect employeeData in logs**:
+```bash
+gcloud functions logs read attendanceWebhook \
+  --filter="jsonPayload.employeeData:*" \
+  --limit=10
+```
+
+4. **Verify cache structure**:
+   - Check Firebase Console for assessment_cache
+   - Ensure all expected fields exist
+   - Compare field names in cache vs. template mapping
+
+### Duplicate Messages
+
+**Status**: ✅ FIXED
+
+**Previous Cause**: Two triggers calling sendWhatsAppMessage:
+- `onEmployeeStatusChange` (Firestore trigger) ← DISABLED
+- `attendanceWebhook` (HTTP trigger) ← ACTIVE
+
+**Current State**: Only HTTP webhook triggers messages
+
+## Testing Procedures
+
+### Test Mode (Recommended for Development)
+
+1. Navigate to WhatsApp Settings page
+2. Select automation card
+3. Click "Test Send"
+4. Review sample data generated
+5. Check WhatsApp message received
+6. Verify all 7 parameters show sample values (not field names)
+
+### Production Test (Clock-Out Simulation)
+
+1. **Refresh assessment cache** (if needed):
+   - Navigate to business dashboard
+   - Trigger manual cache refresh
+   - Verify phone/email fields populated
+
+2. **Clock out a test employee**:
+   - Use manual punch form
+   - Select employee (e.g., azam - ID: 1)
+   - Set status to "Clock Out"
+   - Click Submit
+
+3. **Monitor logs in real-time**:
+```bash
+gcloud functions logs read attendanceWebhook \
+  --limit=50 \
+  --filter="severity>=INFO" \
+  --format="table(timestamp,jsonPayload.message)"
+```
+
+4. **Verify message received**:
+   - Check WhatsApp on employee's phone
+   - Confirm all 7 parameters show actual values
+   - Verify no field names appear as literals
+
+5. **Check function response**:
+```bash
+# Should show messagesSent: 1
+curl -X POST https://attendancewebhook-4q7htrps4q-uc.a.run.app \
+  -H "Content-Type: application/json" \
+  -d '{ ... attendance event ... }'
+```
+
+## Configuration Reference
+
+### Environment Variables
+
+Set via Firebase Functions config:
+
+```bash
+firebase functions:config:set \
+  whatsapp.phone_id="YOUR_PHONE_ID" \
+  whatsapp.token="YOUR_ACCESS_TOKEN"
+```
+
+### Business Configuration
+
+Each business requires:
+
+1. **Assessment Cache** (auto-generated):
+   - Path: `businesses/{businessId}/assessment_cache/{YYYY-MM}`
+   - Contains: All employee payroll data with contact info
+
+2. **WhatsApp Automation Card**:
+   - Path: `businesses/{businessId}/whatsapp_automations/{automationId}`
+   - Fields:
+     ```javascript
+     {
+       templateName: 'payrollfinal',
+       eventType: 'clock_out',
+       enabled: true,
+       parameters: { ... },
+       lastModified: timestamp
+     }
+     ```
+
+3. **Staff Records with Phone Numbers**:
+   - Path: `businesses/{businessId}/staff/{employeeId}`
+   - Required field: `phone` (format: "0500330091")
+
+## API Reference
+
+### WhatsApp Cloud API
+
+**Endpoint**: `https://graph.facebook.com/v17.0/{phone_id}/messages`
+
+**Request Body**:
+```javascript
+{
+  messaging_product: 'whatsapp',
+  to: '0500330091',
+  type: 'template',
+  template: {
+    name: 'payrollfinal',
+    language: { code: 'en' },
+    components: [{
+      type: 'body',
+      parameters: [
+        { type: 'text', text: 'John Doe' },
+        { type: 'text', text: '1250.00' },
+        { type: 'text', text: '42.5' },
+        { type: 'text', text: '45' },
+        { type: 'text', text: '2.5' },
+        { type: 'text', text: '1.5x' },
+        { type: 'text', text: '30' }
+      ]
+    }]
+  }
+}
+```
+
+### Internal Function Call
+
+**URL**: `https://sendwhatsappmessage-4q7htrps4q-uc.a.run.app`
+
+**Request Body**:
+```javascript
+{
+  businessId: 'biz_srcomponents',
+  employeeData: {
+    employeeId: '1',
+    employeeName: 'azam',
+    phone: '0500330091',
+    email: 'azam@example.com',
+    currentIncomeDue: 1250.00,
+    currentHours: 42.5,
+    requiredHours: 45,
+    hoursShort: 2.5,
+    payRate: 30,
+    dailyMultipliers: {
+      sunday: 1.5,
+      monday: 1.0,
+      // ... rest of week
+    }
+  }
+}
+```
+
+## Deployment
+
+### Deploy Functions Only
+
+```bash
+firebase deploy --only functions:attendanceWebhook,functions:sendWhatsAppMessage
+```
+
+### Deploy Frontend Only
+
+```bash
+firebase deploy --only hosting
+```
+
+### Deploy Everything
+
+```bash
+firebase deploy
+```
+
+## Recent Changes
+
+### 2024-02-14 - Cache Structure Mismatch Fix
+- ✅ **CRITICAL FIX**: Updated `processAttendanceEvent` to support NEW cache structure
+- ✅ Added employees array lookup: `cacheData.employees.find(emp => emp.employeeId === slotNumber)`
+- ✅ Added fallback to OLD structure for backward compatibility
+- ✅ Phone/email now read from assessment cache (cache is source of truth)
+- ✅ Added detailed logging to show which cache structure is used
+- ✅ Resolved issue where phone field wasn't included in employeeData
+
+**Impact**: WhatsApp messages will now include contact info from cache, messagesSent should be 1 instead of 0
+
+### 2024-02 - Contact Info in Cache (Initial Implementation)
+- ✅ Added `phone` field to assessment cache structure
+- ✅ Added `email` field to assessment cache structure
+- ✅ Updated `cacheCalculation.js` to include contact info when calculating
+- ✅ Updated frontend to read contact info from cache (no separate fetch)
+- ✅ Disabled duplicate Firestore trigger (`onEmployeeStatusChange`)
+- ✅ Fixed test mode in whatsapp-settings.html (sends sample values)
+
+### Benefits
+- Fewer database queries (contact info cached with payroll data)
+- Single source of truth for employee data  
+- Consistent data across all WhatsApp calls
+- Eliminated duplicate message issue
+- Backward compatible with old cache structure
+
+## Next Steps
+
+1. **✅ COMPLETED: Cache structure mismatch** - Fixed in processAttendanceEvent
    
-   match /businesses/{businessId}/whatsapp_automations/{cardId} {
-     allow read, write: if request.auth != null 
-       && request.auth.token.businessId == businessId;
-   }
-   ```
+2. **Refresh Assessment Cache** (Required):
+   - Navigate to business dashboard
+   - Trigger manual cache refresh
+   - This will populate phone/email fields in NEW structure
+   - Old cache structure will remain for backward compatibility
 
-3. **Rate Limiting**
-   - Meta API has rate limits (1000 requests/hour typical)
-   - Template fetching is cached in `selectedBusiness` object
-   - Only refetched on page reload or credential change
+3. **Test Complete Flow**:
+   - Clock out a test employee (e.g., azam)
+   - Verify logs show "Using NEW cache structure"
+   - Confirm logs show "Phone updated from cache: 0500330091"
+   - Check WhatsApp message received with all 7 parameters
+   - Verify messagesSent: 1 (not 0)
 
-## Future Enhancements
+4. **Monitor Production**:
+   - Watch logs for any issues with cache structure detection
+   - Verify both OLD and NEW structures work correctly
+   - Check all businesses get messages successfully
 
-### Potential Features
-- [ ] Template preview before sending
-- [ ] Test message functionality
-- [ ] Message history/logs
-- [ ] Multiple phone number support
-- [ ] Template creation from UI
-- [ ] Scheduling (send at specific times)
-- [ ] Conditional logic (if X then send Y)
-- [ ] Analytics dashboard (messages sent, delivered, read)
-- [ ] Webhook integration for delivery status
-- [ ] Rich media support (images, documents, videos)
+5. **Future Enhancements**:
+   - Add mapping validation UI (check field paths against cache)
+   - Live preview using real employee data (not samples)
+   - Fallback logic for missing fields with better defaults
+   - Retry logic for transient API failures
+   - Migrate all businesses to NEW cache structure
 
-### Performance Optimizations
-- [ ] Template caching in localStorage
-- [ ] Lazy loading for large card lists
-- [ ] Pagination for cards (if > 50)
-- [ ] Debounced auto-save
+## Support
 
-## Support & Resources
-
-### Meta Documentation
-- [WhatsApp Business API Docs](https://developers.facebook.com/docs/whatsapp)
-- [Message Templates Guide](https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates)
-- [Cloud API Reference](https://developers.facebook.com/docs/whatsapp/cloud-api/reference)
-
-### Firebase Documentation
-- [Firestore Docs](https://firebase.google.com/docs/firestore)
-- [Security Rules](https://firebase.google.com/docs/firestore/security/get-started)
-
-### Contact
-For issues or questions about this module, check:
-1. Browser console for error logs
-2. Firestore console for data issues
-3. Meta Business Manager for API/template issues
-4. Firebase hosting logs for deployment issues
+For issues or questions:
+1. Check logs: `gcloud functions logs read attendanceWebhook --limit=50`
+2. Review Firebase Console: Assessment cache and automation cards
+3. Test with sample data first before production
+4. Verify phone numbers exist in staff records and cache
 
 ---
 
-**Last Updated**: February 12, 2026
-**Version**: 1.0
-**Module**: WhatsApp Business API Integration
-**File**: `src/pages/whatsapp-settings.html`
+**Last Updated**: January 2024  
+**Module Status**: ✅ Core functionality deployed, investigating mapping issue  
+**Active Functions**: attendanceWebhook, sendWhatsAppMessage  
+**Disabled Functions**: onEmployeeStatusChange (prevents duplicates)

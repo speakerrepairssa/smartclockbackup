@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Business Dashboard - AiClock</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>Business Dashboard - SmartClock</title>
   <style>
     * {
       margin: 0;
@@ -31,7 +31,9 @@
       position: fixed;
       height: 100vh;
       overflow-y: auto;
-      z-index: 100;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
     }
 
     .sidebar-header {
@@ -44,6 +46,8 @@
 
     .sidebar-menu {
       list-style: none;
+      flex: 1;
+      overflow-y: auto;
     }
 
     .sidebar-menu li {
@@ -75,9 +79,11 @@
     }
 
     .sidebar-footer {
-      position: absolute;
-      bottom: 1rem;
-      width: 180px;
+      position: sticky;
+      bottom: 0;
+      padding-top: 1rem;
+      margin-top: auto;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
     .logout-btn {
@@ -101,6 +107,8 @@
       margin-left: 200px;
       flex: 1;
       padding: 2rem;
+      position: relative;
+      z-index: 1;
     }
 
     .dashboard-header {
@@ -287,23 +295,107 @@
       display: block;
     }
 
+    /* Mobile hamburger button */
+    .mobile-menu-btn {
+      display: none;
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 1001;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      min-height: 48px;
+      min-width: 48px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Mobile overlay */
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .mobile-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     @media (max-width: 768px) {
-      .sidebar {
-        width: 100%;
-        height: auto;
-        position: relative;
-        padding: 1rem;
+      /* Show mobile menu button */
+      .mobile-menu-btn {
+        display: block;
       }
 
+      .mobile-overlay {
+        display: block;
+      }
+
+      /* Hide sidebar off-screen by default */
+      .sidebar {
+        width: 280px;
+        position: fixed;
+        left: -280px;
+        height: 100vh;
+        padding: 1rem;
+        transition: left 0.3s ease;
+        z-index: 1000;
+      }
+
+      .sidebar.active {
+        left: 0;
+      }
+
+      /* Remove sidebar margin from main content */
       .main-content {
         margin-left: 0;
-        padding: 1rem;
+        padding: 4rem 1rem 1rem 1rem;
+        width: 100%;
       }
 
+      /* Stack header elements vertically */
       .dashboard-header {
         flex-direction: column;
         gap: 1rem;
+        padding: 1rem;
       }
+
+      .header-title h1 {
+        font-size: 1.4rem;
+      }
+
+      .header-actions {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .header-actions .btn {
+        width: 100%;
+        min-height: 48px;
+        font-size: 16px;
+      }
+
+      /* Make stats grid single column */
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      /* Adjust module cards */
 
       .modules-grid {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -319,21 +411,54 @@
         width: 100%;
         margin-top: 1rem;
       }
+
+      /* Ensure all inputs are mobile-friendly */
+      input, select, textarea {
+        font-size: 16px !important; /* Minimum 16px to prevent iOS zoom */
+        min-height: 48px;
+        padding: 0.75rem !important;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      /* Ensure all buttons are mobile-friendly */
+      button, .btn {
+        min-height: 48px;
+        font-size: 16px !important;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Make tables scroll horizontally if needed */
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      table {
+        min-width: 600px;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- Mobile Menu Button -->
+  <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">☰</button>
+
+  <!-- Mobile Overlay -->
+  <div class="mobile-overlay" onclick="toggleMobileSidebar()"></div>
+
   <div class="dashboard-wrapper">
     <!-- Sidebar -->
     <aside class="sidebar">
-      <div class="sidebar-header">🕐 AiClock</div>
+      <div class="sidebar-header">🕐 SmartClock</div>
       <ul class="sidebar-menu">
         <li><button class="menu-btn active" data-module="dashboard" onclick="switchModule('dashboard')">📊 Dashboard</button></li>
         <li><button class="menu-btn" data-module="monitor" onclick="switchModule('monitor')">🔴 Monitor Mode</button></li>
-        <li><button class="menu-btn" data-module="attendance" onclick="switchModule('attendance')">✓ Attendance</button></li>
-        <li><button class="menu-btn" data-module="reports" onclick="switchModule('reports')">📈 Reports</button></li>
         <li><button class="menu-btn" data-module="assessment" onclick="switchModule('assessment')">📊 Assessment</button></li>
+        <li><button class="menu-btn" data-module="payslips" onclick="switchModule('payslips')">💰 Payslips</button></li>
         <li><button class="menu-btn" data-module="employees" onclick="switchModule('employees')">👥 Employees</button></li>
+        <li><a href="employee-credentials.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">🔐 Employee Portal</button></a></li>
+        <li><button class="menu-btn" data-module="applications" onclick="switchModule('applications')">📝 Applications</button></li>
         <li><button class="menu-btn" data-module="shifts" onclick="switchModule('shifts')">📅 Shifts</button></li>
         <li><button class="menu-btn" data-module="timecard" onclick="switchModule('timecard')">🕐 Timecard</button></li>
         <li><button class="menu-btn" data-module="punches" onclick="switchModule('punches')">👊 Punches</button></li>
@@ -341,6 +466,7 @@
         <li><button class="menu-btn" data-module="sql-integration" onclick="switchModule('sql-integration')">🗄️ SQL Integration</button></li>
         <li><button class="menu-btn" data-module="downloads" onclick="switchModule('downloads')">📥 Downloads</button></li>
         <li><a href="whatsapp-settings.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📱 WhatsApp</button></a></li>
+        <li><a href="#" id="whatsappLogsLink" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📊 WhatsApp Logs</button></a></li>
         <li><button class="menu-btn" data-module="settings" onclick="switchModule('settings')">⚙️ Settings</button></li>
       </ul>
       <div class="sidebar-footer">
@@ -362,7 +488,7 @@
       </div>
 
       <!-- Stats Grid -->
-      <div class="stats-grid">
+      <div class="stats-grid" id="statsGrid">
         <div class="stat-card">
           <div class="stat-icon">👥</div>
           <div>
@@ -613,13 +739,17 @@
           /* Employee Management Styles */
           .employees-container {
             padding: 1rem;
+            width: 100%;
+            display: block;
+            clear: both;
           }
 
           .employees-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 1.5rem;
             margin-top: 1.5rem;
+            width: 100%;
           }
 
           .employee-card {
@@ -629,6 +759,12 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s, box-shadow 0.2s;
             border-left: 4px solid #667eea;
+            position: static !important;
+            width: auto !important;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
           }
 
           .employee-card:hover {
@@ -646,12 +782,14 @@
             justify-content: space-between;
             align-items: start;
             margin-bottom: 1rem;
+            width: 100%;
           }
 
           .employee-info h3 {
             margin: 0 0 0.25rem 0;
             color: #2c3e50;
             font-size: 1.1rem;
+            word-wrap: break-word;
           }
 
           .employee-slot-badge {
@@ -668,6 +806,7 @@
             flex-direction: column;
             gap: 0.75rem;
             margin: 1rem 0;
+            width: 100%;
           }
 
           .employee-detail-row {
@@ -678,16 +817,23 @@
             background: #f8f9fa;
             border-radius: 6px;
             font-size: 0.9rem;
+            width: 100%;
+            box-sizing: border-box;
           }
 
           .detail-label {
             color: #666;
             font-weight: 500;
+            white-space: nowrap;
+            margin-right: 0.5rem;
           }
 
           .detail-value {
             color: #2c3e50;
             font-weight: 600;
+            text-align: right;
+            word-break: break-word;
+            flex-shrink: 0;
           }
 
           .employee-status {
@@ -714,10 +860,13 @@
             display: flex;
             gap: 0.5rem;
             margin-top: 1rem;
+            width: 100%;
+            flex-wrap: wrap;
           }
 
           .btn-edit {
             flex: 1;
+            min-width: 120px;
             padding: 0.6rem;
             background: #667eea;
             color: white;
@@ -726,6 +875,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: background 0.2s;
+            white-space: nowrap;
           }
 
           .btn-edit:hover {
@@ -734,6 +884,7 @@
 
           .btn-view {
             flex: 1;
+            min-width: 120px;
             padding: 0.6rem;
             background: #48bb78;
             color: white;
@@ -742,6 +893,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: background 0.2s;
+            white-space: nowrap;
           }
 
           .btn-view:hover {
@@ -863,6 +1015,53 @@
             width: auto;
             cursor: pointer;
           }
+
+          /* Toggle Switch Styles */
+          .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+          }
+
+          .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+          }
+
+          .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+          }
+
+          .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+          }
+
+          input:checked + .toggle-slider {
+            background-color: #4CAF50;
+          }
+
+          input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+          }
+          /* End Toggle Switch Styles */
 
           .day-settings {
             display: flex;
@@ -1158,6 +1357,26 @@
             background: #f8f9fa;
           }
 
+          /* Day color coding for better visual separation */
+          .timecard-table .day-color-0 {
+            background-color: #fef3c7; /* Light amber */
+          }
+          .timecard-table .day-color-1 {
+            background-color: #dbeafe; /* Light blue */
+          }
+          .timecard-table .day-color-2 {
+            background-color: #d1fae5; /* Light green */
+          }
+          .timecard-table .day-color-3 {
+            background-color: #fce7f3; /* Light pink */
+          }
+          .timecard-table .day-color-4 {
+            background-color: #e9d5ff; /* Light purple */
+          }
+          .timecard-table .day-color-5 {
+            background-color: #fed7aa; /* Light orange */
+          }
+
           .day-date {
             font-weight: 600;
             color: #2c3e50;
@@ -1169,7 +1388,7 @@
           }
 
           .weekend {
-            background: #fff3cd !important;
+            background: #f3f4f6 !important; /* Gray for weekends - override day colors */
           }
 
           .no-data {
@@ -2133,6 +2352,16 @@
         <h2 class="section-title">Employee Month Assessment</h2>
         <p class="section-description">Monthly working hours analysis and payroll overview</p>
 
+        <!-- Monthly Hours Schedule Reference -->
+        <div id="monthlyHoursSchedule" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
+          <h3 style="font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            📅 Annual Working Hours Schedule
+          </h3>
+          <div id="monthlyHoursGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
+
         <div class="assessment-controls" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); display: flex; gap: 1rem; align-items: end; margin-bottom: 1.5rem; flex-wrap: wrap;">
           <div class="control-group" style="flex: 1; min-width: 200px;">
             <label for="assessmentMonthInput" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Assessment Month:</label>
@@ -2151,6 +2380,233 @@
 
         <div id="assessmentContent">
           <div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">📊 Select a month to generate assessment</div>
+        </div>
+      </div>
+
+      <!-- Payslips View -->
+      <div class="view-section" id="payslipsView">
+        <div class="payslips-container">
+          
+          <!-- Header -->
+          <div class="payslips-header">
+            <h1>💰 Payslip Management</h1>
+            <p>Design professional payslips with your company branding and schedule automatic delivery</p>
+          </div>
+
+          <!-- Main Grid -->
+          <div class="payslips-grid">
+            
+            <!-- Left Column: Design & Template Management -->
+            <div class="payslip-card">
+              
+              <!-- Visual Design Editor -->
+              <div class="design-editor-section">
+                <h2>🎨 Design Your Payslip</h2>
+                
+                <!-- Logo Upload -->
+                <div class="design-control-group">
+                  <label>Company Logo</label>
+                  <div class="logo-upload-container">
+                    <div class="logo-preview" id="logoPlaceholder">
+                      <span>📷 Upload Logo</span>
+                    </div>
+                    <img id="logoPreview" class="logo-preview-image" style="display: none;" />
+                    <div class="logo-controls">
+                      <button class="btn-primary btn-sm" id="uploadLogoBtn">Upload Logo</button>
+                      <button class="btn-secondary btn-sm" id="removeLogoBtn">Remove</button>
+                      <input type="file" id="logoUpload" accept="image/*" style="display: none;" />
+                    </div>
+                    <div class="design-hint">Max 2MB. PNG, JPG, or SVG recommended.</div>
+                  </div>
+                </div>
+
+                <!-- Color Scheme -->
+                <div class="design-control-group">
+                  <label>Color Scheme</label>
+                  <div class="color-picker-group">
+                    <div class="color-picker-item">
+                      <label for="primaryColorPicker">Primary</label>
+                      <input type="color" id="primaryColorPicker" value="#667eea" />
+                      <span class="color-preview" id="primaryColorPreview">#667eea</span>
+                    </div>
+                    <div class="color-picker-item">
+                      <label for="secondaryColorPicker">Secondary</label>
+                      <input type="color" id="secondaryColorPicker" value="#764ba2" />
+                      <span class="color-preview" id="secondaryColorPreview">#764ba2</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Font Selection -->
+                <div class="design-control-group">
+                  <label for="fontFamilySelect">Font Family</label>
+                  <select id="fontFamilySelect">
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="'Helvetica Neue', Helvetica, sans-serif">Helvetica</option>
+                    <option value="'Segoe UI', Tahoma, sans-serif">Segoe UI</option>
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                    <option value="'Open Sans', sans-serif">Open Sans</option>
+                    <option value="Georgia, serif">Georgia</option>
+                    <option value="'Times New Roman', serif">Times New Roman</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="section-divider"></div>
+
+              <!-- Template Management -->
+              <h2>📝 Template Settings</h2>
+              
+              <!-- Template Selection -->
+              <div class="template-controls">
+                <select id="templateSelect">
+                  <option value="">Select a template...</option>
+                </select>
+                <button class="btn-primary" id="createTemplateBtn">+ New</button>
+                <button class="btn-success" id="createDefaultTemplateBtn">✨ Default</button>
+                <button class="btn-secondary" id="saveTemplateBtn">💾 Save</button>
+                <button class="btn-danger" id="deleteTemplateBtn">🗑️ Delete</button>
+              </div>
+
+              <!-- Template Form -->
+              <div class="form-group">
+                <label for="templateName">Template Name</label>
+                <input type="text" id="templateName" placeholder="e.g., Monthly Payslip">
+              </div>
+
+              <div class="form-group">
+                <label for="templateSubject">Email Subject (Optional)</label>
+                <input type="text" id="templateSubject" placeholder="Your Payslip for {{month}} {{year}}">
+                <div class="template-hint">
+                  Variables: <code>{{employeeName}}</code>, <code>{{month}}</code>, <code>{{year}}</code>
+                </div>
+              </div>
+
+              <!-- Editable Template Fields -->
+              <div class="section-divider"></div>
+              <h3>📝 Customize Payslip Content</h3>
+
+              <div class="form-group">
+                <label for="companyAddress">Company Address</label>
+                <textarea id="companyAddress" rows="3" placeholder="123 Main Road&#10;Business Bay, Cape Town&#10;7806"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="companyContact">Contact Information</label>
+                <input type="text" id="companyContact" placeholder="Tel: +27 21 555 0123 | Email: payroll@company.com">
+              </div>
+
+              <div class="form-group">
+                <label for="customMessage">Custom Message (Optional)</label>
+                <textarea id="customMessage" rows="3" placeholder="Thank you for your dedication and hard work this month."></textarea>
+                <div class="template-hint">
+                  This message will appear at the bottom of the payslip
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="payslipFooter">Footer / Disclaimer</label>
+                <textarea id="payslipFooter" rows="2" placeholder="This is a computer-generated payslip. No signature required."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="taxNumber">Tax/VAT Number (Optional)</label>
+                <input type="text" id="taxNumber" placeholder="VAT: 4123456789 | Company Reg: 2021/123456/07">
+              </div>
+
+              <!-- Visual Template Editor -->
+              <div class="section-divider"></div>
+              <div id="templateEditorContainer">
+                <!-- Template editor will be loaded here -->
+              </div>
+            </div>
+
+            <!-- Right Column: Employee Selection & Delivery -->
+            <div>
+              <!-- Employee Selection -->
+              <div class="payslip-card">
+                <h2>👥 Select Employees</h2>
+                
+                <div class="employee-selection-controls">
+                  <button id="selectAllEmployees">✓ Select All</button>
+                  <button id="deselectAllEmployees">✗ Deselect All</button>
+                  <div class="selected-count">
+                    Selected: <span id="selectedEmployeeCount">0</span>
+                  </div>
+                </div>
+
+                <div id="employeeList">
+                  <!-- Employees will be loaded here dynamically -->
+                </div>
+              </div>
+
+              <!-- Delivery Options -->
+              <div class="payslip-card" style="margin-top: 2rem;">
+                <h2>📬 Delivery Options</h2>
+                
+                <h3>Delivery Methods</h3>
+                <div class="delivery-options">
+                  <div class="delivery-option">
+                    <input type="checkbox" id="deliveryEmail" checked>
+                    <label for="deliveryEmail">📧 Email</label>
+                  </div>
+                  <div class="delivery-option">
+                    <input type="checkbox" id="deliveryWhatsApp">
+                    <label for="deliveryWhatsApp">💬 WhatsApp</label>
+                  </div>
+                </div>
+
+                <h3>Schedule Delivery</h3>
+                <div class="schedule-inputs">
+                  <div class="form-group">
+                    <label for="scheduleDate">Date</label>
+                    <input type="date" id="scheduleDate">
+                  </div>
+                  <div class="form-group">
+                    <label for="scheduleTime">Time</label>
+                    <input type="time" id="scheduleTime" value="09:00">
+                  </div>
+                </div>
+
+                <div class="action-buttons">
+                  <button class="btn-secondary" id="previewPayslipBtn">
+                    👁️ Preview
+                  </button>
+                  <button class="btn-success" id="sendPayslipsBtn">
+                    📤 Send Now
+                  </button>
+                  <button class="btn-primary" id="schedulePayslipsBtn">
+                    ⏰ Schedule
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scheduled Payslips -->
+          <div class="payslip-card">
+            <h2>📅 Scheduled Payslips</h2>
+            <div id="scheduleList">
+              <div class="empty-state">No scheduled payslips</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Preview Payslip</h2>
+              <button class="close-modal" onclick="document.getElementById('previewModal').style.display='none'">&times;</button>
+            </div>
+            <div class="preview-subject" id="previewSubject">
+              Subject will appear here
+            </div>
+            <div class="preview-content" id="previewContent">
+              Payslip content will appear here...
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2897,6 +3353,49 @@
       </div>
 
       <!-- Settings View -->
+      <!-- Applications View -->
+      <div class="view-section" id="applicationsView">
+        <h2 class="section-title">📝 Employee Applications</h2>
+        <p class="section-description">Review and manage employee leave requests, sick leave, cash advances, and other applications</p>
+        
+        <div class="applications-filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+          <div class="filter-group">
+            <label style="font-weight: 600; color: #495057; margin-right: 0.5rem;">Status:</label>
+            <select id="filterStatus" onchange="loadApplications()" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
+              <option value="all">All</option>
+              <option value="pending" selected>Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label style="font-weight: 600; color: #495057; margin-right: 0.5rem;">Type:</label>
+            <select id="filterType" onchange="loadApplications()" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
+              <option value="all">All Types</option>
+              <option value="leave">Leave</option>
+              <option value="sickleave">Sick Leave</option>
+              <option value="cashadvance">Cash Advance</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label style="font-weight: 600; color: #495057; margin-right: 0.5rem;">Employee:</label>
+            <select id="filterEmployee" onchange="loadApplications()" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
+              <option value="all">All Employees</option>
+            </select>
+          </div>
+        </div>
+        
+        <div id="applicationsContainer">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading applications...</p>
+          </div>
+        </div>
+      </div>
+
       <div class="view-section" id="settingsView">
         <h2 class="section-title">Business Settings</h2>
         <p class="section-description">Configure your business preferences and working hours</p>
@@ -3062,6 +3561,59 @@
               <button type="submit" class="btn-primary">💾 Save Working Hours</button>
             </form>
           </div>
+          
+          <div class="settings-card">
+            <h3>📝 Application Types</h3>
+            <p style="color: #6c757d; margin-bottom: 1rem;">Configure which application types employees can submit</p>
+            
+            <div class="application-toggles">
+              <div class="toggle-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e9ecef;">
+                <div>
+                  <strong style="color: #495057;">🏖️ Leave Applications</strong>
+                  <p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Annual leave, vacation requests</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="leaveEnabled" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              
+              <div class="toggle-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e9ecef;">
+                <div>
+                  <strong style="color: #495057;">🤒 Sick Leave</strong>
+                  <p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Medical leave applications</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sickleaveEnabled" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              
+              <div class="toggle-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e9ecef;">
+                <div>
+                  <strong style="color: #495057;">💰 Cash Advance</strong>
+                  <p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Salary advance requests</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="cashadvanceEnabled" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              
+              <div class="toggle-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0;">
+                <div>
+                  <strong style="color: #495057;">📄 Other Applications</strong>
+                  <p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Custom application types</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="otherEnabled" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            
+            <button type="button" class="btn-primary" onclick="saveApplicationSettings()" style="margin-top: 1rem;">💾 Save Application Settings</button>
+          </div>
         </div>
       </div>
     </main>
@@ -3126,7 +3678,7 @@
 
   <script type="module">
     import authService from '../modules/auth/auth.service.js';
-    import { doc, getDoc, collection, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, collection, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getDatabase, ref, get, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { db } from '../config/firebase.js';
 
@@ -3179,7 +3731,14 @@
         }
 
         businessId = authService.getBusinessId();
+        window.businessId = businessId; // Expose to global scope for modules
         console.log('Business ID:', businessId);
+        
+        // Set up WhatsApp logs link with businessId
+        const whatsappLogsLink = document.getElementById('whatsappLogsLink');
+        if (whatsappLogsLink) {
+          whatsappLogsLink.href = `whatsapp-logs.html?businessId=${businessId}`;
+        }
         
         const businessName = sessionStorage.getItem("businessName");
         const userEmail = sessionStorage.getItem("userEmail") || sessionStorage.getItem("businessId");
@@ -3203,6 +3762,9 @@
         
         console.log('Loading dashboard data...');
         await loadDashboardData();
+        
+        console.log('Loading monthly hours schedule...');
+        await loadMonthlyHoursSchedule();
         
         console.log('Setting up realtime listeners...');
         setupRealtimeListeners();
@@ -3446,11 +4008,164 @@
       }
     }
 
+    // Track previous employee statuses to detect changes
+    let previousStatuses = {};
+    let recentWhatsAppTriggers = {}; // Deduplication tracking
+
     function setupRealtimeListeners() {
-      // Setup real-time listener for status collection (triggers recalculation)
+      // Setup real-time listener for status collection (triggers recalculation AND WhatsApp)
       const statusRef = collection(db, "businesses", businessId, "status");
       statusUnsubscribe = onSnapshot(statusRef, (snapshot) => {
         console.log("🔄 Status update received - triggering attendance recalculation");
+        
+        // Check each status change for clock-out events
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.type === 'modified') {
+            const employeeId = change.doc.id;
+            const newData = change.doc.data();
+            const previousStatus = previousStatuses[employeeId];
+            
+            // Detect clock-out: status changed from 'in' to 'out'
+            if (previousStatus === 'in' && newData.attendanceStatus === 'out') {
+              // Deduplication: Check if we already triggered WhatsApp for this employee recently
+              const now = Date.now();
+              const lastTrigger = recentWhatsAppTriggers[employeeId] || 0;
+              
+              if (now - lastTrigger < 5000) { // 5 second cooldown
+                console.log('⏭️ Skipping duplicate WhatsApp trigger for', newData.employeeName, '(triggered', (now - lastTrigger), 'ms ago)');
+                return;
+              }
+              
+              console.log('🔔 Clock-out detected for', newData.employeeName, '- recalculating assessment first');
+              console.log('   Employee ID from status:', employeeId, 'Type:', typeof employeeId);
+              recentWhatsAppTriggers[employeeId] = now;
+              
+              // ⚡ IMPORTANT: Recalculate assessment BEFORE fetching data for WhatsApp
+              // This ensures WhatsApp gets the most up-to-date hours including this clock-out
+              console.log('🔄 Updating assessment cache with latest clock-out data...');
+              await calculateAndCacheAttendanceData(businessId);
+              console.log('✅ Assessment cache updated');
+              
+              // 📊 Get fresh assessment data from cache for complete employee data
+              const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+              let employeeAssessmentData = {};
+              
+              try {
+                const cacheRef = doc(db, "businesses", businessId, "assessment_cache", currentMonth);
+                const cacheSnap = await getDoc(cacheRef);
+                
+                if (cacheSnap.exists()) {
+                  const cacheData = cacheSnap.data();
+                  console.log('📦 Assessment cache loaded, employees:', cacheData.employees?.length);
+                  console.log('   First employee sample:', cacheData.employees?.[0]);
+                  console.log('   Looking for employeeId:', employeeId);
+                  
+                  // Try both string and number matching
+                  const employeeCache = (cacheData.employees || []).find(emp => {
+                    const match = emp.employeeId == employeeId || emp.employeeId === String(employeeId) || emp.employeeId === Number(employeeId);
+                    console.log(`   Checking emp.employeeId: ${emp.employeeId} (${typeof emp.employeeId}) === ${employeeId} (${typeof employeeId}): ${match}`);
+                    return match;
+                  });
+                  
+                  if (employeeCache) {
+                    console.log('✅ Found assessment data for employee:', employeeCache);
+                    employeeAssessmentData = employeeCache;
+                  } else {
+                    console.error('❌ Employee NOT found in assessment cache!');
+                    console.log('   Available employee IDs:', (cacheData.employees || []).map(e => e.employeeId + ' (' + typeof e.employeeId + ')'));
+                  }
+                } else {
+                  console.warn('⚠️ Assessment cache not found for month:', currentMonth);
+                }
+              } catch (cacheError) {
+                console.error('❌ Error loading assessment cache:', cacheError);
+              }
+              
+              // Trigger WhatsApp automation with complete employee data (phone from cache)
+              const employeeDataToSend = {
+                employeeId: employeeId,
+                employeeName: newData.employeeName || employeeAssessmentData.employeeName,
+                phone: employeeAssessmentData.phone || null,  // ✅ Get phone from cached data
+                email: employeeAssessmentData.email || null,  // ✅ Get email from cached data
+                time: new Date(newData.lastClockTime).toLocaleTimeString(),
+                date: new Date(newData.lastClockTime).toLocaleDateString(),
+                // Assessment cache data
+                requiredHours: employeeAssessmentData.requiredHours || 0,
+                currentHours: employeeAssessmentData.currentHours || 0,
+                hoursWorked: employeeAssessmentData.currentHours || 0,
+                pastDueHours: employeeAssessmentData.pastDueHours || 0,
+                hoursShort: employeeAssessmentData.hoursShort || 0,
+                payRate: employeeAssessmentData.payRate || 0,
+                basePay: employeeAssessmentData.payRate || 0,
+                currentIncomeDue: employeeAssessmentData.currentIncomeDue || 0,
+                potentialIncome: employeeAssessmentData.potentialIncome || 0,
+                status: employeeAssessmentData.status || 'Unknown',
+                shiftName: employeeAssessmentData.shiftName || 'Not Assigned'
+              };
+              
+              console.log('📤 Sending WhatsApp trigger with data:', employeeDataToSend);
+              
+              try {
+                const response = await fetch('https://sendwhatsappmessage-4q7htrps4q-uc.a.run.app', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    businessId: businessId,
+                    trigger: 'clock-out',
+                    employeeData: employeeDataToSend
+                  })
+                });
+                
+                const result = await response.json();
+                console.log('✅ WhatsApp triggered:', result);
+                
+                // Log detailed message results
+                if (result.messages && result.messages.length > 0) {
+                  result.messages.forEach((msg, idx) => {
+                    console.log(`   📱 Message ${idx + 1}:`, {
+                      to: msg.to,
+                      status: msg.status,
+                      error: msg.error,
+                      result: msg.result
+                    });
+                    
+                    // Show WhatsApp API response details
+                    if (msg.result) {
+                      console.log(`      🔍 WhatsApp API returned:`, msg.result);
+                      if (msg.result.messages && msg.result.messages[0]) {
+                        console.log(`      ✅ Message ID:`, msg.result.messages[0].id);
+                      }
+                      if (msg.result.error) {
+                        console.error(`      ❌ API Error:`, msg.result.error);
+                      }
+                    }
+                    if (msg.error) {
+                      console.error(`      ❌ Send Error:`, msg.error);
+                    }
+                  });
+                }
+                
+                // Check if multiple messages were sent
+                if (result.messagesSent > 1) {
+                  console.warn('⚠️ Multiple messages sent:', result.messagesSent, '- You may have duplicate automation cards enabled');
+                }
+              } catch (error) {
+                console.error('❌ WhatsApp trigger failed:', error);
+              }
+            }
+            
+            // Update tracking
+            previousStatuses[employeeId] = newData.attendanceStatus;
+          }
+        });
+        
+        // Initialize tracking for new documents
+        snapshot.forEach(doc => {
+          const employeeId = doc.id;
+          if (!previousStatuses[employeeId]) {
+            previousStatuses[employeeId] = doc.data().attendanceStatus;
+          }
+        });
         
         // Trigger background recalculation when someone clocks in/out
         triggerAttendanceRecalculation(businessId);
@@ -3617,6 +4332,16 @@
         }
       });
 
+      // Show/hide stats grid - only visible on dashboard
+      const statsGrid = document.getElementById('statsGrid');
+      if (statsGrid) {
+        if (module === 'dashboard') {
+          statsGrid.style.display = 'grid';
+        } else {
+          statsGrid.style.display = 'none';
+        }
+      }
+
       // Update view
       document.querySelectorAll('.view-section').forEach(view => {
         view.classList.remove('active');
@@ -3630,7 +4355,9 @@
         'timecard': 'timecardView',
         'reports': 'reportsView',
         'assessment': 'assessmentView',
+        'payslips': 'payslipsView',
         'employees': 'employeesView',
+        'applications': 'applicationsView',
         'shifts': 'shiftsView',
         'punches': 'punchesView',
         'sync': 'syncView',
@@ -3732,7 +4459,14 @@
         } else {
           inEmployees.forEach(emp => {
             const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-            const lastTime = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString() : 'N/A';
+            // Safely format date - check if valid before formatting
+            let lastTime = 'N/A';
+            if (emp.lastClockTime) {
+              const date = new Date(emp.lastClockTime);
+              if (!isNaN(date.getTime())) {
+                lastTime = date.toLocaleTimeString();
+              }
+            }
             inHtml += `
               <div class="employee-item">
                 <div>
@@ -3753,7 +4487,14 @@
         } else {
           outEmployees.forEach(emp => {
             const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-            const lastTime = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString() : 'N/A';
+            // Safely format date - check if valid before formatting
+            let lastTime = 'N/A';
+            if (emp.lastClockTime) {
+              const date = new Date(emp.lastClockTime);
+              if (!isNaN(date.getTime())) {
+                lastTime = date.toLocaleTimeString();
+              }
+            }
             outHtml += `
               <div class="employee-item">
                 <div>
@@ -3839,6 +4580,18 @@
           return;
         }
 
+        if (module === 'payslips') {
+          console.log('Loading payslips module...');
+          await initPayslips();
+          return;
+        }
+
+        if (module === 'applications') {
+          console.log('Loading applications module...');
+          await loadApplications();
+          return;
+        }
+
         if (module === 'downloads') {
           console.log('Loading downloads module...');
           await loadDownloads();
@@ -3875,6 +4628,282 @@
 
     // Update global reference to loadModuleData
     window.loadModuleData = loadModuleData;
+
+    // ========== APPLICATIONS MODULE ==========
+    
+    async function loadApplications() {
+      try {
+        const container = document.getElementById('applicationsContainer');
+        const filterStatus = document.getElementById('filterStatus').value;
+        const filterType = document.getElementById('filterType').value;
+        const filterEmployee = document.getElementById('filterEmployee').value;
+        
+        container.innerHTML = `
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading applications...</p>
+          </div>
+        `;
+        
+        // Load applications from Firestore
+        const applicationsRef = collection(db, "businesses", businessId, "applications");
+        let q = applicationsRef;
+        
+        // Apply status filter
+        if (filterStatus !== 'all') {
+          q = query(q, where('status', '==', filterStatus));
+        }
+        
+        // Apply type filter
+        if (filterType !== 'all') {
+          q = query(q, where('type', '==', filterType));
+        }
+        
+        // Order by submitted date (newest first)
+        q = query(q, orderBy('submittedDate', 'desc'));
+        
+        const applicationsSnap = await getDocs(q);
+        
+        // Filter by employee if selected (done client-side as compound queries need indexes)
+        let applications = [];
+        applicationsSnap.forEach(doc => {
+          const app = { id: doc.id, ...doc.data() };
+          if (filterEmployee === 'all' || app.employeeId === filterEmployee) {
+            applications.push(app);
+          }
+        });
+        
+        // Load employee dropdown if not loaded yet
+        const employeeSelect = document.getElementById('filterEmployee');
+        if (employeeSelect.options.length === 1) {
+          await loadApplicationEmployees();
+        }
+        
+        // Render applications
+        if (applications.length === 0) {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #666;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">📝</div>
+              <h3 style="color: #495057;">No applications found</h3>
+              <p>There are no applications matching the current filters.</p>
+            </div>
+          `;
+          return;
+        }
+        
+        // Render application cards
+        const cards = applications.map(app => renderApplicationCard(app)).join('');
+        container.innerHTML = `
+          <div style="display: grid; gap: 1rem;">
+            ${cards}
+          </div>
+        `;
+        
+      } catch (error) {
+        console.error('Error loading applications:', error);
+        document.getElementById('applicationsContainer').innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: #dc3545;">
+            <p>Error loading applications: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    async function loadApplicationEmployees() {
+      try {
+        const staffRef = collection(db, "businesses", businessId, "staff");
+        const staffSnap = await getDocs(staffRef);
+        
+        const employeeSelect = document.getElementById('filterEmployee');
+        
+        staffSnap.forEach(doc => {
+          const staff = doc.data();
+          const option = document.createElement('option');
+          option.value = doc.id;
+          option.textContent = staff.employeeName || `Employee ${doc.id}`;
+          employeeSelect.appendChild(option);
+        });
+        
+      } catch (error) {
+        console.error('Error loading employees for filter:', error);
+      }
+    }
+    
+    function renderApplicationCard(app) {
+      const statusColors = {
+        pending: { bg: '#fff3cd', border: '#ffc107', text: '#856404' },
+        approved: { bg: '#d4edda', border: '#28a745', text: '#155724' },
+        rejected: { bg: '#f8d7da', border: '#dc3545', text: '#721c24' }
+      };
+      
+      const typeEmojis = {
+        leave: '🏖️',
+        sickleave: '🤒',
+        cashadvance: '💵',
+        other: '📋'
+      };
+      
+      const typeLabels = {
+        leave: 'Leave Request',
+        sickleave: 'Sick Leave',
+        cashadvance: 'Cash Advance',
+        other: 'Other Request'
+      };
+      
+      const status = app.status || 'pending';
+      const colors = statusColors[status];
+      const emoji = typeEmojis[app.type] || '📋';
+      const label = typeLabels[app.type] || 'Application';
+      
+      const date = new Date(app.submittedDate);
+      const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+      
+      // Build details HTML based on type
+      let detailsHtml = '';
+      if (app.type === 'leave' || app.type === 'sickleave') {
+        detailsHtml = `
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin: 1rem 0;">
+            <div>
+              <strong style="color: #6c757d; font-size: 0.85rem;">Start Date:</strong>
+              <div>${app.startDate || 'N/A'}</div>
+            </div>
+            <div>
+              <strong style="color: #6c757d; font-size: 0.85rem;">End Date:</strong>
+              <div>${app.endDate || 'N/A'}</div>
+            </div>
+          </div>
+          <div style="margin: 1rem 0;">
+            <strong style="color: #6c757d; font-size: 0.85rem;">Reason:</strong>
+            <div style="margin-top: 0.25rem;">${app.reason || 'No reason provided'}</div>
+          </div>
+        `;
+      } else if (app.type === 'cashadvance') {
+        detailsHtml = `
+          <div style="margin: 1rem 0;">
+            <strong style="color: #6c757d; font-size: 0.85rem;">Amount Requested:</strong>
+            <div style="font-size: 1.5rem; font-weight: bold; color: #28a745; margin-top: 0.25rem;">
+              R ${parseFloat(app.amount || 0).toFixed(2)}
+            </div>
+          </div>
+          <div style="margin: 1rem 0;">
+            <strong style="color: #6c757d; font-size: 0.85rem;">Reason:</strong>
+            <div style="margin-top: 0.25rem;">${app.reason || 'No reason provided'}</div>
+          </div>
+        `;
+      } else {
+        detailsHtml = `
+          <div style="margin: 1rem 0;">
+            <strong style="color: #6c757d; font-size: 0.85rem;">Description:</strong>
+            <div style="margin-top: 0.25rem;">${app.reason || app.description || 'No details provided'}</div>
+          </div>
+        `;
+      }
+      
+      // Action buttons for pending applications
+      let actionsHtml = '';
+      if (status === 'pending') {
+        actionsHtml = `
+          <div style="display: flex; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+            <button onclick="approveApplication('${app.id}')" 
+                    style="flex: 1; padding: 0.75rem; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              ✓ Approve
+            </button>
+            <button onclick="rejectApplication('${app.id}')" 
+                    style="flex: 1; padding: 0.75rem; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+              ✗ Reject
+            </button>
+          </div>
+        `;
+      } else {
+        // Show who approved/rejected and when
+        const actionDate = app.actionDate ? new Date(app.actionDate).toLocaleString() : 'N/A';
+        const actionBy = app.actionBy || 'N/A';
+        actionsHtml = `
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6; font-size: 0.85rem; color: #6c757d;">
+            <div><strong>${status === 'approved' ? 'Approved' : 'Rejected'} by:</strong> ${actionBy}</div>
+            <div><strong>Date:</strong> ${actionDate}</div>
+            ${app.rejectionReason ? `<div style="margin-top: 0.5rem;"><strong>Reason:</strong> ${app.rejectionReason}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      return `
+        <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid ${colors.border};">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <div>
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">${emoji}</div>
+              <h3 style="margin: 0; color: #212529;">${label}</h3>
+              <div style="color: #6c757d; font-size: 0.9rem; margin-top: 0.25rem;">
+                ${app.employeeName} (Slot ${app.employeeSlot})
+              </div>
+            </div>
+            <div style="background: ${colors.bg}; color: ${colors.text}; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; border: 2px solid ${colors.border};">
+              ${status}
+            </div>
+          </div>
+          
+          <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 1rem;">
+            📅 Submitted: ${dateStr}
+          </div>
+          
+          ${detailsHtml}
+          ${actionsHtml}
+        </div>
+      `;
+    }
+    
+    async function approveApplication(applicationId) {
+      if (!confirm('Are you sure you want to approve this application?')) {
+        return;
+      }
+      
+      try {
+        const appRef = doc(db, "businesses", businessId, "applications", applicationId);
+        await updateDoc(appRef, {
+          status: 'approved',
+          actionDate: new Date().toISOString(),
+          actionBy: auth.currentUser?.email || 'admin'
+        });
+        
+        alert('Application approved successfully!');
+        await loadApplications();
+        
+      } catch (error) {
+        console.error('Error approving application:', error);
+        alert('Error approving application: ' + error.message);
+      }
+    }
+    
+    async function rejectApplication(applicationId) {
+      const reason = prompt('Please enter a reason for rejection (optional):');
+      if (reason === null) {
+        return; // User cancelled
+      }
+      
+      try {
+        const appRef = doc(db, "businesses", businessId, "applications", applicationId);
+        const updateData = {
+          status: 'rejected',
+          actionDate: new Date().toISOString(),
+          actionBy: auth.currentUser?.email || 'admin'
+        };
+        
+        if (reason && reason.trim()) {
+          updateData.rejectionReason = reason.trim();
+        }
+        
+        await updateDoc(appRef, updateData);
+        
+        alert('Application rejected.');
+        await loadApplications();
+        
+      } catch (error) {
+        console.error('Error rejecting application:', error);
+        alert('Error rejecting application: ' + error.message);
+      }
+    }
+    
+    // ========== END APPLICATIONS MODULE ==========
 
     async function loadEmployees() {
       try {
@@ -3957,7 +4986,14 @@
             const isIn = employee.currentStatus === 'in';
             const statusClass = isIn ? 'clocked-in' : 'clocked-out';
             const statusText = isIn ? '● Clocked In' : '○ Clocked Out';
-            const lastTime = employee.lastClockTime ? new Date(employee.lastClockTime).toLocaleString() : 'Never clocked in';
+            // Safely format date - check if valid before formatting
+            let lastTime = 'Never clocked in';
+            if (employee.lastClockTime) {
+              const date = new Date(employee.lastClockTime);
+              if (!isNaN(date.getTime())) {
+                lastTime = date.toLocaleString();
+              }
+            }
             
             slotCards.push(`
               <div class="employee-card ${employee.active ? '' : 'inactive'}">
@@ -4087,6 +5123,21 @@
                 <div class="form-group">
                   <label>Badge Number</label>
                   <input type="text" name="badgeNumber" value="${emp.badgeNumber || ''}" readonly>
+                </div>
+                
+                <div class="form-group" style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea;">
+                  <h4 style="margin: 0 0 1rem 0; color: #667eea; font-size: 1rem;">🔐 Employee Portal Access</h4>
+                  <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Set credentials for the employee self-service portal</p>
+                  
+                  <label>Username / Login ID*</label>
+                  <input type="text" name="username" value="${emp.username || emp.badgeNumber || ''}" placeholder="e.g., jsmith or badge number" required>
+                  <small style="color: #666;">This will be used to login to the employee portal</small>
+                </div>
+                
+                <div class="form-group">
+                  <label>Portal Password</label>
+                  <input type="text" name="password" value="${emp.password || ''}" placeholder="Set employee portal password">
+                  <small style="color: #666;">Leave blank to keep current password. Employee will use this with their username to access the portal.</small>
                 </div>
                 
                 <div class="form-group">
@@ -4219,6 +5270,7 @@
 
         const employeeData = {
           employeeName: formData.get('employeeName'),
+          username: formData.get('username'), // Add username for portal login
           phone: formData.get('phone'),
           email: formData.get('email'),
           position: formData.get('position'),
@@ -4230,6 +5282,12 @@
           notes: formData.get('notes'),
           updatedAt: new Date().toISOString()
         };
+
+        // Only update password if a new one is provided
+        const newPassword = formData.get('password');
+        if (newPassword && newPassword.trim() !== '') {
+          employeeData.password = newPassword.trim();
+        }
 
         // Update Firebase with basic info
         const staffRef = doc(db, "businesses", businessId, "staff", employeeId);
@@ -4881,7 +5939,10 @@
                       timestamp: event.timestamp,
                       time: eventDate,
                       source: event.source || 'nested',
-                      eventId: doc.id
+                      eventId: doc.id,
+                      employeeId: employeeId,
+                      employeeName: employee.employeeName,
+                      employeeSlot: employee.slot
                     });
                     
                     console.log('Added nested event:', { date: dateStr, type: eventType, time: eventDate });
@@ -4949,7 +6010,10 @@
                       timestamp: event.timestamp,
                       time: eventDate,
                       source: event.source || 'flat',
-                      eventId: doc.id
+                      eventId: doc.id,
+                      employeeId: employeeId,
+                      employeeName: employee.employeeName,
+                      employeeSlot: employee.slot
                     });
                     
                     console.log('Added flat event:', { date: dateStr, type: eventType, time: eventDate });
@@ -5228,9 +6292,10 @@
                 </tr>
               </thead>
               <tbody>
-                ${dailyRecords.map(record => {
+                ${dailyRecords.map((record, dayIndex) => {
                   const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(record.day).padStart(2, '0')}`;
-                  const rowClass = !record.isWorkingDay || record.isPublicHoliday ? 'weekend' : '';
+                  const dayColorClass = `day-color-${dayIndex % 6}`;
+                  const rowClass = `${dayColorClass} ${!record.isWorkingDay || record.isPublicHoliday ? 'weekend' : ''}`;
                   
                   // Determine shift based on schedule
                   let shift = '-';
@@ -5310,7 +6375,7 @@
                         // Add action buttons for mispunch management
                         const mispunchId = `mispunch_${event.timestamp}_${event.employeeId}`;
                         notes += ` <span class="mispunch-actions">
-                          <button onclick="manageMispunch('${mispunchId}', '${event.id}', 'clock_out_no_in', '${event.employeeName}')" 
+                          <button onclick="manageMispunch('${mispunchId}', '${event.eventId}', 'clock_out_no_in', '${event.employeeName}', '${event.employeeSlot}', '${event.employeeId}', '${dateStr}')" 
                                   class="btn-mispunch" title="Manage this mispunch">
                             ⚠️ Fix
                           </button>
@@ -5375,7 +6440,7 @@
                       ).replace(
                         'Started work', 
                         `Still clocked in ${Math.round(pendingHours)}h ago - missing clock-out <span class="mispunch-actions">
-                          <button onclick="manageMispunch('${mispunchId}', '${currentClockIn.id}', 'clock_in_no_out', '${currentClockIn.employeeName}')" 
+                          <button onclick="manageMispunch('${mispunchId}', '${currentClockIn.eventId}', 'clock_in_no_out', '${currentClockIn.employeeName}', '${currentClockIn.employeeSlot}', '${currentClockIn.employeeId}', '${dateStr}')" 
                                   class="btn-mispunch" title="Manage this mispunch">
                             ⚠️ Fix
                           </button>
@@ -5526,6 +6591,11 @@
     }
 
     // Make timecard functions globally available
+    window.editTimecardPunch = editTimecardPunch;
+    window.deleteTimecardPunch = deleteTimecardPunch;
+    window.printTimecard = printTimecard;
+    window.loadTimecard = loadTimecard;
+
     // Function to clean up invalid/test events and duplicates
     async function cleanupAttendanceEvents() {
       if (!confirm('This will clean up duplicate and invalid attendance events. Continue?')) {
@@ -5805,6 +6875,168 @@
       }
     }
 
+    // Helper function to calculate hours for a day
+    function calculateDayHours(startTime, endTime, breakMinutes) {
+      if (!startTime || !endTime) return 0;
+      
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      
+      let totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+      
+      // Handle overnight shifts
+      if (totalMinutes < 0) {
+        totalMinutes += 24 * 60;
+      }
+      
+      // Subtract break time
+      totalMinutes -= (breakMinutes || 0);
+      
+      return Math.max(0, totalMinutes / 60); // Return hours
+    }
+
+    // Calculate and display monthly working hours schedule
+    async function loadMonthlyHoursSchedule() {
+      try {
+        const grid = document.getElementById('monthlyHoursGrid');
+        if (!grid) return;
+
+        // Fetch available schedules from Firestore
+        let schedules = [];
+        try {
+          const response = await fetch(
+            `https://us-central1-aiclock-82608.cloudfunctions.net/getShifts?businessId=${businessId}`
+          );
+          const result = await response.json();
+          
+          if (result.success && result.shifts && result.shifts.length > 0) {
+            schedules = result.shifts.map(shift => {
+              // Calculate actual hours per day for each day of week
+              const dayHours = {
+                0: 0, // Sunday
+                1: 0, // Monday
+                2: 0, // Tuesday
+                3: 0, // Wednesday
+                4: 0, // Thursday
+                5: 0, // Friday
+                6: 0  // Saturday
+              };
+              
+              const dayMap = {
+                'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+                'thursday': 4, 'friday': 5, 'saturday': 6
+              };
+              
+              if (shift.schedule) {
+                Object.keys(shift.schedule).forEach(dayName => {
+                  const daySchedule = shift.schedule[dayName];
+                  if (daySchedule && daySchedule.enabled) {
+                    const dayIndex = dayMap[dayName];
+                    dayHours[dayIndex] = calculateDayHours(
+                      daySchedule.startTime,
+                      daySchedule.endTime,
+                      daySchedule.breakDuration || 0
+                    );
+                  }
+                });
+              }
+              
+              return {
+                name: shift.shiftName,
+                dayHours: dayHours,
+                schedule: shift.schedule
+              };
+            });
+          }
+        } catch (error) {
+          console.warn('Could not load schedules, using defaults:', error);
+        }
+
+        // Default schedules if none found
+        if (schedules.length === 0) {
+          schedules = [
+            { 
+              name: '45hr Week',
+              dayHours: { 0: 0, 1: 9, 2: 9, 3: 9, 4: 9, 5: 9, 6: 0 }
+            }
+          ];
+        }
+
+        // Calculate working days and hours for each month
+        const currentYear = new Date().getFullYear();
+        const months = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        const monthData = months.map((monthName, index) => {
+          const year = currentYear;
+          const month = index;
+          
+          // Count days by day of week in this month
+          const firstDay = new Date(year, month, 1);
+          const lastDay = new Date(year, month + 1, 0);
+          const dayCounts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+          let workingDaysMonFri = 0;
+          
+          for (let day = 1; day <= lastDay.getDate(); day++) {
+            const date = new Date(year, month, day);
+            const dayOfWeek = date.getDay();
+            dayCounts[dayOfWeek]++;
+            
+            // Count Mon-Fri (1-5) for display
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+              workingDaysMonFri++;
+            }
+          }
+
+          // Calculate hours for each schedule
+          const scheduleHours = schedules.map(schedule => {
+            // Calculate total hours based on which days the shift works
+            let totalHours = 0;
+            
+            for (let dayOfWeek = 0; dayOfWeek <= 6; dayOfWeek++) {
+              const hoursForThisDay = schedule.dayHours[dayOfWeek] || 0;
+              const daysInMonth = dayCounts[dayOfWeek];
+              totalHours += hoursForThisDay * daysInMonth;
+            }
+            
+            return {
+              name: schedule.name,
+              hours: Math.round(totalHours)
+            };
+          });
+
+          return {
+            month: monthName,
+            workingDays: workingDaysMonFri,
+            scheduleHours: scheduleHours
+          };
+        });
+
+        // Build HTML
+        grid.innerHTML = monthData.map(data => `
+          <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0;">
+            <div style="font-weight: 700; color: #667eea; margin-bottom: 0.5rem; font-size: 0.95rem;">
+              ${data.month}
+            </div>
+            <div style="font-size: 0.85rem; color: #666; margin-bottom: 0.5rem;">
+              ${data.workingDays} working days
+            </div>
+            ${data.scheduleHours.map(sh => `
+              <div style="background: white; padding: 0.5rem; border-radius: 4px; margin-top: 0.25rem; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.8rem; color: #555;">${sh.name}</span>
+                <span style="font-weight: 700; color: #667eea; font-size: 0.9rem;">${sh.hours}hrs</span>
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+
+      } catch (error) {
+        console.error('Error loading monthly hours schedule:', error);
+      }
+    }
+
     async function loadAssessment() {
       try {
         const month = document.getElementById('assessmentMonthInput').value;
@@ -5850,12 +7082,14 @@
             employeeAssessments = (cacheData.employees || []).map(emp => ({
               index: emp.employeeIndex || emp.index,
               name: emp.employeeName || emp.name,
+              shiftName: emp.shiftName || 'No Shift Assigned',
               requiredHours: emp.requiredHours || 176,
               currentHours: parseFloat(emp.currentHours) || 0,
               pastDueHours: emp.pastDueHours || 0,
               hoursShort: parseFloat(emp.hoursShort) || 0,
               payRate: parseFloat(emp.payRate) || 0,
               currentIncomeDue: parseFloat(emp.currentIncomeDue) || 0,
+              potentialIncome: parseFloat(emp.potentialIncome) || 0,
               status: emp.status || 'Unknown',
               statusColor: emp.statusColor || '#999'
             }));
@@ -5992,7 +7226,8 @@
         Object.entries(employeeData).forEach(([empId, data], index) => {
           const hoursShort = Math.max(0, requiredHours - data.totalHours);
           const totalPay = data.totalHours * data.payRate;
-          
+          const potentialIncome = requiredHours * data.payRate;
+
           let status = 'On Track';
           let statusColor = '#28a745';
           if (hoursShort > 40) {
@@ -6002,7 +7237,7 @@
             status = 'Behind';
             statusColor = '#fd7e14';
           }
-          
+
           assessmentArray.push({
             index: data.slot || (index + 1),
             name: data.name,
@@ -6012,6 +7247,7 @@
             hoursShort: hoursShort,
             payRate: data.payRate,
             currentIncomeDue: totalPay,
+            potentialIncome: potentialIncome,
             status: status,
             statusColor: statusColor
           });
@@ -6032,6 +7268,7 @@
       const totalHours = employeeAssessments.reduce((sum, emp) => sum + emp.currentHours, 0);
       const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + emp.hoursShort, 0);
       const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + emp.currentIncomeDue, 0);
+      const totalPotentialIncome = employeeAssessments.reduce((sum, emp) => sum + (emp.potentialIncome || 0), 0);
 
       display.innerHTML = `
         <!-- Assessment Summary Stats -->
@@ -6061,12 +7298,14 @@
               <tr style="background: #667eea; color: white;">
                 <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.8rem;">#</th>
                 <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.8rem;">Employee Name</th>
+                <th style="padding: 0.75rem; text-align: left; font-weight: 600; font-size: 0.8rem;">Shift Name</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Required Hours</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Current Hours</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Past Due Hours</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Hours Short</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Pay Rate</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Current Income Due</th>
+                <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Potential Income (100%)</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Status</th>
               </tr>
             </thead>
@@ -6075,12 +7314,14 @@
                 <tr style="border-bottom: 1px solid #e9ecef; ${index % 2 === 0 ? 'background: #f8f9fa;' : ''}">
                   <td style="padding: 0.75rem; font-weight: 600; color: #495057;">${emp.index}</td>
                   <td style="padding: 0.75rem; font-weight: 600; color: #2c3e50;">${emp.name}</td>
+                  <td style="padding: 0.75rem; color: #7f8c8d; font-style: italic;">${emp.shiftName || 'No Shift Assigned'}</td>
                   <td style="padding: 0.75rem; text-align: center; color: #495057;">${emp.requiredHours}</td>
                   <td style="padding: 0.75rem; text-align: center; color: ${emp.currentHours > 0 ? '#28a745' : '#6c757d'}; font-weight: ${emp.currentHours > 0 ? '600' : 'normal'};">${emp.currentHours.toFixed(1)}</td>
                   <td style="padding: 0.75rem; text-align: center; color: #6c757d;">${emp.pastDueHours}</td>
                   <td style="padding: 0.75rem; text-align: center; color: ${emp.hoursShort > 0 ? '#dc3545' : '#28a745'}; font-weight: 600;">${emp.hoursShort.toFixed(1)}</td>
                   <td style="padding: 0.75rem; text-align: center; color: #495057;">R${emp.payRate.toFixed(2)}</td>
                   <td style="padding: 0.75rem; text-align: center; color: #495057; font-weight: 600;">R${emp.currentIncomeDue.toFixed(2)}</td>
+                  <td style="padding: 0.75rem; text-align: center; color: #28a745; font-weight: 600;">R${emp.potentialIncome.toFixed(2)}</td>
                   <td style="padding: 0.75rem; text-align: center;">
                     <span style="background-color: ${emp.statusColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
                       ${emp.status}
@@ -6116,7 +7357,7 @@
           
           <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #673ab7, #3f51b5); color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(103, 58, 183, 0.3);">
             <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Potential Payroll (100%)</div>
-            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem;">R${(totalEmployees * 176 * 30).toFixed(2)}</div>
+            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem;">R${totalPotentialIncome.toFixed(2)}</div>
           </div>
           
           <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #00bcd4, #009688); color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);">
@@ -6246,7 +7487,7 @@
     window.loadAssessment = loadAssessment;
     window.printAssessment = printAssessment;
 
-    // 🚀 NEW: Assessment cache trigger function
+    // 🚀 NEW: Assessment cache trigger function with improved error handling
     async function triggerAssessmentCalculation() {
       const month = document.getElementById('assessmentMonthInput')?.value;
       if (!month) {
@@ -6268,11 +7509,26 @@
           month 
         });
         
-        // Call Cloud Function directly
-        const functionUrl = `https://updateassessmentcache-4q7htrps4q-uc.a.run.app?businessId=${businessId}&month=${month}`;
-        const response = await fetch(functionUrl, {
-          method: 'GET'
+        // Try cacheCalculation first (isolated, more stable), fallback to updateAssessmentCache
+        let functionUrl = `https://us-central1-aiclock-82608.cloudfunctions.net/cacheCalculation?businessId=${businessId}&month=${month}`;
+        let response = await fetch(functionUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
         });
+        
+        // If first function fails, try alternative function
+        if (!response.ok) {
+          console.log('⚠️ cacheCalculation failed, trying updateAssessmentCache...');
+          functionUrl = `https://us-central1-aiclock-82608.cloudfunctions.net/updateAssessmentCache?businessId=${businessId}&month=${month}`;
+          response = await fetch(functionUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+        }
         
         if (response.ok) {
           const result = await response.json();
@@ -6284,13 +7540,46 @@
           await loadAssessment();
           
         } else {
-          const error = await response.json();
-          throw new Error(error.message || 'Failed to update assessment cache');
+          // Enhanced error handling
+          let errorMessage = 'Server error occurred';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          
+          console.error('❌ Assessment recalculation failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: functionUrl
+          });
+          
+          // Show helpful error with fallback option
+          const shouldRefresh = confirm(
+            `⚠️ Assessment recalculation failed: ${errorMessage}\n\n` +
+            `This may be a temporary server issue. Your cached assessment data is still available.\n\n` +
+            `Click OK to refresh and view your current cached data, or Cancel to stay on this page.`
+          );
+          
+          if (shouldRefresh) {
+            await loadAssessment();
+          }
         }
         
       } catch (error) {
         console.error('❌ Failed to trigger assessment calculation:', error);
-        alert('❌ Failed to recalculate: ' + error.message);
+        
+        // Network or CORS error - offer to reload cached data
+        const shouldRefresh = confirm(
+          `⚠️ Unable to recalculate assessment: ${error.message}\n\n` +
+          `This may be a network or permissions issue. Your cached assessment data is still available.\n\n` +
+          `Click OK to refresh and view your current cached data, or Cancel to try again later.`
+        );
+        
+        if (shouldRefresh) {
+          await loadAssessment();
+        }
       } finally {
         if (btn) {
           btn.innerHTML = originalText;
@@ -6489,187 +7778,6 @@
         tableBody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #e53e3e;">Error loading punches: ${error.message}</td></tr>`;
       }
     }
-            
-            flatAttendanceSnap.forEach(doc => {
-              const event = doc.data();
-              if (event.timestamp) {
-                const eventDate = new Date(event.timestamp);
-                const eventDateStr = eventDate.toISOString().split('T')[0];
-                
-                // Only include events for selected date and skip test events
-                if (eventDateStr === dateFilter && !event.testMode) {
-                  
-                  // Determine event type
-                  let eventType = null;
-                  if (event.type) eventType = event.type;
-                  else if (event.attendanceStatus) {
-                    eventType = event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out';
-                  }
-                  
-                  if (eventType) {
-                    // Create punch object
-                    const punch = {
-                      id: doc.id,
-                      employeeId: event.employeeId || 'Unknown',
-                      employeeName: event.employeeName || `Employee ${event.employeeId}`,
-                      slotNumber: parseInt(event.employeeId || event.slotNumber || '0'),
-                      timestamp: event.timestamp,
-                      time: eventDate.toLocaleTimeString(),
-                      type: eventType,
-                      attendanceStatus: event.attendanceStatus || (eventType === 'clock-in' ? 'in' : 'out'),
-                      deviceId: event.deviceId || 'Unknown',
-                      date: dateFilter,
-                      notes: event.notes || '',
-                      source: 'flat'
-                    };
-                    
-                    console.log('✅ Created punch from flat structure:', punch);
-                    punches.push(punch);
-                  }
-                }
-              }
-            });
-          } catch (flatError) {
-            console.log('Error checking flat structure:', flatError);
-          }
-          
-          console.log(`📊 Total punches found: ${punches.length}`);
-          
-        } catch (error) {
-          console.error('Error loading from standardized collection:', error);
-          
-          // Fallback: try to load employees to verify collection structure
-          try {
-            const employeesRef = collection(db, "businesses", businessId, "employees");
-            const employeesSnap = await getDocs(employeesRef);
-            console.log(`Employees collection has ${employeesSnap.size} documents`);
-            
-            if (employeesSnap.size === 1 && employeesSnap.docs[0].id === '_structure') {
-              console.log('Found structure marker - collections are standardized but empty');
-            }
-          } catch (empError) {
-            console.error('Error checking employees collection:', empError);
-          }
-        }
-        
-        // Process found punches
-        console.log('Total punches found:', punches.length);
-        
-        if (punches.length > 0) {
-          punches.forEach(punch => {
-            // Improve device ID extraction
-            if (!punch.deviceId || punch.deviceId === '') {
-              // Try to extract from migratedFrom field
-              if (punch.migratedFrom && punch.migratedFrom.includes('device_')) {
-                const deviceMatch = punch.migratedFrom.match(/device_([^_]+)/);
-                if (deviceMatch) {
-                  punch.deviceId = deviceMatch[1];
-                }
-              }
-              // Try from original data
-              else if (punch.originalData && punch.originalData.deviceId) {
-                punch.deviceId = punch.originalData.deviceId;
-              }
-            }
-            
-            // Improve employee name display
-            if (!punch.employeeName && punch.employeeId) {
-              punch.employeeName = punch.employeeId;
-            }
-            
-            // Determine punch status and issues
-            punch.status = determinePunchStatus(punch);
-            punch.issue = determinePunchIssue(punch);
-          });
-          
-          // Filter by employee if selected
-          if (employeeFilter && employeeFilter !== 'All Employees') {
-            const beforeFilter = punches.length;
-            punches = punches.filter(punch => 
-              punch.employeeId === employeeFilter || 
-              punch.employeeName === employeeFilter
-            );
-            console.log(`Employee filter: ${beforeFilter} -> ${punches.length} punches`);
-          }
-          
-          // Filter by status if selected
-          if (statusFilter && statusFilter !== 'All Statuses') {
-            const beforeFilter = punches.length;
-            punches = punches.filter(punch => {
-              if (statusFilter === 'Mispunches (Pending)') {
-                return punch.status === 'pending' || punch.status === 'mispunch';
-              }
-              return punch.status === statusFilter.toLowerCase();
-            });
-            console.log(`Status filter: ${beforeFilter} -> ${punches.length} punches`);
-          }
-          
-          // Sort by timestamp
-          punches.sort((a, b) => {
-            const timeA = a.timestamp ? (a.timestamp.toDate ? a.timestamp.toDate() : new Date(a.timestamp)) : new Date(0);
-            const timeB = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp)) : new Date(0);
-            return timeA - timeB;
-          });
-        }
-        
-        // Update summary
-        updatePunchesSummary(punches);
-        
-        // Populate table
-        displayPunches(punches);
-        
-      } catch (error) {
-        console.error('Error loading punches:', error);
-        document.getElementById('punchesTableBody').innerHTML = 
-          '<tr><td colspan="8" style="text-align: center; color: red;">Error loading punches: ' + error.message + '</td></tr>';
-      }
-    }
-    
-    function formatPunchTimestamp(timestamp) {
-      try {
-        if (!timestamp) {
-          return 'Invalid Date';
-        }
-        
-        let date;
-        
-        // Handle Firestore Timestamp
-        if (timestamp && timestamp.toDate) {
-          date = timestamp.toDate();
-        }
-        // Handle string timestamp
-        else if (typeof timestamp === 'string') {
-          date = new Date(timestamp);
-        }
-        // Handle number timestamp
-        else if (typeof timestamp === 'number') {
-          date = new Date(timestamp);
-        }
-        // Handle Date object
-        else if (timestamp instanceof Date) {
-          date = timestamp;
-        }
-        // Handle timestamp with seconds and nanoseconds
-        else if (timestamp && timestamp.seconds) {
-          date = new Date(timestamp.seconds * 1000);
-        }
-        else {
-          return 'Invalid Date';
-        }
-        
-        // Check if date is valid
-        if (isNaN(date.getTime())) {
-          return 'Invalid Date';
-        }
-        
-        return date.toLocaleTimeString();
-        
-      } catch (error) {
-        console.error('Error formatting timestamp:', error, timestamp);
-        return 'Invalid Date';
-      }
-    }
-    
     function determinePunchStatus(punch) {
       // Check if this is a properly migrated punch with valid data
       if (punch.timestamp && punch.employeeId && punch.type && punch.type !== 'unknown') {
@@ -6746,7 +7854,7 @@
         if (punch.issue !== 'None') acc.withIssues++;
         return acc;
       }, { total: 0, matched: 0, pending: 0, unmatched: 0, withIssues: 0 });
-      
+
       document.getElementById('punchesSummary').innerHTML = `
         <div class="punch-stat-card">
           <h4>Total Punches</h4>
@@ -6770,7 +7878,20 @@
         </div>
       `;
     }
-    
+
+    function formatPunchTimestamp(timestamp) {
+      if (!timestamp) return '-';
+      const date = new Date(timestamp);
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    }
+
     function displayPunches(punches) {
       // Store punches globally for operations
       allPunches = punches;
@@ -7247,9 +8368,12 @@
         closeManualPunchModal();
         
         // Refresh punches if the selected date matches
-        const currentDateFilter = document.getElementById('punchDateFilter').value;
-        if (currentDateFilter === date) {
-          loadPunches();
+        const punchDateFilterElement = document.getElementById('punchDateFilter');
+        if (punchDateFilterElement) {
+          const currentDateFilter = punchDateFilterElement.value;
+          if (currentDateFilter === date) {
+            loadPunches();
+          }
         }
 
       } catch (error) {
@@ -7259,7 +8383,7 @@
     }
 
     // Mispunch management function
-    async function manageMispunch(mispunchId, punchId, reason, employeeName) {
+    async function manageMispunch(mispunchId, punchId, reason, employeeName, employeeSlot, employeeId, dateStr) {
       const modal = `
         <div class="modal-overlay" onclick="closeMispunchModal(event)">
           <div class="modal-employee" onclick="event.stopPropagation()">
@@ -7310,7 +8434,7 @@
             
             <div class="modal-buttons">
               <button type="button" onclick="closeMispunchModal()" class="btn-secondary">Cancel</button>
-              <button type="button" onclick="applyMispunchResolution('${punchId}', '${employeeName}')" class="btn-primary">Apply Resolution</button>
+              <button type="button" onclick="applyMispunchResolution('${punchId}', '${employeeName}', '${employeeSlot}', '${employeeId}', '${dateStr}')" class="btn-primary">Apply Resolution</button>
             </div>
           </div>
         </div>
@@ -7328,7 +8452,7 @@
       clockOutOptions.style.display = action === 'add_missing_out' ? 'block' : 'none';
     }
 
-    async function applyMispunchResolution(punchId, employeeName) {
+    async function applyMispunchResolution(punchId, employeeName, employeeSlot, employeeId, dateStr) {
       const action = document.getElementById('mispunchAction').value;
       const notes = document.getElementById('mispunchNotes').value;
 
@@ -7346,21 +8470,26 @@
               return;
             }
             
-            // Create a new clock-in punch before this clock-out
-            const today = new Date().toISOString().split('T')[0];
-            const clockInTimestamp = new Date(`${today}T${estimatedTime}:00`);
+            // Create a new clock-in punch before this clock-out  
+            // Use the punch date from the mispunch, not today's date
+            const punchDate = dateStr || new Date().toISOString().split('T')[0];
+            const clockInTimestamp = new Date(`${punchDate}T${estimatedTime}:00`);
             
             const webhookPayload = {
               deviceId: 'MISPUNCH_CORRECTION',
-              verifyNo: punchId.split('_')[0], // Extract employee slot
+              verifyNo: employeeSlot || '0',
               employeeName: employeeName,
               attendanceStatus: 'in',
               timestamp: clockInTimestamp.toISOString(),
               businessId: businessId,
               isManual: true,
               manualNotes: `Mispunch correction: Added missing clock-in. ${notes}`,
-              isMispunchCorrection: true
+              isMispunchCorrection: true,
+              correctionDate: punchDate,
+              skipStatusValidation: true
             };
+
+            console.log('Adding missing clock-in:', webhookPayload);
 
             const response = await fetch('https://attendancewebhook-4q7htrps4q-uc.a.run.app', {
               method: 'POST',
@@ -7369,7 +8498,8 @@
             });
 
             if (!response.ok) {
-              throw new Error('Failed to add missing clock-in');
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.error || 'Failed to add missing clock-in');
             }
 
             alert(`Missing clock-in added at ${estimatedTime} for ${employeeName}`);
@@ -7383,20 +8513,25 @@
             }
             
             // Create a new clock-out punch after this clock-in
-            const todayOut = new Date().toISOString().split('T')[0];
-            const clockOutTimestamp = new Date(`${todayOut}T${estimatedOutTime}:00`);
+            // Use the punch date from the mispunch, not today's date
+            const outPunchDate = dateStr || new Date().toISOString().split('T')[0];
+            const clockOutTimestamp = new Date(`${outPunchDate}T${estimatedOutTime}:00`);
             
             const clockOutPayload = {
               deviceId: 'MISPUNCH_CORRECTION',
-              verifyNo: punchId.split('_')[0], // Extract employee slot
+              verifyNo: employeeSlot || '0',
               employeeName: employeeName,
               attendanceStatus: 'out',
               timestamp: clockOutTimestamp.toISOString(),
               businessId: businessId,
               isManual: true,
               manualNotes: `Mispunch correction: Added missing clock-out. ${notes}`,
-              isMispunchCorrection: true
+              isMispunchCorrection: true,
+              correctionDate: outPunchDate,
+              skipStatusValidation: true
             };
+
+            console.log('Adding missing clock-out:', clockOutPayload);
 
             const outResponse = await fetch('https://attendancewebhook-4q7htrps4q-uc.a.run.app', {
               method: 'POST',
@@ -7405,7 +8540,8 @@
             });
 
             if (!outResponse.ok) {
-              throw new Error('Failed to add missing clock-out');
+              const errorData = await outResponse.json().catch(() => ({}));
+              throw new Error(errorData.error || 'Failed to add missing clock-out');
             }
 
             alert(`Missing clock-out added at ${estimatedOutTime} for ${employeeName}`);
@@ -7427,7 +8563,7 @@
         }
 
         closeMispunchModal();
-        await loadPunches(); // Refresh the punch list
+        await loadTimecard(); // Refresh the timecard
 
       } catch (error) {
         console.error('Error resolving mispunch:', error);
@@ -8478,6 +9614,24 @@
           document.getElementById('overtimeMultiplier').value = data.overtimeMultiplier || 1.5;
         }
         
+        // Load application settings
+        const appSettingsRef = doc(db, "businesses", businessId, "settings", "applications");
+        const appSettingsDoc = await getDoc(appSettingsRef);
+        
+        if (appSettingsDoc.exists()) {
+          const appData = appSettingsDoc.data();
+          document.getElementById('leaveEnabled').checked = appData.leave !== false; // Default to true
+          document.getElementById('sickleaveEnabled').checked = appData.sickleave !== false;
+          document.getElementById('cashadvanceEnabled').checked = appData.cashadvance !== false;
+          document.getElementById('otherEnabled').checked = appData.other !== false;
+        } else {
+          // Default all checkboxes to true if no settings exist
+          document.getElementById('leaveEnabled').checked = true;
+          document.getElementById('sickleaveEnabled').checked = true;
+          document.getElementById('cashadvanceEnabled').checked = true;
+          document.getElementById('otherEnabled').checked = true;
+        }
+        
         // Setup form handlers
         document.getElementById('businessInfoForm').addEventListener('submit', saveBusinessInfo);
         document.getElementById('workingDaysForm').addEventListener('submit', saveWorkingDays);
@@ -8573,6 +9727,35 @@
         alert('Error saving: ' + error.message);
       }
     }
+
+    // Save application settings
+    async function saveApplicationSettings() {
+      try {
+        const applicationSettings = {
+          leave: document.getElementById('leaveEnabled').checked,
+          sickleave: document.getElementById('sickleaveEnabled').checked,
+          cashadvance: document.getElementById('cashadvanceEnabled').checked,
+          other: document.getElementById('otherEnabled').checked,
+          updatedAt: new Date().toISOString()
+        };
+        
+        const businessRef = doc(db, "businesses", businessId, "settings", "applications");
+        await setDoc(businessRef, applicationSettings);
+        
+        alert('✅ Application settings saved successfully!');
+        
+        // Optionally reload applications to reflect changes
+        if (document.querySelector('.menu-btn[data-module="applications"].active')) {
+          loadApplications();
+        }
+      } catch (error) {
+        console.error("Error saving application settings:", error);
+        alert('Error saving: ' + error.message);
+      }
+    }
+
+    // Make saveApplicationSettings globally available
+    window.saveApplicationSettings = saveApplicationSettings;
 
     // Debug functions for testing
     async function addTestEmployee() {
@@ -9356,7 +10539,8 @@ Click "Test Connection" after starting the service.`);
         Object.entries(employeeData).forEach(([empId, data], index) => {
           const hoursShort = Math.max(0, requiredHours - data.totalHours);
           const totalPay = data.totalHours * data.payRate;
-          
+          const potentialIncome = requiredHours * data.payRate;
+
           let status = 'On Track';
           let statusColor = '#28a745';
           if (hoursShort > 40) {
@@ -9366,7 +10550,7 @@ Click "Test Connection" after starting the service.`);
             status = 'Behind';
             statusColor = '#fd7e14';
           }
-          
+
           assessmentArray.push({
             index: data.slot || (index + 1),
             name: data.name,
@@ -9376,6 +10560,7 @@ Click "Test Connection" after starting the service.`);
             hoursShort: hoursShort,
             payRate: data.payRate,
             currentIncomeDue: totalPay,
+            potentialIncome: potentialIncome,
             status: status,
             statusColor: statusColor
           });
@@ -9396,6 +10581,7 @@ Click "Test Connection" after starting the service.`);
       const totalHours = employeeAssessments.reduce((sum, emp) => sum + emp.currentHours, 0);
       const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + emp.hoursShort, 0);
       const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + emp.currentIncomeDue, 0);
+      const totalPotentialIncome = employeeAssessments.reduce((sum, emp) => sum + (emp.potentialIncome || 0), 0);
 
       display.innerHTML = `
         <!-- Assessment Table -->
@@ -9411,6 +10597,7 @@ Click "Test Connection" after starting the service.`);
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Hours Short</th>
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Pay Rate</th>
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Current Income Due</th>
+                <th style="padding: 1rem; text-align: center; font-weight: 600;">Potential Income (100%)</th>
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Status</th>
               </tr>
             </thead>
@@ -9425,6 +10612,7 @@ Click "Test Connection" after starting the service.`);
                   <td style="padding: 1rem; text-align: center; color: ${emp.hoursShort > 0 ? '#f44336' : '#4caf50'};">${emp.hoursShort}</td>
                   <td style="padding: 1rem; text-align: center; color: #333;">R${emp.payRate.toFixed(2)}</td>
                   <td style="padding: 1rem; text-align: center; font-weight: 600; color: #4caf50;">R${emp.currentIncomeDue.toFixed(2)}</td>
+                  <td style="padding: 1rem; text-align: center; font-weight: 600; color: #28a745;">R${emp.potentialIncome.toFixed(2)}</td>
                   <td style="padding: 1rem; text-align: center;">
                     <span style="background: ${emp.statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem; font-weight: 500;">${emp.status}</span>
                   </td>
@@ -9463,11 +10651,6 @@ Click "Test Connection" after starting the service.`);
       window.print();
     }
 
-    // Make assessment functions globally available
-    window.initAssessment = initAssessment;
-    window.loadAssessment = loadAssessment;
-    window.printAssessment = printAssessment;
-    
     // 🚀 NEW: Make attendance functions globally available
     window.getRealtimeAttendanceData = getRealtimeAttendanceData;
     window.calculateAndCacheAttendanceData = calculateAndCacheAttendanceData;
@@ -9500,6 +10683,385 @@ Click "Test Connection" after starting the service.`);
 
   <!-- Shift Management Module Script -->
   <script type="module" src="../modules/shift/shiftManager.js"></script>
+
+  <!-- Payslips Module Styles -->
+  <link rel="stylesheet" href="../modules/payslips/payslips.css">
+
+  <!-- Payslips Module Script -->
+  <script type="module">
+    import PayslipsModule from '../modules/payslips/payslips.js';
+    
+    // Initialize payslips module
+    window.initPayslips = async function() {
+      try {
+        console.log('Initializing payslips module...');
+        const businessId = window.businessId;
+        
+        if (!businessId) {
+          console.error('Business ID not available');
+          return;
+        }
+        
+        // Create payslips module instance
+        if (!window.payslipsModule) {
+          window.payslipsModule = new PayslipsModule(businessId);
+          await window.payslipsModule.init();
+        } else {
+          // Reload if already initialized
+          await window.payslipsModule.init();
+        }
+        
+        console.log('✅ Payslips module initialized successfully');
+      } catch (error) {
+        console.error('❌ Error initializing payslips module:', error);
+      }
+    };
+  </script>
+
+  <!-- Mobile Menu Toggle Script -->
+  <script>
+    // VPS Migration state
+    let vpsConnectionTested = false;
+    let vpsDeploymentComplete = false;
+    let currentVpsHost = '';
+
+    // Toggle between password and SSH key fields
+    function toggleVpsAuthFields() {
+      const authMethod = document.getElementById('vpsAuthMethod').value;
+      const passwordField = document.getElementById('vpsPasswordField');
+      const keyField = document.getElementById('vpsKeyField');
+      
+      if (authMethod === 'password') {
+        passwordField.style.display = 'block';
+        keyField.style.display = 'none';
+      } else {
+        passwordField.style.display = 'none';
+        keyField.style.display = 'block';
+      }
+    }
+
+    // Test SSH connection to VPS
+    async function testVpsConnection() {
+      const host = document.getElementById('vpsHost').value.trim();
+      const port = document.getElementById('vpsPort').value || '22';
+      const username = document.getElementById('vpsUsername').value.trim();
+      const authMethod = document.getElementById('vpsAuthMethod').value;
+      const password = authMethod === 'password' ? document.getElementById('vpsPassword').value : '';
+      const privateKey = authMethod === 'key' ? document.getElementById('vpsPrivateKey').value : '';
+
+      if (!host || !username) {
+        alert('Please fill in VPS host and username');
+        return;
+      }
+
+      if (authMethod === 'password' && !password) {
+        alert('Please enter SSH password');
+        return;
+      }
+
+      if (authMethod === 'key' && !privateKey) {
+        alert('Please paste your SSH private key');
+        return;
+      }
+
+      const btn = document.getElementById('vpsTestConnectionBtn');
+      btn.disabled = true;
+      btn.textContent = '🔄 Testing connection...';
+
+      try {
+        const response = await fetch(
+          'https://us-central1-aiclock-82608.cloudfunctions.net/testVpsConnection',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              host,
+              port: parseInt(port),
+              username,
+              authMethod,
+              password,
+              privateKey
+            })
+          }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('✅ SSH Connection Successful!\\n\\n' + 
+                'OS: ' + (result.osInfo || 'Unknown') + '\\n' +
+                'Node.js: ' + (result.nodeVersion || 'Not installed'));
+          
+          vpsConnectionTested = true;
+          currentVpsHost = host;
+          document.getElementById('vpsProceedStep2Btn').disabled = false;
+          btn.textContent = '✅ Connection Successful';
+          btn.style.background = '#28a745';
+        } else {
+          throw new Error(result.error || 'Connection failed');
+        }
+      } catch (error) {
+        console.error('VPS connection test failed:', error);
+        alert('❌ Connection Failed: ' + error.message);
+        btn.disabled = false;
+        btn.textContent = '🔍 Test SSH Connection';
+      }
+    }
+
+    // Proceed to step 2
+    function proceedToStep2() {
+      updateMigrationStepUI(2);
+      document.getElementById('vpsStep1').style.display = 'none';
+      document.getElementById('vpsStep2').style.display = 'block';
+      
+      // Update new webhook URL in step 3
+      document.getElementById('newWebhookUrl').textContent = 
+        `http://${currentVpsHost}:7660/admin-webhook`;
+    }
+
+    // Deploy relay server to VPS
+    async function deployRelayToVps() {
+      const host = document.getElementById('vpsHost').value.trim();
+      const port = document.getElementById('vpsPort').value || '22';
+      const username = document.getElementById('vpsUsername').value.trim();
+      const authMethod = document.getElementById('vpsAuthMethod').value;
+      const password = authMethod === 'password' ? document.getElementById('vpsPassword').value : '';
+      const privateKey = authMethod === 'key' ? document.getElementById('vpsPrivateKey').value : '';
+
+      const btn = document.getElementById('vpsDeployBtn');
+      const progressDiv = document.getElementById('deploymentProgress');
+      
+      btn.disabled = true;
+      btn.textContent = '🚀 Deploying...';
+      progressDiv.innerHTML = '<div style="color: #2196F3;">🔄 Starting deployment...</div>';
+
+      function addLog(message, type = 'info') {
+        const colors = {
+          info: '#2196F3',
+          success: '#28a745',
+          warning: '#ffc107',
+          error: '#dc3545'
+        };
+        progressDiv.innerHTML += `<div style="color: ${colors[type]}; margin: 2px 0;">${message}</div>`;
+        progressDiv.scrollTop = progressDiv.scrollHeight;
+      }
+
+      try {
+        addLog('Connecting to VPS via SSH...');
+        
+        const response = await fetch(
+          'https://us-central1-aiclock-82608.cloudfunctions.net/deployVpsRelay',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              host,
+              port: parseInt(port),
+              username,
+              authMethod,
+              password,
+              privateKey,
+              businessId: window.businessId
+            })
+          }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          result.logs.forEach(log => {
+            if (log.includes('✅') || log.includes('Success')) {
+              addLog(log, 'success');
+            } else if (log.includes('⚠️') || log.includes('Warning')) {
+              addLog(log, 'warning');
+            } else if (log.includes('❌') || log.includes('Error')) {
+              addLog(log, 'error');
+            } else {
+              addLog(log);
+            }
+          });
+
+          addLog('\\n✅ Deployment Complete!', 'success');
+          addLog(`Relay server is running on port 7660`, 'success');
+          
+          vpsDeploymentComplete = true;
+          btn.textContent = '✅ Deployment Complete';
+          btn.style.background = '#28a745';
+          document.getElementById('vpsProceedStep3Btn').disabled = false;
+        } else {
+          throw new Error(result.error || 'Deployment failed');
+        }
+      } catch (error) {
+        console.error('Deployment failed:', error);
+        addLog('\\n❌ Deployment Failed: ' + error.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '🚀 Retry Deployment';
+      }
+    }
+
+    // Proceed to step 3
+    function proceedToStep3() {
+      updateMigrationStepUI(3);
+      document.getElementById('vpsStep2').style.display = 'none';
+      document.getElementById('vpsStep3').style.display = 'block';
+    }
+
+    // Update device webhook automatically
+    async function updateDevice Webhook() {
+      const deviceIp = document.getElementById('deviceIp').value.trim();
+      const deviceUsername = document.getElementById('deviceUsername').value.trim();
+      const devicePassword = document.getElementById('devicePassword').value;
+      const newWebhookUrl = `http://${currentVpsHost}:7660/admin-webhook`;
+
+      if (!devicePassword) {
+        alert('Please enter device password');
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          'https://us-central1-aiclock-82608.cloudfunctions.net/updateDeviceWebhook',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              deviceIp,
+              deviceUsername,
+              devicePassword,
+              webhookUrl: newWebhookUrl
+            })
+          }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('✅ Device webhook updated successfully!');
+          document.getElementById('vpsProceedStep4Btn').disabled = false;
+        } else {
+          throw new Error(result.error || 'Update failed');
+        }
+      } catch (error) {
+        console.error('Device update failed:', error);
+        alert('❌ Automatic update failed: ' + error.message + '\\n\\nPlease configure manually.');
+      }
+    }
+
+    // Skip to testing (manual configuration)
+    function skipToTesting() {
+      document.getElementById('vpsProceedStep4Btn').disabled = false;
+    }
+
+    // Proceed to step 4
+    function proceedToStep4() {
+      updateMigrationStepUI(4);
+      document.getElementById('vpsStep3').style.display = 'none';
+      document.getElementById('vpsStep4').style.display = 'block';
+    }
+
+    // Test new relay
+    async function testNewRelay() {
+      const testResults = document.getElementById('testResults');
+      testResults.innerHTML = '🔄 Testing new relay connection...';
+
+      try {
+        const response = await fetch(`http://${currentVpsHost}:7660/`);
+        const text = await response.text();
+        
+        testResults.innerHTML = `
+          <div style="color: #28a745;">✅ Relay is responding!</div>
+          <div style="color: #666; margin-top: 0.5rem;">${text}</div>
+          <div style="color: #2196F3; margin-top: 1rem; font-weight: 600;">
+            Now scan a fingerprint on your device to test the full flow.
+          </div>
+        `;
+
+        document.getElementById('vpsActivateBtn').disabled = false;
+      } catch (error) {
+        testResults.innerHTML = `
+          <div style="color: #dc3545;">❌ Cannot reach relay</div>
+          <div style="color: #666; margin-top: 0.5rem;">Error: ${error.message}</div>
+          <div style="color: #ffc107; margin-top: 1rem;">
+            Make sure the relay server is running and accessible.
+          </div>
+        `;
+      }
+    }
+
+    // Activate new VPS
+    async function activateNewVps() {
+      if (!confirm('Are you sure you want to switch to the new VPS?\\n\\nMake sure you have tested the relay successfully!')) {
+        return;
+      }
+
+      try {
+        // Update business document with new VPS IP
+        const docRef = doc(db, 'businesses', window.businessId);
+        await updateDoc(docRef, {
+          vpsRelayIp: currentVpsHost,
+          vpsRelayPort: 7660,
+          vpsRelayUpdated: serverTimestamp()
+        });
+
+        alert('✅ New VPS activated successfully!\\n\\nYour system is now using the new relay server.');
+        
+        // Refresh the page to show updated status
+        location.reload();
+      } catch (error) {
+        console.error('Failed to activate VPS:', error);
+        alert('❌ Failed to update configuration: ' + error.message);
+      }
+    }
+
+    // Update migration step UI
+    function updateMigrationStepUI(activeStep) {
+      document.querySelectorAll('.migration-step').forEach((step, index) => {
+        const stepNumber = index + 1;
+        if (stepNumber === activeStep) {
+          step.style.background = '#e7f3ff';
+          step.style.borderColor = '#2196F3';
+          step.querySelector('div:last-child').style.color = '#333';
+        } else if (stepNumber < activeStep) {
+          step.style.background = '#d4edda';
+          step.style.borderColor = '#28a745';
+          step.querySelector('div:last-child').style.color = '#28a745';
+        } else {
+          step.style.background = '#f5f5f5';
+          step.style.borderColor = '#ddd';
+          step.querySelector('div:last-child').style.color = '#666';
+        }
+      });
+    }
+  </script>
+
+  <!-- Mobile Menu Toggle Script -->
+  <script>
+    function toggleMobileSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      const overlay = document.querySelector('.mobile-overlay');
+
+      sidebar.classList.toggle('active');
+      overlay.classList.toggle('active');
+
+      // Prevent body scroll when sidebar is open on mobile
+      if (sidebar.classList.contains('active')) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    }
+
+    // Close sidebar when clicking on menu items on mobile
+    if (window.innerWidth <= 768) {
+      document.querySelectorAll('.sidebar-menu button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (window.innerWidth <= 768) {
+            toggleMobileSidebar();
+          }
+        });
+      });
+    }
+  </script>
 
 </body>
 </html>

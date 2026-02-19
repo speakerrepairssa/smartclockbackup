@@ -390,46 +390,15 @@
   </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-    import { getFirestore, collection, query, where, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCgfP_HnecrR6xYRzlQ2t4g9LzRHl2r_Xs",
-      authDomain: "attendance-system-9f59e.firebaseapp.com",
-      projectId: "attendance-system-9f59e",
-      storageBucket: "attendance-system-9f59e.appspot.com",
-      messagingSenderId: "815587021262",
-      appId: "1:815587021262:web:02c58c0e1cdfe63e92b90d"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    import { collection, query, where, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { db } from '../config/firebase.js';
+    import authService from '../modules/auth/auth.service.js';
 
     let currentBusinessId = null;
     let allLogs = [];
     let filteredLogs = [];
 
-    // Wait for auth
-    onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
-
-      const urlParams = new URLSearchParams(window.location.search);
-      currentBusinessId = urlParams.get('businessId');
-      
-      if (!currentBusinessId) {
-        alert('No business selected');
-        window.location.href = 'business-dashboard.html';
-        return;
-      }
-
-      loadLogs();
-    });
-
+    // Define functions first
     window.loadLogs = async function() {
       document.getElementById('loading').style.display = 'block';
       document.getElementById('noLogs').style.display = 'none';
@@ -637,6 +606,22 @@ Employee Name: ${log.employeeData?.employeeName || 'N/A'}</pre>
       a.click();
       window.URL.revokeObjectURL(url);
     };
+
+    // Check authentication and initialize
+    if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
+      console.log('Authentication failed, redirecting to login');
+      window.location.href = '/pages/login.html';
+    } else {
+      const urlParams = new URLSearchParams(window.location.search);
+      currentBusinessId = urlParams.get('businessId');
+      
+      if (!currentBusinessId) {
+        alert('No business selected');
+        window.location.href = 'business-dashboard.html';
+      } else {
+        loadLogs();
+      }
+    }
   </script>
 </body>
 </html>

@@ -2358,8 +2358,14 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
             employeeDataHasField: employeeData && employeeData[value] !== undefined
           });
           
-          // If value is a field name from employeeData, use the actual value
-          if (employeeData && employeeData[value] !== undefined) {
+          // If source is 'custom', use the value directly without any lookups
+          if (mapping.source === 'custom') {
+            logger.info("Using custom value directly", { 
+              parameter: mapping.parameter,
+              customValue: value 
+            });
+            // Keep value as-is for custom values
+          } else if (employeeData && employeeData[value] !== undefined) {
             // Direct field lookup (e.g., "employeeName" -> actual name)
             const actualValue = employeeData[value];
             logger.info("Mapped parameter from field", { 
@@ -2391,15 +2397,16 @@ exports.sendWhatsAppMessage = onRequest(async (req, res) => {
             // If value is still a field name (no replacement happened), provide default
             if (value === 'none' || value === 'None') {
               value = 'N/A';
-            } else if (value && !value.includes('{{') && employeeData[value] === undefined) {
-              // Value is a field name that doesn't exist in employeeData
+            } else if (value && !value.includes('{{') && employeeData[value] === undefined && mapping.source !== 'custom') {
+              // Value is a field name that doesn't exist in employeeData (but skip check for custom values)
               logger.warn("Field not found in employeeData, using default", { field: value });
               value = 'N/A';
             }
           }
           
           // Ensure value is not empty - WhatsApp API requires non-empty parameters
-          if (!value || value.trim() === '') {
+          // But allow empty custom values (they might be intentional)
+          if ((!value || value.trim() === '') && mapping.source !== 'custom') {
             value = 'N/A';
             logger.warn("Empty parameter value detected, using default", { 
               parameter: mapping.parameter,
