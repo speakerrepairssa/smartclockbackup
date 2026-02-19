@@ -454,12 +454,10 @@
       <ul class="sidebar-menu">
         <li><button class="menu-btn active" data-module="dashboard" onclick="switchModule('dashboard')">📊 Dashboard</button></li>
         <li><button class="menu-btn" data-module="monitor" onclick="switchModule('monitor')">🔴 Monitor Mode</button></li>
-        <li><button class="menu-btn" data-module="attendance" onclick="switchModule('attendance')">✓ Attendance</button></li>
-        <li><button class="menu-btn" data-module="reports" onclick="switchModule('reports')">📈 Reports</button></li>
         <li><button class="menu-btn" data-module="assessment" onclick="switchModule('assessment')">📊 Assessment</button></li>
         <li><button class="menu-btn" data-module="payslips" onclick="switchModule('payslips')">💰 Payslips</button></li>
         <li><button class="menu-btn" data-module="employees" onclick="switchModule('employees')">👥 Employees</button></li>
-        <li><a href="employee-credentials.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">🔐 Employee Credentials</button></a></li>
+        <li><a href="employee-credentials.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">🔐 Employee Portal</button></a></li>
         <li><button class="menu-btn" data-module="applications" onclick="switchModule('applications')">📝 Applications</button></li>
         <li><button class="menu-btn" data-module="shifts" onclick="switchModule('shifts')">📅 Shifts</button></li>
         <li><button class="menu-btn" data-module="timecard" onclick="switchModule('timecard')">🕐 Timecard</button></li>
@@ -1017,6 +1015,53 @@
             width: auto;
             cursor: pointer;
           }
+
+          /* Toggle Switch Styles */
+          .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+          }
+
+          .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+          }
+
+          .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+          }
+
+          .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+          }
+
+          input:checked + .toggle-slider {
+            background-color: #4CAF50;
+          }
+
+          input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+          }
+          /* End Toggle Switch Styles */
 
           .day-settings {
             display: flex;
@@ -3516,6 +3561,59 @@
               <button type="submit" class="btn-primary">💾 Save Working Hours</button>
             </form>
           </div>
+          
+          <div class="settings-card">
+            <h3>📝 Application Types</h3>
+            <p style="color: #6c757d; margin-bottom: 1rem;">Configure which application types employees can submit</p>
+            
+            <div class="application-toggles">
+              <div class="toggle-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e9ecef;">
+                <div>
+                  <strong style="color: #495057;">🏖️ Leave Applications</strong>
+                  <p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Annual leave, vacation requests</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="leaveEnabled" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              
+              <div class="toggle-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e9ecef;">
+                <div>
+                  <strong style="color: #495057;">🤒 Sick Leave</strong>
+                  <p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Medical leave applications</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sickleaveEnabled" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              
+              <div class="toggle-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #e9ecef;">
+                <div>
+                  <strong style="color: #495057;">💰 Cash Advance</strong>
+                  <p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Salary advance requests</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="cashadvanceEnabled" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              
+              <div class="toggle-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 0;">
+                <div>
+                  <strong style="color: #495057;">📄 Other Applications</strong>
+                  <p style="margin: 0; color: #6c757d; font-size: 0.85rem;">Custom application types</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="otherEnabled" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            
+            <button type="button" class="btn-primary" onclick="saveApplicationSettings()" style="margin-top: 1rem;">💾 Save Application Settings</button>
+          </div>
         </div>
       </div>
     </main>
@@ -3938,11 +4036,17 @@
                 return;
               }
               
-              console.log('🔔 Clock-out detected for', newData.employeeName, '- triggering WhatsApp');
+              console.log('🔔 Clock-out detected for', newData.employeeName, '- recalculating assessment first');
               console.log('   Employee ID from status:', employeeId, 'Type:', typeof employeeId);
               recentWhatsAppTriggers[employeeId] = now;
               
-              // 📊 Get assessment data from cache for complete employee data
+              // ⚡ IMPORTANT: Recalculate assessment BEFORE fetching data for WhatsApp
+              // This ensures WhatsApp gets the most up-to-date hours including this clock-out
+              console.log('🔄 Updating assessment cache with latest clock-out data...');
+              await calculateAndCacheAttendanceData(businessId);
+              console.log('✅ Assessment cache updated');
+              
+              // 📊 Get fresh assessment data from cache for complete employee data
               const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
               let employeeAssessmentData = {};
               
@@ -6771,6 +6875,26 @@
       }
     }
 
+    // Helper function to calculate hours for a day
+    function calculateDayHours(startTime, endTime, breakMinutes) {
+      if (!startTime || !endTime) return 0;
+      
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      
+      let totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+      
+      // Handle overnight shifts
+      if (totalMinutes < 0) {
+        totalMinutes += 24 * 60;
+      }
+      
+      // Subtract break time
+      totalMinutes -= (breakMinutes || 0);
+      
+      return Math.max(0, totalMinutes / 60); // Return hours
+    }
+
     // Calculate and display monthly working hours schedule
     async function loadMonthlyHoursSchedule() {
       try {
@@ -6786,11 +6910,43 @@
           const result = await response.json();
           
           if (result.success && result.shifts && result.shifts.length > 0) {
-            schedules = result.shifts.map(shift => ({
-              name: shift.shiftName,
-              hoursPerWeek: shift.hoursPerWeek || 45,
-              hoursPerDay: shift.hoursPerDay || 9
-            }));
+            schedules = result.shifts.map(shift => {
+              // Calculate actual hours per day for each day of week
+              const dayHours = {
+                0: 0, // Sunday
+                1: 0, // Monday
+                2: 0, // Tuesday
+                3: 0, // Wednesday
+                4: 0, // Thursday
+                5: 0, // Friday
+                6: 0  // Saturday
+              };
+              
+              const dayMap = {
+                'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+                'thursday': 4, 'friday': 5, 'saturday': 6
+              };
+              
+              if (shift.schedule) {
+                Object.keys(shift.schedule).forEach(dayName => {
+                  const daySchedule = shift.schedule[dayName];
+                  if (daySchedule && daySchedule.enabled) {
+                    const dayIndex = dayMap[dayName];
+                    dayHours[dayIndex] = calculateDayHours(
+                      daySchedule.startTime,
+                      daySchedule.endTime,
+                      daySchedule.breakDuration || 0
+                    );
+                  }
+                });
+              }
+              
+              return {
+                name: shift.shiftName,
+                dayHours: dayHours,
+                schedule: shift.schedule
+              };
+            });
           }
         } catch (error) {
           console.warn('Could not load schedules, using defaults:', error);
@@ -6799,8 +6955,10 @@
         // Default schedules if none found
         if (schedules.length === 0) {
           schedules = [
-            { name: '45hr Week', hoursPerWeek: 45, hoursPerDay: 9 },
-            { name: '50hr Week', hoursPerWeek: 50, hoursPerDay: 10 }
+            { 
+              name: '45hr Week',
+              dayHours: { 0: 0, 1: 9, 2: 9, 3: 9, 4: 9, 5: 9, 6: 0 }
+            }
           ];
         }
 
@@ -6815,33 +6973,43 @@
           const year = currentYear;
           const month = index;
           
-          // Calculate working days (Mon-Fri) in this month
+          // Count days by day of week in this month
           const firstDay = new Date(year, month, 1);
           const lastDay = new Date(year, month + 1, 0);
-          let workingDays = 0;
+          const dayCounts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+          let workingDaysMonFri = 0;
           
           for (let day = 1; day <= lastDay.getDate(); day++) {
             const date = new Date(year, month, day);
             const dayOfWeek = date.getDay();
-            // Count Mon-Fri (1-5)
+            dayCounts[dayOfWeek]++;
+            
+            // Count Mon-Fri (1-5) for display
             if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-              workingDays++;
+              workingDaysMonFri++;
             }
           }
 
           // Calculate hours for each schedule
           const scheduleHours = schedules.map(schedule => {
-            // Calculate based on working days and daily hours
-            const totalHours = Math.round(workingDays * schedule.hoursPerDay);
+            // Calculate total hours based on which days the shift works
+            let totalHours = 0;
+            
+            for (let dayOfWeek = 0; dayOfWeek <= 6; dayOfWeek++) {
+              const hoursForThisDay = schedule.dayHours[dayOfWeek] || 0;
+              const daysInMonth = dayCounts[dayOfWeek];
+              totalHours += hoursForThisDay * daysInMonth;
+            }
+            
             return {
               name: schedule.name,
-              hours: totalHours
+              hours: Math.round(totalHours)
             };
           });
 
           return {
             month: monthName,
-            workingDays: workingDays,
+            workingDays: workingDaysMonFri,
             scheduleHours: scheduleHours
           };
         });
@@ -9446,6 +9614,24 @@
           document.getElementById('overtimeMultiplier').value = data.overtimeMultiplier || 1.5;
         }
         
+        // Load application settings
+        const appSettingsRef = doc(db, "businesses", businessId, "settings", "applications");
+        const appSettingsDoc = await getDoc(appSettingsRef);
+        
+        if (appSettingsDoc.exists()) {
+          const appData = appSettingsDoc.data();
+          document.getElementById('leaveEnabled').checked = appData.leave !== false; // Default to true
+          document.getElementById('sickleaveEnabled').checked = appData.sickleave !== false;
+          document.getElementById('cashadvanceEnabled').checked = appData.cashadvance !== false;
+          document.getElementById('otherEnabled').checked = appData.other !== false;
+        } else {
+          // Default all checkboxes to true if no settings exist
+          document.getElementById('leaveEnabled').checked = true;
+          document.getElementById('sickleaveEnabled').checked = true;
+          document.getElementById('cashadvanceEnabled').checked = true;
+          document.getElementById('otherEnabled').checked = true;
+        }
+        
         // Setup form handlers
         document.getElementById('businessInfoForm').addEventListener('submit', saveBusinessInfo);
         document.getElementById('workingDaysForm').addEventListener('submit', saveWorkingDays);
@@ -9541,6 +9727,35 @@
         alert('Error saving: ' + error.message);
       }
     }
+
+    // Save application settings
+    async function saveApplicationSettings() {
+      try {
+        const applicationSettings = {
+          leave: document.getElementById('leaveEnabled').checked,
+          sickleave: document.getElementById('sickleaveEnabled').checked,
+          cashadvance: document.getElementById('cashadvanceEnabled').checked,
+          other: document.getElementById('otherEnabled').checked,
+          updatedAt: new Date().toISOString()
+        };
+        
+        const businessRef = doc(db, "businesses", businessId, "settings", "applications");
+        await setDoc(businessRef, applicationSettings);
+        
+        alert('✅ Application settings saved successfully!');
+        
+        // Optionally reload applications to reflect changes
+        if (document.querySelector('.menu-btn[data-module="applications"].active')) {
+          loadApplications();
+        }
+      } catch (error) {
+        console.error("Error saving application settings:", error);
+        alert('Error saving: ' + error.message);
+      }
+    }
+
+    // Make saveApplicationSettings globally available
+    window.saveApplicationSettings = saveApplicationSettings;
 
     // Debug functions for testing
     async function addTestEmployee() {

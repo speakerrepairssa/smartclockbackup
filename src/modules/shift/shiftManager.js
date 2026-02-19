@@ -274,17 +274,49 @@ class ShiftManagerController {
   }
 
   /**
+   * Calculate required hours for a day
+   */
+  calculateDayHours(startTime, endTime, breakMinutes) {
+    if (!startTime || !endTime) return 0;
+    
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    
+    let totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+    
+    // Handle overnight shifts
+    if (totalMinutes < 0) {
+      totalMinutes += 24 * 60;
+    }
+    
+    // Subtract break time
+    totalMinutes -= (breakMinutes || 0);
+    
+    return Math.max(0, totalMinutes / 60); // Return hours
+  }
+
+  /**
    * Render schedule preview
    */
   renderSchedulePreview(schedule) {
     const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const dayLabels = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
 
+    let totalWeeklyHours = 0;
+
     const rows = dayOrder.map(day => {
       const daySchedule = schedule[day];
       if (!daySchedule || !daySchedule.enabled) {
-        return `<tr><td>${dayLabels[day]}</td><td colspan="3" class="text-muted">Off</td></tr>`;
+        return `<tr><td>${dayLabels[day]}</td><td colspan="4" class="text-muted">Off</td></tr>`;
       }
+
+      const requiredHours = this.calculateDayHours(
+        daySchedule.startTime, 
+        daySchedule.endTime, 
+        daySchedule.breakDuration
+      );
+      
+      totalWeeklyHours += requiredHours;
 
       return `
         <tr>
@@ -292,6 +324,7 @@ class ShiftManagerController {
           <td>${daySchedule.startTime}</td>
           <td>${daySchedule.endTime}</td>
           <td>${daySchedule.breakDuration || 0}min</td>
+          <td><strong>${requiredHours.toFixed(1)}h</strong></td>
         </tr>
       `;
     }).join('');
@@ -304,11 +337,18 @@ class ShiftManagerController {
             <th>Start</th>
             <th>End</th>
             <th>Break</th>
+            <th>Required Hours</th>
           </tr>
         </thead>
         <tbody>
           ${rows}
         </tbody>
+        <tfoot>
+          <tr style="border-top: 2px solid #ddd; font-weight: bold;">
+            <td colspan="4" style="text-align: right;">Total Weekly Hours:</td>
+            <td><strong style="color: #4CAF50;">${totalWeeklyHours.toFixed(1)}h</strong></td>
+          </tr>
+        </tfoot>
       </table>
     `;
   }
