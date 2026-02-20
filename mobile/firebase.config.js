@@ -5,13 +5,14 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBCYp8S_qfR0sQKjXxYxXxXxXxXxXxXxXx", // Replace with actual API key
+  apiKey: "AIzaSyBssR7qaFYd1Bcm7urHQrKfLPVvdoZJ1kw",
   authDomain: "aiclock-82608.firebaseapp.com",
+  databaseURL: "https://aiclock-82608-default-rtdb.firebaseio.com",
   projectId: "aiclock-82608",
   storageBucket: "aiclock-82608.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef1234567890abcdef"
-};
+  messagingSenderId: "847148296718",
+  appId: "1:847148296718:web:a8bf69cb527ee7c7e1ea5f",
+  measurementId: "G-L6LMK5WY01"
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
