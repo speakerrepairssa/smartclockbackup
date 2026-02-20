@@ -438,6 +438,213 @@
         min-width: 600px;
       }
     }
+
+    /* App Downloads Styles */
+    .app-downloads-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .app-download-card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .app-download-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .app-icon {
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-download-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #333;
+    }
+
+    .app-description {
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    .qr-code-container {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-code-container canvas {
+      max-width: 200px;
+      height: auto;
+      border: 3px solid white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .qr-instruction {
+      margin-top: 1rem;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .coming-soon-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .download-links {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin: 1.5rem 0;
+    }
+
+    .download-links .btn {
+      flex: 1;
+      max-width: 150px;
+    }
+
+    .app-version {
+      color: #999;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+    }
+
+    .installation-instructions {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .installation-instructions h3 {
+      margin-bottom: 1.5rem;
+      color: #333;
+    }
+
+    .instruction-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .instruction-step {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+
+    .step-content h4 {
+      margin-bottom: 0.25rem;
+      color: #333;
+    }
+
+    .step-content p {
+      color: #666;
+      margin: 0;
+    }
+
+    .app-features {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .app-features h3 {
+      margin-bottom: 1.5rem;
+      color: #333;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .feature-card {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+    }
+
+    .feature-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .feature-card h4 {
+      margin-bottom: 0.5rem;
+      color: #333;
+    }
+
+    .feature-card p {
+      color: #666;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    @media (max-width: 768px) {
+      .app-downloads-container {
+        grid-template-columns: 1fr;
+      }
+
+      .download-links {
+        flex-direction: column;
+      }
+
+      .download-links .btn {
+        max-width: 100%;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -456,6 +663,7 @@
         <li><button class="menu-btn" data-module="monitor" onclick="switchModule('monitor')">🔴 Monitor Mode</button></li>
         <li><button class="menu-btn" data-module="assessment" onclick="switchModule('assessment')">📊 Assessment</button></li>
         <li><button class="menu-btn" data-module="payslips" onclick="switchModule('payslips')">💰 Payslips</button></li>
+        <li><button class="menu-btn" data-module="app-downloads" onclick="switchModule('app-downloads')">📱 App Downloads</button></li>
         <li><button class="menu-btn" data-module="employees" onclick="switchModule('employees')">👥 Employees</button></li>
         <li><a href="employee-credentials.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">🔐 Employee Portal</button></a></li>
         <li><button class="menu-btn" data-module="applications" onclick="switchModule('applications')">📝 Applications</button></li>
@@ -2610,6 +2818,138 @@
         </div>
       </div>
 
+      <!-- App Downloads View -->
+      <div class="view-section" id="appDownloadsView">
+        <h2 class="section-title">📱 Employee App Downloads</h2>
+        <p class="section-description">Download the AIClock Staff App for quick access to payslips, timesheets, and document uploads</p>
+        
+        <div class="app-downloads-container">
+          <!-- Android App Card -->
+          <div class="app-download-card">
+            <div class="app-icon">
+              <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                <rect width="80" height="80" rx="18" fill="#3DDC84"/>
+                <path d="M25 35h30v25c0 2.76-2.24 5-5 5H30c-2.76 0-5-2.24-5-5V35z" fill="white"/>
+                <path d="M20 27.5c-1.38 0-2.5 1.12-2.5 2.5v15c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V30c0-1.38-1.12-2.5-2.5-2.5zM60 27.5c-1.38 0-2.5 1.12-2.5 2.5v15c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V30c0-1.38-1.12-2.5-2.5-2.5z" fill="white"/>
+                <path d="M25 32.5c0-2.76 2.24-5 5-5h20c2.76 0 5 2.24 5 5V35H25v-2.5z" fill="white"/>
+                <circle cx="34" cy="23" r="2" fill="white"/>
+                <circle cx="46" cy="23" r="2" fill="white"/>
+                <path d="M28 15l-4-7M52 15l4-7" stroke="white" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3>Android App</h3>
+            <p class="app-description">For Android smartphones and tablets</p>
+            
+            <div class="qr-code-container">
+              <canvas id="androidQR"></canvas>
+              <p class="qr-instruction">Scan with your phone camera</p>
+            </div>
+            
+            <div class="download-links">
+              <button class="btn btn-primary" onclick="downloadAndroidAPK()" style="background: #3DDC84;">
+                📥 Download APK
+              </button>
+              <button class="btn btn-secondary" onclick="copyAndroidLink()">
+                🔗 Copy Link
+              </button>
+            </div>
+            
+            <div class="app-version">
+              <small>Version: <span id="androidVersion">1.0.0</span></small>
+              <small style="margin-left: 1rem;">Size: <span id="androidSize">~25MB</span></small>
+            </div>
+          </div>
+
+          <!-- iOS App Card (Future) -->
+          <div class="app-download-card" style="opacity: 0.6;">
+            <div class="app-icon">
+              <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                <rect width="80" height="80" rx="18" fill="#000000"/>
+                <path d="M52 41c0-7 5.7-10.3 6-10.5-3.3-4.8-8.4-5.5-10.2-5.5-4.3-.4-8.5 2.6-10.7 2.6-2.2 0-5.6-2.5-9.2-2.5-4.7.1-9.1 2.8-11.5 7-4.9 8.5-1.3 21 3.5 27.9 2.4 3.4 5.2 7.2 8.9 7 3.6-.1 5-2.3 9.4-2.3 4.3 0 5.5 2.3 9.2 2.2 3.8-.1 6.3-3.4 8.6-6.8 2.7-4 3.8-7.8 3.9-8-.1 0-7.5-2.9-7.5-11.1zM46 20c2-2.4 3.3-5.7 3-9-2.9.1-6.4 2-8.5 4.3-1.8 2.1-3.4 5.5-3 8.7 3.2.2 6.5-1.6 8.5-4z" fill="white"/>
+              </svg>
+            </div>
+            <h3>iOS App</h3>
+            <p class="app-description">For iPhone and iPad</p>
+            
+            <div class="qr-code-container">
+              <div class="coming-soon-badge">Coming Soon</div>
+            </div>
+            
+            <div class="download-links">
+              <button class="btn btn-secondary" disabled>
+                📥 Not Available Yet
+              </button>
+            </div>
+            
+            <div class="app-version">
+              <small>In Development</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Installation Instructions -->
+        <div class="installation-instructions">
+          <h3>📋 Installation Instructions (Android)</h3>
+          <div class="instruction-steps">
+            <div class="instruction-step">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h4>Enable Unknown Sources</h4>
+                <p>Go to Settings → Security → Enable "Install from Unknown Sources"</p>
+              </div>
+            </div>
+            <div class="instruction-step">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h4>Download the App</h4>
+                <p>Scan the QR code or click "Download APK" button above</p>
+              </div>
+            </div>
+            <div class="instruction-step">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h4>Install the App</h4>
+                <p>Open the downloaded file and follow the installation prompts</p>
+              </div>
+            </div>
+            <div class="instruction-step">
+              <div class="step-number">4</div>
+              <div class="step-content">
+                <h4>Login with Employee Credentials</h4>
+                <p>Use your employee email and password provided by your business</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- App Features -->
+        <div class="app-features">
+          <h3>✨ App Features</h3>
+          <div class="features-grid">
+            <div class="feature-card">
+              <div class="feature-icon">💰</div>
+              <h4>Payslips</h4>
+              <p>View and download your monthly payslips instantly</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">📊</div>
+              <h4>Timesheets</h4>
+              <p>Check your attendance history and working hours</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">📄</div>
+              <h4>Document Upload</h4>
+              <p>Submit sick notes and other documents directly from your phone</p>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">🔔</div>
+              <h4>Notifications</h4>
+              <p>Get instant updates about payslips and important notices</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Employees View -->
       <div class="view-section" id="employeesView">
         <h2 class="section-title">Employee Management</h2>
@@ -4356,6 +4696,7 @@
         'reports': 'reportsView',
         'assessment': 'assessmentView',
         'payslips': 'payslipsView',
+        'app-downloads': 'appDownloadsView',
         'employees': 'employeesView',
         'applications': 'applicationsView',
         'shifts': 'shiftsView',
@@ -9847,6 +10188,8 @@
 
   <!-- Optional SQL Device Integration Module -->
   <script src="../modules/sql-device-integration.js"></script>
+  <!-- QR Code Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   
   <!-- Firebase Data Connect Integration Module -->
   <script type="module" src="../modules/firebase-dataconnect-integration.js"></script>
@@ -10714,6 +11057,121 @@ Click "Test Connection" after starting the service.`);
         console.log('✅ Payslips module initialized successfully');
       } catch (error) {
         console.error('❌ Error initializing payslips module:', error);
+      }
+    };
+  </script>
+
+  <!-- App Downloads Script -->
+  <script>
+    // App download configuration
+    const APP_CONFIG = {
+      android: {
+        apkUrl: 'https://aiclock-82608.web.app/downloads/aiclock-staff-v1.0.0.apk',
+        version: '1.0.0',
+        size: '~25MB'
+      },
+      ios: {
+        testFlightUrl: '',
+        version: 'Coming Soon',
+        available: false
+      }
+    };
+
+    // Initialize QR codes when app downloads view is shown
+    function initAppDownloads() {
+      console.log('Initializing App Downloads...');
+      
+      // Generate Android QR Code
+      const androidCanvas = document.getElementById('androidQR');
+      if (androidCanvas && !androidCanvas.hasChildNodes()) {
+        try {
+          new QRCode(androidCanvas, {
+            text: APP_CONFIG.android.apkUrl,
+            width: 200,
+            height: 200,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+          });
+          console.log('✅ Android QR code generated');
+        } catch (error) {
+          console.error('❌ Error generating Android QR code:', error);
+          androidCanvas.innerHTML = '<p style="color: #999;">QR code generation failed. Use download button below.</p>';
+        }
+      }
+
+      // Update version info
+      document.getElementById('androidVersion').textContent = APP_CONFIG.android.version;
+      document.getElementById('androidSize').textContent = APP_CONFIG.android.size;
+    }
+
+    // Download Android APK
+    function downloadAndroidAPK() {
+      const link = document.createElement('a');
+      link.href = APP_CONFIG.android.apkUrl;
+      link.download = `aiclock-staff-v${APP_CONFIG.android.version}.apk`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showNotification('📥 Android APK download started', 'info');
+    }
+
+    // Copy Android download link
+    function copyAndroidLink() {
+      navigator.clipboard.writeText(APP_CONFIG.android.apkUrl).then(() => {
+        showNotification('🔗 Download link copied to clipboard', 'success');
+      }).catch(err => {
+        console.error('Failed to copy link:', err);
+        showNotification('❌ Failed to copy link', 'error');
+      });
+    }
+
+    // Show notification (reuse existing notification system or create simple one)
+    function showNotification(message, type = 'info') {
+      // Check if global notification function exists
+      if (typeof window.showMessage === 'function') {
+        window.showMessage(message, type);
+        return;
+      }
+
+      // Simple fallback notification
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+      `;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 3000);
+    }
+
+    // Override switchModule to initialize app downloads when needed
+    const originalSwitchModule = window.switchModule;
+    window.switchModule = function(moduleName) {
+      if (typeof originalSwitchModule === 'function') {
+        originalSwitchModule(moduleName);
+      }
+      
+      // Initialize app downloads when switching to that module
+      if (moduleName === 'app-downloads') {
+        setTimeout(() => {
+          initAppDownloads();
+        }, 100);
       }
     };
   </script>
