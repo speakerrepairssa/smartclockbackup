@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "704c1301-f497-4481-b69f-44f9a7631d89"
+      }
+    },
+    "android": {
+      "package": "com.srsa.aiclockapp"
+    }
+  }
+}

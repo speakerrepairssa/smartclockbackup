@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="AIClock Staff">
+    <link rel="manifest" href="manifest.json">
+    <title>AIClock Staff App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .mobile-app {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+        }
+
+        .login-form {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 5px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            min-width: 80px;
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .payslip-item, .timesheet-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .upload-area {
+            border: 2px dashed #e1e1e1;
+            padding: 40px;
+            text-align: center;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .install-banner {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .install-banner.show {
+            display: block;
+        }
+
+        .install-banner button {
+            background: white;
+            color: #28a745;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        .install-banner .close-btn {
+            background: transparent;
+            color: white;
+            font-size: 18px;
+            padding: 4px 8px;
+            margin-left: 10px;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        .mobile-app {
+            margin-top: 0;
+            transition: margin-top 0.3s ease;
+        }
+
+        .mobile-app.with-banner {
+            margin-top: 60px;
+        }
+
+        /* Make it feel native on mobile */
+        @media (max-width: 768px) {
+            .header {
+                padding: 15px;
+            }
+            
+            .main-content {
+                padding: 15px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- App Install Banner -->
+    <div id="installBanner" class="install-banner">
+        📱 Install AIClock Staff App for easier access!
+        <button id="installBtn" onclick="installApp()">Install App</button>
+        <button class="close-btn" onclick="closeInstallBanner()">×</button>
+    </div>
+
+    <div class="mobile-app" id="mobileApp">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="active">
+            <div class="header">
+                <h1>🕐 AIClock Staff</h1>
+                <p>Employee Portal</p>
+            </div>
+            
+            <div class="main-content">
+                <div class="login-form">
+                    <div id="loginError" class="error-message" style="display:none;"></div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" placeholder="your.email@company.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="Enter your password" required>
+                    </div>
+                    
+                    <button class="btn" onclick="handleLogin()">Sign In</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <div class="header">
+                <h1>🕐 Dashboard</h1>
+                <p id="welcomeUser">Welcome back!</p>
+            </div>
+            
+            <div class="main-content">
+                <div class="nav-tabs">
+                    <button class="nav-tab active" onclick="showTab('home')">Home</button>
+                    <button class="nav-tab" onclick="showTab('payslips')">Payslips</button>
+                    <button class="nav-tab" onclick="showTab('timesheet')">Time</button>
+                    <button class="nav-tab" onclick="showTab('upload')">Upload</button>
+                    <button class="nav-tab" onclick="showTab('profile')">Profile</button>
+                </div>
+
+                <!-- Home Tab -->
+                <div id="home" class="tab-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>40.5</h3>
+                            <p>Hours This Week</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>R2,450</h3>
+                            <p>This Month</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>22</h3>
+                            <p>Days Worked</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>98%</h3>
+                            <p>Attendance</p>
+                        </div>
+                    </div>
+                    
+                    <button class="btn" onclick="showTab('timesheet')" style="margin-bottom: 15px;">
+                        🕒 Clock In/Out
+                    </button>
+                    
+                    <button class="btn" onclick="showTab('payslips')" style="background: #28a745;">
+                        💰 View Latest Payslip
+                    </button>
+                </div>
+
+                <!-- Payslips Tab -->
+                <div id="payslips" class="tab-content">
+                    <div class="payslip-item">
+                        <h4>February 2026 Payslip</h4>
+                        <p><strong>Gross:</strong> R2,450.00 | <strong>Net:</strong> R2,180.00</p>
+                        <small>40.5 hours worked</small>
+                    </div>
+                    
+                    <div class="payslip-item">
+                        <h4>January 2026 Payslip</h4>
+                        <p><strong>Gross:</strong> R2,300.00 | <strong>Net:</strong> R2,050.00</p>
+                        <small>38 hours worked</small>
+                    </div>
+                    
+                    <button class="btn">📄 Download Latest Payslip</button>
+                </div>
+
+                <!-- Timesheet Tab -->
+                <div id="timesheet" class="tab-content">
+                    <div class="timesheet-item">
+                        <h4>Today - Feb 20, 2026</h4>
+                        <p><strong>In:</strong> 08:15 | <strong>Out:</strong> 17:00</p>
+                        <small>8h 45m worked</small>
+                    </div>
+                    
+                    <div class="timesheet-item">
+                        <h4>Yesterday - Feb 19, 2026</h4>
+                        <p><strong>In:</strong> 08:00 | <strong>Out:</strong> 17:15</p>
+                        <small>9h 15m worked</small>
+                    </div>
+                    
+                    <button class="btn" style="background: #28a745; margin-bottom: 10px;">
+                        🕒 Clock In Now
+                    </button>
+                    
+                    <button class="btn" style="background: #dc3545;">
+                        🕒 Clock Out
+                    </button>
+                </div>
+
+                <!-- Upload Tab -->
+                <div id="upload" class="tab-content">
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <p>📱 Tap to Upload Sick Note</p>
+                        <small>Take photo or select from gallery</small>
+                    </div>
+                    
+                    <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none;" onchange="handleFileUpload(this)">
+                    
+                    <div id="uploadStatus"></div>
+                    
+                    <h4 style="margin: 20px 0 10px 0;">Recent Uploads</h4>
+                    <div class="payslip-item">
+                        <h4>Sick Note - Feb 18, 2026</h4>
+                        <p>Status: <span style="color: #28a745;">Approved</span></p>
+                        <small>Uploaded 2 days ago</small>
+                    </div>
+                </div>
+
+                <!-- Profile Tab -->
+                <div id="profile" class="tab-content">
+                    <div class="payslip-item">
+                        <h4>👤 Personal Information</h4>
+                        <p><strong>Name:</strong> John Doe</p>
+                        <p><strong>Employee ID:</strong> EMP001</p>
+                        <p><strong>Department:</strong> Manufacturing</p>
+                        <p><strong>Position:</strong> Machine Operator</p>
+                    </div>
+                    
+                    <div class="payslip-item">
+                        <h4>📧 Contact Details</h4>
+                        <p><strong>Email:</strong> john.doe@company.com</p>
+                        <p><strong>Phone:</strong> +27 82 123 4567</p>
+                    </div>
+                    
+                    <button class="btn" onclick="handleLogout()" style="background: #dc3545;">
+                        🚪 Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase config (using your existing project)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBssR7qaFYd1Bcm7urHQrKfLPVvdoZJ1kw",
+            authDomain: "aiclock-82608.firebaseapp.com",
+            projectId: "aiclock-82608",
+            storageBucket: "aiclock-82608.appspot.com",
+            messagingSenderId: "295616918930",
+            appId: "1:295616918930:web:505ed74a3e20c30b4aaed6"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        window.auth = getAuth(app);
+        window.db = getFirestore(app);
+
+        // Make functions global
+        window.handleLogin = handleLogin;
+        window.handleLogout = handleLogout;
+        window.showTab = showTab;
+        window.handleFileUpload = handleFileUpload;
+
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (!email || !password) {
+                showError('Please enter both email and password');
+                return;
+            }
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(window.auth, email, password);
+                const user = userCredential.user;
+                
+                // Update welcome message
+                document.getElementById('welcomeUser').textContent = `Welcome back, ${user.email}!`;
+                
+                // Show dashboard
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('dashboard').classList.add('active');
+                
+                showSuccess('Login successful!');
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                showError(getErrorMessage(error.code));
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                await signOut(window.auth);
+                document.getElementById('loginScreen').style.display = 'block';
+                document.getElementById('dashboard').classList.remove('active');
+                
+                // Reset form
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+                
+                showSuccess('Logged out successfully');
+                
+            } catch (error) {
+                console.error('Logout error:', error);
+                showError('Error logging out');
+            }
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activate corresponding nav tab
+            event.target.classList.add('active');
+        }
+
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            const statusDiv = document.getElementById('uploadStatus');
+            
+            // Show upload progress
+            statusDiv.innerHTML = `
+                <div class="success-message">
+                    📤 Uploading "${file.name}"...
+                </div>
+            `;
+            
+            // Simulate upload (replace with actual Firebase Storage upload)
+            setTimeout(() => {
+                statusDiv.innerHTML = `
+                    <div class="success-message">
+                        ✅ File "${file.name}" uploaded successfully!
+                    </div>
+                `;
+            }, 2000);
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            console.log('✅', message);
+        }
+
+        function getErrorMessage(errorCode) {
+            switch (errorCode) {
+                case 'auth/user-not-found':
+                    return 'No account found with this email address.';
+                case 'auth/wrong-password':
+                    return 'Incorrect password.';
+                case 'auth/invalid-email':
+                    return 'Invalid email address.';
+                case 'auth/too-many-requests':
+                    return 'Too many failed attempts. Try again later.';
+                default:
+                    return 'Login failed. Please check your credentials.';
+            }
+        }
+
+        // Add drag and drop functionality
+        const uploadArea = document.querySelector('.upload-area');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadArea.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            uploadArea.classList.remove('dragover');
+        }
+
+        uploadArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+                handleFileUpload({ files: files });
+            }
+        }
+
+        // PWA Installation Logic
+        let deferredPrompt;
+        const installBanner = document.getElementById('installBanner');
+        const installBtn = document.getElementById('installBtn');
+        const mobileApp = document.getElementById('mobileApp');
+
+        // Show install banner if PWA can be installed
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('PWA installation available');
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install banner after 3 seconds
+            setTimeout(() => {
+                showInstallBanner();
+            }, 3000);
+        });
+
+        // Handle successful installation
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('PWA was installed');
+            closeInstallBanner();
+            showSuccess('App installed successfully! 🎉');
+        });
+
+        // Check if already running as PWA
+        function isRunningStandalone() {
+            return (window.matchMedia('(display-mode: standalone)').matches) || 
+                   (window.navigator.standalone) || 
+                   document.referrer.includes('android-app://');
+        }
+
+        window.showInstallBanner = function() {
+            if (!isRunningStandalone() && deferredPrompt) {
+                installBanner.classList.add('show');
+                mobileApp.classList.add('with-banner');
+            }
+        };
+
+        window.closeInstallBanner = function() {
+            installBanner.classList.remove('show');
+            mobileApp.classList.remove('with-banner');
+            
+            // Don't show again for this session
+            sessionStorage.setItem('installBannerClosed', 'true');
+        };
+
+        window.installApp = async function() {
+            if (!deferredPrompt) {
+                // Fallback for browsers that don't support PWA installation
+                alert('To install this app:\n\n📱 iPhone: Tap Share → Add to Home Screen\n🤖 Android: Tap Menu (⋮) → Add to Home Screen');
+                closeInstallBanner();
+                return;
+            }
+
+            try {
+                // Show the install prompt
+                const result = await deferredPrompt.prompt();
+                console.log('Install prompt result:', result.outcome);
+
+                if (result.outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                } else {
+                    console.log('User dismissed the install prompt');
+                }
+
+                deferredPrompt = null;
+                closeInstallBanner();
+            } catch (error) {
+                console.error('Error during installation:', error);
+                closeInstallBanner();
+            }
+        };
+
+        // Don't show install banner if already closed this session
+        document.addEventListener('DOMContentLoaded', function() {
+            if (sessionStorage.getItem('installBannerClosed') === 'true') {
+                // Reset after page reload to show again later
+                setTimeout(() => {
+                    sessionStorage.removeItem('installBannerClosed');
+                }, 30000); // Reset after 30 seconds
+            }
+        });
+    </script>
+</body>
+</html>

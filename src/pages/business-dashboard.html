@@ -2839,15 +2839,21 @@
             </div>
             <h3>Android App</h3>
             <p class="app-description">For Android smartphones and tablets</p>
+            <p class="app-description" style="font-size: 14px; color: #666; margin-top: 5px;">
+                📱 <strong>Installable Web App</strong> - Works like a native app once installed
+            </p>
             
             <div class="qr-code-container">
-              <canvas id="androidQR"></canvas>
+              <div id="androidQR"></div>
               <p class="qr-instruction">Scan with your phone camera</p>
+              <button class="btn btn-small" onclick="initAppDownloads()" style="margin-top: 10px; padding: 5px 15px; font-size: 12px; background: #667eea;">
+                🔄 Regenerate QR Code
+              </button>
             </div>
             
             <div class="download-links">
               <button class="btn btn-primary" onclick="downloadAndroidAPK()" style="background: #3DDC84;">
-                📥 Download APK
+                � Open Staff App
               </button>
               <button class="btn btn-secondary" onclick="copyAndroidLink()">
                 🔗 Copy Link
@@ -2889,34 +2895,35 @@
 
         <!-- Installation Instructions -->
         <div class="installation-instructions">
-          <h3>📋 Installation Instructions (Android)</h3>
+          <h3>📋 Installation Instructions (All Devices)</h3>
           <div class="instruction-steps">
             <div class="instruction-step">
               <div class="step-number">1</div>
               <div class="step-content">
-                <h4>Enable Unknown Sources</h4>
-                <p>Go to Settings → Security → Enable "Install from Unknown Sources"</p>
+                <h4>Scan QR Code</h4>
+                <p>Use your phone camera to scan the QR code above</p>
               </div>
             </div>
             <div class="instruction-step">
               <div class="step-number">2</div>
               <div class="step-content">
-                <h4>Download the App</h4>
-                <p>Scan the QR code or click "Download APK" button above</p>
+                <h4>Open Staff App</h4>
+                <p>The app will open in your phone's browser</p>
               </div>
             </div>
             <div class="instruction-step">
               <div class="step-number">3</div>
               <div class="step-content">
-                <h4>Install the App</h4>
-                <p>Open the downloaded file and follow the installation prompts</p>
+                <h4>Install to Home Screen</h4>
+                <p><strong>Android:</strong> Tap Menu (⋮) → "Add to Home Screen"<br>
+                   <strong>iPhone:</strong> Tap Share → "Add to Home Screen"</p>
               </div>
             </div>
             <div class="instruction-step">
               <div class="step-number">4</div>
               <div class="step-content">
-                <h4>Login with Employee Credentials</h4>
-                <p>Use your employee email and password provided by your business</p>
+                <h4>Use Like Native App</h4>
+                <p>The app icon appears on home screen and works offline!</p>
               </div>
             </div>
           </div>
@@ -11066,9 +11073,9 @@ Click "Test Connection" after starting the service.`);
     // App download configuration
     const APP_CONFIG = {
       android: {
-        apkUrl: 'https://aiclock-82608.web.app/downloads/aiclock-staff-v1.0.0.apk',
+        apkUrl: 'https://aiclock-82608.web.app/mobile-staff-app.html',
         version: '1.0.0',
-        size: '~25MB'
+        size: 'Web App'
       },
       ios: {
         testFlightUrl: '',
@@ -11080,11 +11087,43 @@ Click "Test Connection" after starting the service.`);
     // Initialize QR codes when app downloads view is shown
     function initAppDownloads() {
       console.log('Initializing App Downloads...');
+      console.log('QRCode available:', typeof window.QRCode !== 'undefined');
+      console.log('APP_CONFIG:', APP_CONFIG);
       
       // Generate Android QR Code
       const androidCanvas = document.getElementById('androidQR');
-      if (androidCanvas && !androidCanvas.hasChildNodes()) {
+      console.log('androidQR element found:', !!androidCanvas);
+      
+      if (androidCanvas) {
+        // Clear existing content
+        androidCanvas.innerHTML = '';
+        
         try {
+          if (typeof window.QRCode === 'undefined') {
+            console.error('QRCode library not loaded');
+            androidCanvas.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">Loading QR code...</p>';
+            
+            // Load QR code library and retry
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+            script.onload = function() {
+              setTimeout(() => {
+                androidCanvas.innerHTML = '';
+                new QRCode(androidCanvas, {
+                  text: APP_CONFIG.android.apkUrl,
+                  width: 200,
+                  height: 200,
+                  colorDark: '#000000',
+                  colorLight: '#ffffff',
+                  correctLevel: QRCode.CorrectLevel.H
+                });
+                console.log('✅ Android QR code generated (delayed)');
+              }, 100);
+            };
+            document.head.appendChild(script);
+            return;
+          }
+          
           new QRCode(androidCanvas, {
             text: APP_CONFIG.android.apkUrl,
             width: 200,
@@ -11096,7 +11135,7 @@ Click "Test Connection" after starting the service.`);
           console.log('✅ Android QR code generated');
         } catch (error) {
           console.error('❌ Error generating Android QR code:', error);
-          androidCanvas.innerHTML = '<p style="color: #999;">QR code generation failed. Use download button below.</p>';
+          androidCanvas.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">QR code generation failed.<br>Use "Open Staff App" button below.</p>';
         }
       }
 
@@ -11174,6 +11213,16 @@ Click "Test Connection" after starting the service.`);
         }, 100);
       }
     };
+    
+    // Also initialize if the app-downloads module is already visible on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(() => {
+        const appDownloadsView = document.querySelector('[data-module="app-downloads"]');
+        if (appDownloadsView && !appDownloadsView.classList.contains('hidden')) {
+          initAppDownloads();
+        }
+      }, 500);
+    });
   </script>
 
   <!-- Mobile Menu Toggle Script -->
