@@ -5259,10 +5259,6 @@ exports.onEmployeeStatusChange = onDocumentUpdated(
   "businesses/{businessId}/status/{employeeId}",
   async (event) => {
     try {
-      // DISABLED: Handled by attendanceWebhook → processAttendanceEvent which has assessment data
-      logger.info("⏭️ Skipping Firestore trigger - WhatsApp handled by HTTP webhook");
-      return;
-      
       const businessId = event.params.businessId;
       const employeeId = event.params.employeeId;
       
