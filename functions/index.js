@@ -5254,7 +5254,10 @@ exports.listAllRealEmployees = onRequest(async (req, res) => {
  * 
  * ⚠️ DISABLED: WhatsApp automation is now handled by attendanceWebhook HTTP function
  * which fetches assessment data for better parameter mapping.
+ * 
+ * 🚫 COMMENTED OUT TO PREVENT DEPLOYMENT AND DUPLICATE WHATSAPP MESSAGES
  */
+/*
 exports.onEmployeeStatusChange = onDocumentUpdated(
   "businesses/{businessId}/status/{employeeId}",
   async (event) => {
@@ -5368,3 +5371,4 @@ exports.onEmployeeStatusChange = onDocumentUpdated(
     }
   }
 );
+*/
