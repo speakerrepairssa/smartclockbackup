@@ -10,7 +10,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen({ navigation }) {
-  const [user Data, setUserData] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -37,8 +37,10 @@ export default function HomeScreen({ navigation }) {
   const quickActions = [
     { id: 1, title: 'My Payslips', icon: '💰', screen: 'Payslips', color: '#28a745' },
     { id: 2, title: 'Timesheet', icon: '📊', screen: 'Timesheet', color: '#007bff' },
-    { id: 3, title: 'Upload Document', icon: '📄', screen: 'Upload', color: '#ffc107' },
-    { id: 4, title: 'My Profile', icon: '👤', screen: 'Profile', color: '#667eea' },
+    { id: 3, title: 'QR Generator', icon: '🎯', screen: 'QRGenerator', color: '#6f42c1' },
+    { id: 4, title: 'Upload Document', icon: '📄', screen: 'Upload', color: '#ffc107' },
+    { id: 5, title: 'QR Scanner', icon: '📷', screen: 'QRScanner', color: '#20c997' },
+    { id: 6, title: 'My Profile', icon: '👤', screen: 'Profile', color: '#667eea' },
   ];
 
   return (

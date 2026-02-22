@@ -1,26 +1,30 @@
 {
   "expo": {
-    "name": "AIClock Staff",
-    "slug": "aiclock-staff-mobile",
+    "name": "AIClock Employee Portal",
+    "slug": "aiclock-employee-portal",
     "owner": "srsa",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#4285f4"
+      "backgroundColor": "#48bb78",
+      "resizeMode": "contain"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.srsa.aiclockapp"
+      "bundleIdentifier": "com.srsa.aiclock.employee"
     },
     "android": {
-      "package": "com.srsa.aiclockapp",
+      "package": "com.srsa.aiclock.employee",
+      "adaptiveIcon": {
+        "backgroundColor": "#48bb78"
+      },
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.INTERNET",
+        "android.permission.CAMERA"
       ]
     },
     "extra": {
@@ -29,8 +33,12 @@
       }
     },
     "plugins": [
-      "expo-document-picker",
-      "expo-image-picker"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow AIClock Employee Portal to access camera for QR scanning"
+        }
+      ]
     ]
   }
 }

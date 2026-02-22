@@ -1,135 +1,145 @@
 # AIClock Staff Mobile App
 
-Employee mobile application for viewing payslips, timesheets, and uploading documents.
+A React Native (Expo) mobile application for AIClock employee self-service portal.
 
-## Features
+## 🚀 Quick Start
 
-- 👤 **Employee Login**: Secure authentication with Firebase
-- 💰 **Payslips**: View and download monthly payslips
-- 📊 **Timesheet**: Track attendance and working hours
-- 📄 **Document Upload**: Submit sick notes and documents
-- 🔔 **Notifications**: Get updates about payslips and notices
+```bash
+# Navigate to mobile directory
+cd mobile
+
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Run on specific platform
+npm run android  # Android
+npm run ios      # iOS (macOS only)
+npm run web      # Web browser
+```
+
+## 📱 Features
+
+### ✅ **Completed Features**
+- 🔐 **Firebase Authentication** - Secure employee login
+- 🏠 **Dashboard** - Welcome screen with quick stats and actions
+- 💰 **Payslips** - View monthly payslips and download PDFs
+- 📊 **Timesheet** - View attendance history and hours worked
+- 📄 **Document Upload** - Submit sick notes and documents
+- 👤 **Profile Management** - User profile and settings
+- 📷 **QR Code Scanner** - Scan employee login and attendance QRs
+- 🎯 **QR Code Generator** - Generate test QR codes for development
+
+### 🔄 **QR Code System**
+The app supports multiple QR code types for testing:
+
+#### **Employee Login QR**
+```json
+{
+  "type": "employee_login",
+  "employeeId": "EMP001", 
+  "businessId": "BUS001",
+  "timestamp": 1645123456789
+}
+```
+
+#### **Clock In/Out QR**
+```json
+{
+  "type": "clock_action",
+  "action": "in", // or "out"
+  "deviceId": "DEV001",
+  "timestamp": 1645123456789
+}
+```
+
+#### **Device Test QR**
+```json
+{
+  "type": "device_test",
+  "deviceId": "DEV001", 
+  "testType": "connectivity",
+  "timestamp": 1645123456789
+}
+```
+
+## 📋 Navigation Structure
+
+```
+App
+├── LoginScreen (when not authenticated)
+└── MainTabs (when authenticated)
+    ├── Home Tab → HomeScreen
+    ├── Payslips Tab → PayslipsScreen
+    ├── QR Scanner Tab → QRScannerScreen
+    ├── Timesheet Tab → TimesheetScreen
+    └── Profile Tab → ProfileScreen
+
+Modal Screens (accessible from Home):
+├── QRGeneratorScreen
+└── UploadScreen
+```
+
+## 🛠️ Testing QR Codes
+
+### Generate Test QR Codes
+1. Open app → Home → "QR Generator"
+2. Select QR type (Employee Login, Clock In/Out, Device Test)
+3. QR code generates with test data
+
+### Scan QR Codes
+1. Open app → QR Scanner tab (📷)
+2. Point camera at QR code 
+3. App processes and shows result
+
+### QR Code Types Supported
+- **Employee Login**: Auto-authenticate employees
+- **Clock In/Out**: Quick attendance actions
+- **Device Test**: Test device connectivity
+- **Generic Text/JSON**: Any text or data
+
+## 🏗️ Build & Deploy
+
+```bash
+# Install dependencies
+npm install
+
+# Development build
+npm run android
+npm run start
+
+# Production build (requires EAS CLI)
+eas build --platform android
+```
 
 ## Tech Stack
 
-- React Native (Expo)
-- Firebase (Auth, Firestore, Storage)
-- React Navigation
-- AsyncStorage
-
-## Installation
-
-### Prerequisites
-
-- Node.js 18+
-- Expo CLI: `npm install -g expo-cli`
-- Expo Go app on your phone (for testing)
-
-### Setup
-
-1. Install dependencies:
-```bash
-cd mobile
-npm install
-```
-
-2. Update Firebase configuration:
-   - Open `firebase.config.js`
-   - Replace with your Firebase project credentials
-
-3. Start the development server:
-```bash
-npm start
-```
-
-4. Scan the QR code with:
-   - **iOS**: Camera app
-   - **Android**: Expo Go app
-
-## Building for Production
-
-### Android APK
-
-1. Install EAS CLI:
-```bash
-npm install -g eas-cli
-```
-
-2. Configure EAS Build:
-```bash
-eas build:configure
-```
-
-3. Build APK:
-```bash
-eas build --platform android --profile preview
-```
-
-4. Download the APK and upload to Firebase Hosting:
-```bash
-# Copy APK to hosting folder
-cp path/to/build.apk ../src/downloads/aiclock-staff-v1.0.0.apk
-
-# Deploy
-cd ..
-firebase deploy --only hosting
-```
-
-### iOS (Future)
-
-iOS build requires Apple Developer account and will be added in future updates.
+- **React Native (Expo)** - Mobile framework
+- **Firebase** - Authentication & database
+- **React Navigation** - Navigation system
+- **QR Code Scanner/Generator** - Testing functionality
+- **AsyncStorage** - Local data storage
 
 ## Project Structure
 
 ```
 mobile/
-├── screens/           # App screens
-│   ├── LoginScreen.js
-│   ├── HomeScreen.js
-│   ├── PayslipsScreen.js
-│   ├── TimesheetScreen.js
-│   ├── UploadScreen.js
-│   └── ProfileScreen.js
-├── firebase.config.js # Firebase configuration
-├── App.js            # Main app component
-├── app.json          # Expo configuration
-└── package.json      # Dependencies
+├── screens/              # App screens
+│   ├── LoginScreen.js    # Firebase authentication
+│   ├── HomeScreen.js     # Dashboard with quick actions
+│   ├── PayslipsScreen.js # View payslips
+│   ├── TimesheetScreen.js # Attendance tracking
+│   ├── UploadScreen.js   # Document upload
+│   ├── ProfileScreen.js  # User profile
+│   ├── QRScannerScreen.js # QR code scanner
+│   └── QRGeneratorScreen.js # QR code generator
+├── firebase.config.js    # Firebase configuration
+├── App.js               # Navigation setup
+└── package.json         # Dependencies
 ```
 
-## Environment Variables
+---
 
-Create a `.env` file (not tracked in git):
-
-```
-FIREBASE_API_KEY=your_api_key
-FIREBASE_AUTH_DOMAIN=your_auth_domain
-FIREBASE_PROJECT_ID=your_project_id
-```
-
-## Development Notes
-
-### Mock Data
-
-Currently using mock data for:
-- Payslips (PayslipsScreen.js)
-- Attendance (TimesheetScreen.js)
-- Documents (UploadScreen.js)
-
-Replace with actual Firebase queries before production release.
-
-### Firebase Integration
-
-TODO:
-1. Create employee authentication system in Firebase
-2. Implement payslip retrieval from Firestore
-3. Implement attendance/timesheet queries
-4. Implement document upload to Firebase Storage
-5. Add push notifications
-
-## Support
-
-For issues or questions, contact your HR department or system administrator.
-
-## License
-
-Proprietary - AIClock Staff Application
+**Built with ❤️ using React Native, Expo & Firebase**
