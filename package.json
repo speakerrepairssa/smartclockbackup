@@ -24,6 +24,7 @@
   "dependencies": {
     "@aiclock/dataconnect": "file:src/dataconnect-generated",
     "@dataconnect/generated": "file:src/dataconnect-generated",
+    "axios-digest": "^0.3.0",
     "firebase": "^10.14.1"
   },
   "devDependencies": {
