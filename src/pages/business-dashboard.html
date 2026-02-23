@@ -2662,134 +2662,53 @@
           <!-- Header -->
           <div class="payslips-header">
             <h1>💰 Payslip Management</h1>
-            <p>Design professional payslips with your company branding and schedule automatic delivery</p>
+            <p>Generate and send payslips to your employees</p>
           </div>
 
           <!-- Main Grid -->
           <div class="payslips-grid">
             
-            <!-- Left Column: Design & Template Management -->
+            <!-- Left Column: Company Information -->
             <div class="payslip-card">
               
-              <!-- Visual Design Editor -->
+              <!-- Company Info -->
               <div class="design-editor-section">
-                <h2>🎨 Design Your Payslip</h2>
+                <h2>🏢 Company Information</h2>
                 
-                <!-- Logo Upload -->
-                <div class="design-control-group">
-                  <label>Company Logo</label>
-                  <div class="logo-upload-container">
-                    <div class="logo-preview" id="logoPlaceholder">
-                      <span>📷 Upload Logo</span>
-                    </div>
-                    <img id="logoPreview" class="logo-preview-image" style="display: none;" />
-                    <div class="logo-controls">
-                      <button class="btn-primary btn-sm" id="uploadLogoBtn">Upload Logo</button>
-                      <button class="btn-secondary btn-sm" id="removeLogoBtn">Remove</button>
-                      <input type="file" id="logoUpload" accept="image/*" style="display: none;" />
-                    </div>
-                    <div class="design-hint">Max 2MB. PNG, JPG, or SVG recommended.</div>
-                  </div>
+                <div class="form-group">
+                  <label for="companyAddress">Company Address</label>
+                  <textarea id="companyAddress" rows="3" placeholder="123 Main Road&#10;Business Bay, Cape Town&#10;7806"></textarea>
                 </div>
 
-                <!-- Color Scheme -->
-                <div class="design-control-group">
-                  <label>Color Scheme</label>
-                  <div class="color-picker-group">
-                    <div class="color-picker-item">
-                      <label for="primaryColorPicker">Primary</label>
-                      <input type="color" id="primaryColorPicker" value="#667eea" />
-                      <span class="color-preview" id="primaryColorPreview">#667eea</span>
-                    </div>
-                    <div class="color-picker-item">
-                      <label for="secondaryColorPicker">Secondary</label>
-                      <input type="color" id="secondaryColorPicker" value="#764ba2" />
-                      <span class="color-preview" id="secondaryColorPreview">#764ba2</span>
-                    </div>
-                  </div>
+                <div class="form-group">
+                  <label for="companyContact">Contact</label>
+                  <input type="text" id="companyContact" placeholder="Tel: +27 21 555 0123 | Email: info@company.com">
                 </div>
 
-                <!-- Font Selection -->
-                <div class="design-control-group">
-                  <label for="fontFamilySelect">Font Family</label>
-                  <select id="fontFamilySelect">
-                    <option value="Arial, sans-serif">Arial</option>
-                    <option value="'Helvetica Neue', Helvetica, sans-serif">Helvetica</option>
-                    <option value="'Segoe UI', Tahoma, sans-serif">Segoe UI</option>
-                    <option value="'Roboto', sans-serif">Roboto</option>
-                    <option value="'Open Sans', sans-serif">Open Sans</option>
-                    <option value="Georgia, serif">Georgia</option>
-                    <option value="'Times New Roman', serif">Times New Roman</option>
-                  </select>
+                <div class="form-group">
+                  <label for="taxNumber">Tax/VAT Number (Optional)</label>
+                  <input type="text" id="taxNumber" placeholder="VAT: 4123456789">
+                </div>
+
+                <div class="form-group">
+                  <label for="customMessage">Custom Message (Optional)</label>
+                  <textarea id="customMessage" rows="2" placeholder="Thank you for your hard work this month."></textarea>
                 </div>
               </div>
 
               <div class="section-divider"></div>
 
-              <!-- Template Management -->
-              <h2>📝 Template Settings</h2>
+              <!-- Period Selection -->
+              <h2>📅 Payslip Period</h2>
               
-              <!-- Template Selection -->
-              <div class="template-controls">
-                <select id="templateSelect">
-                  <option value="">Select a template...</option>
-                </select>
-                <button class="btn-primary" id="createTemplateBtn">+ New</button>
-                <button class="btn-success" id="createDefaultTemplateBtn">✨ Default</button>
-                <button class="btn-secondary" id="saveTemplateBtn">💾 Save</button>
-                <button class="btn-danger" id="deleteTemplateBtn">🗑️ Delete</button>
-              </div>
-
-              <!-- Template Form -->
               <div class="form-group">
-                <label for="templateName">Template Name</label>
-                <input type="text" id="templateName" placeholder="e.g., Monthly Payslip">
+                <label for="payslipMonth">Month</label>
+                <input type="month" id="payslipMonth">
               </div>
 
               <div class="form-group">
-                <label for="templateSubject">Email Subject (Optional)</label>
-                <input type="text" id="templateSubject" placeholder="Your Payslip for {{month}} {{year}}">
-                <div class="template-hint">
-                  Variables: <code>{{employeeName}}</code>, <code>{{month}}</code>, <code>{{year}}</code>
-                </div>
-              </div>
-
-              <!-- Editable Template Fields -->
-              <div class="section-divider"></div>
-              <h3>📝 Customize Payslip Content</h3>
-
-              <div class="form-group">
-                <label for="companyAddress">Company Address</label>
-                <textarea id="companyAddress" rows="3" placeholder="123 Main Road&#10;Business Bay, Cape Town&#10;7806"></textarea>
-              </div>
-
-              <div class="form-group">
-                <label for="companyContact">Contact Information</label>
-                <input type="text" id="companyContact" placeholder="Tel: +27 21 555 0123 | Email: payroll@company.com">
-              </div>
-
-              <div class="form-group">
-                <label for="customMessage">Custom Message (Optional)</label>
-                <textarea id="customMessage" rows="3" placeholder="Thank you for your dedication and hard work this month."></textarea>
-                <div class="template-hint">
-                  This message will appear at the bottom of the payslip
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="payslipFooter">Footer / Disclaimer</label>
-                <textarea id="payslipFooter" rows="2" placeholder="This is a computer-generated payslip. No signature required."></textarea>
-              </div>
-
-              <div class="form-group">
-                <label for="taxNumber">Tax/VAT Number (Optional)</label>
-                <input type="text" id="taxNumber" placeholder="VAT: 4123456789 | Company Reg: 2021/123456/07">
-              </div>
-
-              <!-- Visual Template Editor -->
-              <div class="section-divider"></div>
-              <div id="templateEditorContainer">
-                <!-- Template editor will be loaded here -->
+                <label for="templateSubject">Email Subject</label>
+                <input type="text" id="templateSubject" placeholder="Your Payslip for [Month]" value="Your Payslip">
               </div>
             </div>
 
