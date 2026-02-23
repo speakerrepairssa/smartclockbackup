@@ -1065,20 +1065,6 @@ echo -e "============================${NC}"
       'sql-integration', 'whatsapp', 'whatsapp-logs', 'app-downloads'
     ];
 
-    // Load businesses into selector (called from dashboard.js)
-    window.loadBusinessesForPermissions = function(businesses) {
-      allBusinesses = businesses;
-      const selector = document.getElementById('businessSelector');
-      
-      selector.innerHTML = '<option value="">-- Select a Business --</option>';
-      businesses.forEach(biz => {
-        const option = document.createElement('option');
-        option.value = biz.id;
-        option.textContent = `${biz.businessName || biz.id} (${biz.id})`;
-        selector.appendChild(option);
-      });
-    };
-
     // Business selector change handler
     document.getElementById('businessSelector')?.addEventListener('change', async (e) => {
       const businessId = e.target.value;

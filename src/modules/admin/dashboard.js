@@ -304,9 +304,7 @@ class AdminDashboardController {
       this.displayBusinesses();
       
       // Load businesses into permissions selector
-      if (window.loadBusinessesForPermissions) {
-        window.loadBusinessesForPermissions(this.businesses);
-      }
+      this.loadBusinessesForPermissions();
       
       hideLoader();
 
@@ -1524,6 +1522,33 @@ class AdminDashboardController {
       console.error('Load debug collections error:', error);
       showNotification(`Error: ${error.message}`, 'error');
     }
+  }
+
+  /**
+   * Load businesses into permissions selector
+   */
+  loadBusinessesForPermissions() {
+    const selector = document.getElementById('businessSelector');
+    if (!selector) {
+      console.warn('Business selector not found');
+      return;
+    }
+    
+    selector.innerHTML = '<option value="">-- Select a Business --</option>';
+    
+    if (this.businesses.length === 0) {
+      selector.innerHTML += '<option value="" disabled>No businesses available</option>';
+      return;
+    }
+    
+    this.businesses.forEach(biz => {
+      const option = document.createElement('option');
+      option.value = biz.id;
+      option.textContent = `${biz.businessName || biz.id} (${biz.id})`;
+      selector.appendChild(option);
+    });
+    
+    console.log(`Loaded ${this.businesses.length} businesses into permissions selector`);
   }
 }
 
