@@ -253,6 +253,10 @@ class PayslipsModule {
       
       if (templates.length > 0) {
         this.loadTemplate(templates[0].id);
+      } else {
+        // Auto-create a simple default template if none exist
+        console.log('No templates found, creating default template...');
+        await this.createDefaultTemplate();
       }
       
       console.log(`✅ Loaded ${templates.length} payslip templates`);
@@ -434,16 +438,9 @@ class PayslipsModule {
    * Create a default professional template with pre-filled values
    */
   async createDefaultTemplate() {
-    console.log('Creating default professional template...');
+    console.log('Creating default simple template...');
     
     try {
-      // Check if template editor is ready
-      if (!this.templateEditor) {
-        console.error('❌ Template editor not initialized yet');
-        showNotification("Template editor is still loading. Please wait a moment and try again.", "warning");
-        return;
-      }
-
       // Get business data to pre-fill company info
       const businessRef = doc(db, "businesses", this.businessId);
       const businessDoc = await getDoc(businessRef);
@@ -451,88 +448,32 @@ class PayslipsModule {
       
       console.log('📋 Business data:', businessData);
       
-      // Pre-fill with professional defaults
-      const defaultConfig = {
-        companyName: businessData.businessName || 'Your Company Name',
-        companyAddress: businessData.address || '123 Business Street\nCity, Province, 0000',
-        companyPhone: businessData.phone || '(012) 345-6789',
-        companyEmail: businessData.email || 'payroll@company.com',
-        taxNumber: businessData.taxNumber || '9001234567',
-        registrationNumber: businessData.registrationNumber || '2024/123456/07',
-        companyLogo: '', // Can add logo URL
-        primaryColor: '#2563eb',
-        secondaryColor: '#64748b',
-        showLogo: false,
-        showCompanyDetails: true,
-        sections: {
-          companyHeader: true,
-          employeeDetails: true,
-          payPeriod: true,
-          earnings: true,
-          deductions: true,
-          summary: true,
-          footer: true
-        },
-        deductionTypes: {
-          uif: {
-            enabled: true,
-            label: "UIF (Unemployment Insurance Fund)",
-            rate: 1.0,
-            description: "1% of gross salary"
-          },
-          paye: {
-            enabled: true,
-            label: "PAYE (Income Tax)",
-            rate: 0,
-            description: "As per SARS tax tables"
-          },
-          pension: {
-            enabled: false,
-            label: "Pension Fund Contribution",
-            rate: 7.5,
-            description: "Retirement annuity contribution"
-          },
-          medicalAid: {
-            enabled: false,
-            label: "Medical Aid Contribution",
-            rate: 0,
-            description: "Monthly medical aid premium"
-          },
-          providentFund: {
-            enabled: false,
-            label: "Provident Fund",
-            rate: 7.5,
-            description: "Provident fund contribution"
-          },
-          other: {
-            enabled: false,
-            label: "Other Deductions",
-            rate: 0,
-            description: "Miscellaneous deductions"
-          }
-        },
-        headerMessage: 'Thank you for your continued dedication and hard work this month.',
-        footerMessage: 'This is a computer-generated payslip. No signature is required.\n\nFor any queries regarding your payslip, please contact the HR department.',
-        subject: 'Your Payslip for {{month}} {{year}}'
+      // Create a simple template document
+      const templateId = 'default_' + Date.now();
+      const templateRef = doc(db, "businesses", this.businessId, "payslip_templates", templateId);
+      
+      const simpleTemplate = {
+        id: templateId,
+        name: 'Default Payslip Template',
+        subject: 'Your Payslip',
+        content: this.getDefaultTemplate(),
+        companyName: businessData.businessName || 'Your Company',
+        companyAddress: '',
+        companyContact: '',
+        companyTaxNumber: '',
+        customMessage: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
-      // Set template name
-      const templateName = document.getElementById('templateName');
-      if (templateName) {
-        templateName.value = 'Professional Monthly Payslip';
-        console.log('✅ Template name set');
-      } else {
-        console.warn('⚠️ Template name field not found');
-      }
+      await setDoc(templateRef, simpleTemplate);
       
-      // Load into editor
-      console.log('📝 Loading config into template editor...');
-      this.templateEditor.loadConfigIntoForm(defaultConfig);
+      console.log('✅ Default template created in Firestore');
       
-      this.currentTemplate = null; // Mark as unsaved
+      // Reload templates to show the new one
+      await this.loadTemplates();
       
-      console.log('✅ Default template created with professional settings');
-      showNotification("Professional template created! Review the settings in all tabs and save.", "success");
+      showNotification("Default template created successfully!", "success");
       
     } catch (error) {
       console.error('❌ Error creating default template:', error);
