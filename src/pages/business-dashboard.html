@@ -666,7 +666,7 @@
         <li><button class="menu-btn" data-module="app-downloads" onclick="switchModule('app-downloads')">📱 App Downloads</button></li>
         <li><button class="menu-btn" data-module="employees" onclick="switchModule('employees')">👥 Employees</button></li>
         <li><button class="menu-btn" data-module="employee-stats" onclick="switchModule('employee-stats')">📈 Employee Stats</button></li>
-        <li><a href="employee-credentials.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">🔐 Employee Portal</button></a></li>
+        <li><a href="employee-credentials.html" style="display: block; color: inherit; text-decoration: none;" data-module="employee-portal"><button class="menu-btn">🔐 Employee Portal</button></a></li>
         <li><button class="menu-btn" data-module="applications" onclick="switchModule('applications')">📝 Applications</button></li>
         <li><button class="menu-btn" data-module="shifts" onclick="switchModule('shifts')">📅 Shifts</button></li>
         <li><button class="menu-btn" data-module="timecard" onclick="switchModule('timecard')">🕐 Timecard</button></li>
@@ -738,7 +738,7 @@
 
       <!-- Dashboard View -->
       <div class="view-section active" id="dashboardView">
-        <div class="modules-section">
+        <div class="modules-section" data-requires-module="quick-access">
           <h2 class="section-title">Quick Access Modules</h2>
           <p class="section-description">Click any module to manage your business operations</p>
 
@@ -4438,7 +4438,9 @@
           'sql-integration': '[data-module="sql-integration"]',
           'app-downloads': '[data-module="app-downloads"]',
           'whatsapp': 'a[href="whatsapp-settings.html"]',
-          'whatsapp-logs': '#whatsappLogsLink'
+          'whatsapp-logs': '#whatsappLogsLink',
+          'employee-portal': '[data-module="employee-portal"]',
+          'quick-access': '[data-requires-module="quick-access"]'
         };
         
         // Hide disabled modules
@@ -4446,11 +4448,14 @@
           if (!enabledModules.includes(moduleName)) {
             const elements = document.querySelectorAll(selector);
             elements.forEach(el => {
-              // Hide the parent <li> if it's a menu button
+              // Hide the parent <li> if it's a menu button, otherwise hide the element itself
               const listItem = el.closest('li');
               if (listItem) {
                 listItem.style.display = 'none';
-                console.log(`Hidden module: ${moduleName}`);
+                console.log(`Hidden module (menu): ${moduleName}`);
+              } else {
+                el.style.display = 'none';
+                console.log(`Hidden module (section): ${moduleName}`);
               }
             });
           }

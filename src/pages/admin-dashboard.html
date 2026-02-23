@@ -304,6 +304,18 @@
                 <span>📱 App Downloads</span>
               </label>
             </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="employee-portal" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>🔐 Employee Portal</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="quick-access" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>📊 Quick Access Dashboard</span>
+              </label>
+            </div>
           </div>
 
           <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; display: flex; gap: 1rem;">
@@ -1062,7 +1074,8 @@ echo -e "============================${NC}"
     const defaultModules = [
       'monitor', 'assessment', 'payslips', 'employee-stats', 'applications',
       'shifts', 'timecard', 'punches', 'sync', 'backup-restore',
-      'sql-integration', 'whatsapp', 'whatsapp-logs', 'app-downloads'
+      'sql-integration', 'whatsapp', 'whatsapp-logs', 'app-downloads',
+      'employee-portal', 'quick-access'
     ];
 
     // Business selector change handler
