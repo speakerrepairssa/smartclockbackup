@@ -1,5 +1,5 @@
 const { onRequest } = require("firebase-functions/v2/https");
-const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
@@ -5360,6 +5360,950 @@ exports.onEmployeeStatusChange = onDocumentUpdated(
       logger.error("❌ Error in status change trigger", { 
         error: error.message, 
         stack: error.stack 
+      });
+    }
+  }
+);
+
+/**
+ * 💾 BACKUP ALL EMPLOYEE DATA
+ * Creates a timestamped backup of all employee data for a business
+ */
+exports.backupEmployeeData = onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId parameter' });
+    }
+
+    logger.info("💾 Starting employee data backup", { businessId });
+
+    // Check existing backups and delete oldest if we have 10 or more
+    const backupsCollectionRef = db.collection('businesses').doc(businessId).collection('employee_backups');
+    const existingBackups = await backupsCollectionRef.orderBy('timestamp', 'asc').get();
+    
+    if (existingBackups.size >= 10) {
+      // Delete the oldest backup
+      const oldestBackup = existingBackups.docs[0];
+      await oldestBackup.ref.delete();
+      logger.info("🗑️ Deleted oldest backup to maintain 10 backup limit", { 
+        businessId, 
+        deletedBackupId: oldestBackup.id 
+      });
+    }
+
+    const timestamp = new Date().toISOString();
+    const backupId = `backup_${Date.now()}`;
+    
+    // Get all staff members
+    const staffRef = db.collection('businesses').doc(businessId).collection('staff');
+    const staffSnapshot = await staffRef.get();
+    
+    const employeeData = {};
+    let employeeCount = 0;
+    
+    for (const doc of staffSnapshot.docs) {
+      const data = doc.data();
+      employeeData[doc.id] = {
+        ...data,
+        slotNumber: doc.id
+      };
+      employeeCount++;
+    }
+
+    // Store backup in Firestore
+    const backupRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('employee_backups')
+      .doc(backupId);
+    
+    await backupRef.set({
+      timestamp: timestamp,
+      backupId: backupId,
+      employeeCount: employeeCount,
+      employees: employeeData,
+      createdBy: 'system',
+      description: 'Automatic backup'
+    });
+
+    logger.info("✅ Employee backup completed", { 
+      businessId, 
+      backupId, 
+      employeeCount 
+    });
+
+    res.json({
+      success: true,
+      message: 'Employee data backed up successfully',
+      backupId: backupId,
+      timestamp: timestamp,
+      employeeCount: employeeCount
+    });
+
+  } catch (error) {
+    logger.error("❌ Employee backup failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 🔄 RESTORE EMPLOYEE DATA FROM BACKUP
+ * Restores employee data from a specific backup
+ */
+exports.restoreEmployeeData = onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId, backupId } = req.query;
+    
+    if (!businessId || !backupId) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: businessId and backupId' 
+      });
+    }
+
+    logger.info("🔄 Starting employee data restore", { businessId, backupId });
+
+    // Get backup data
+    const backupRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('employee_backups')
+      .doc(backupId);
+    
+    const backupDoc = await backupRef.get();
+    
+    if (!backupDoc.exists) {
+      return res.status(404).json({ 
+        error: 'Backup not found',
+        backupId: backupId 
+      });
+    }
+
+    const backupData = backupDoc.data();
+    const employees = backupData.employees || {};
+    
+    // Restore each employee
+    const staffRef = db.collection('businesses').doc(businessId).collection('staff');
+    let restoredCount = 0;
+    
+    for (const [slotId, employeeData] of Object.entries(employees)) {
+      await staffRef.doc(slotId).set(employeeData, { merge: true });
+      restoredCount++;
+    }
+
+    logger.info("✅ Employee restore completed", { 
+      businessId, 
+      backupId, 
+      restoredCount 
+    });
+
+    res.json({
+      success: true,
+      message: 'Employee data restored successfully',
+      backupId: backupId,
+      backupTimestamp: backupData.timestamp,
+      restoredCount: restoredCount
+    });
+
+  } catch (error) {
+    logger.error("❌ Employee restore failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 📋 LIST ALL EMPLOYEE BACKUPS
+ * Returns a list of all available backups for a business
+ */
+exports.listEmployeeBackups = onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId parameter' });
+    }
+
+    const backupsRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('employee_backups')
+      .orderBy('timestamp', 'desc')
+      .limit(10);
+    
+    const backupsSnapshot = await backupsRef.get();
+    
+    const backups = [];
+    backupsSnapshot.forEach(doc => {
+      const data = doc.data();
+      backups.push({
+        backupId: doc.id,
+        timestamp: data.timestamp,
+        employeeCount: data.employeeCount,
+        description: data.description,
+        createdBy: data.createdBy
+      });
+    });
+
+    res.json({
+      success: true,
+      businessId: businessId,
+      totalBackups: backups.length,
+      backups: backups
+    });
+
+  } catch (error) {
+    logger.error("❌ List backups failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 🔄 AUTO-BACKUP ON EMPLOYEE UPDATE
+ * Automatically creates a backup whenever any employee data is changed
+ * Triggers on: create, update, delete of any staff document
+ */
+exports.autoBackupOnEmployeeChange = onDocumentWritten(
+  'businesses/{businessId}/staff/{staffId}',
+  async (event) => {
+    try {
+      const businessId = event.params.businessId;
+      const staffId = event.params.staffId;
+      
+      // Get employee name for description
+      let employeeName = staffId;
+      if (event.data?.after?.exists) {
+        const afterData = event.data.after.data();
+        employeeName = afterData.employeeName || afterData.name || staffId;
+      } else if (event.data?.before?.exists) {
+        const beforeData = event.data.before.data();
+        employeeName = beforeData.employeeName || beforeData.name || staffId;
+      }
+
+      // Determine the type of change
+      let changeType = 'modified';
+      if (!event.data?.before?.exists) {
+        changeType = 'created';
+      } else if (!event.data?.after?.exists) {
+        changeType = 'deleted';
+      }
+
+      logger.info("🔄 Employee change detected, creating auto-backup", { 
+        businessId, 
+        staffId, 
+        employeeName,
+        changeType
+      });
+
+      // Check existing backups and delete oldest if we have 10 or more
+      const backupsCollectionRef = db.collection('businesses').doc(businessId).collection('employee_backups');
+      const existingBackups = await backupsCollectionRef.orderBy('timestamp', 'asc').get();
+      
+      if (existingBackups.size >= 10) {
+        // Delete the oldest backup
+        const oldestBackup = existingBackups.docs[0];
+        await oldestBackup.ref.delete();
+        logger.info("🗑️ Deleted oldest backup to maintain 10 backup limit", { 
+          businessId, 
+          deletedBackupId: oldestBackup.id 
+        });
+      }
+
+      const timestamp = new Date().toISOString();
+      const backupId = `auto_${Date.now()}`;
+      
+      // Get all current staff members
+      const staffRef = db.collection('businesses').doc(businessId).collection('staff');
+      const staffSnapshot = await staffRef.get();
+      
+      const employeeData = {};
+      let employeeCount = 0;
+      
+      for (const doc of staffSnapshot.docs) {
+        const data = doc.data();
+        employeeData[doc.id] = {
+          ...data,
+          slotNumber: doc.id
+        };
+        employeeCount++;
+      }
+
+      // Store backup in Firestore
+      const backupRef = db.collection('businesses')
+        .doc(businessId)
+        .collection('employee_backups')
+        .doc(backupId);
+      
+      await backupRef.set({
+        timestamp: timestamp,
+        backupId: backupId,
+        employeeCount: employeeCount,
+        employees: employeeData,
+        createdBy: 'auto-trigger',
+        description: `Auto-backup: ${employeeName} ${changeType}`,
+        triggeredBy: {
+          staffId: staffId,
+          employeeName: employeeName,
+          changeType: changeType
+        }
+      });
+
+      logger.info("✅ Auto-backup completed", { 
+        businessId, 
+        backupId, 
+        employeeCount,
+        triggeredBy: employeeName
+      });
+
+    } catch (error) {
+      logger.error("❌ Auto-backup failed", { 
+        error: error.message,
+        businessId: event.params.businessId 
+      });
+      // Don't throw - we don't want to fail the original operation
+    }
+  }
+);
+
+/**
+ * 📅 BACKUP ALL SHIFTS DATA  
+ * Creates a timestamped backup of all shift configurations
+ */
+exports.backupShifts = onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId parameter' });
+    }
+
+    logger.info("📅 Starting shifts data backup", { businessId });
+
+    // Check existing backups and delete oldest if we have 10 or more
+    const backupsCollectionRef = db.collection('businesses').doc(businessId).collection('shifts_backups');
+    const existingBackups = await backupsCollectionRef.orderBy('timestamp', 'asc').get();
+    
+    if (existingBackups.size >= 10) {
+      const oldestBackup = existingBackups.docs[0];
+      await oldestBackup.ref.delete();
+      logger.info("🗑️ Deleted oldest shifts backup to maintain 10 backup limit", { 
+        businessId, 
+        deletedBackupId: oldestBackup.id 
+      });
+    }
+
+    const timestamp = new Date().toISOString();
+    const backupId = `backup_${Date.now()}`;
+    
+    // Get all shifts
+    const shiftsRef = db.collection('businesses').doc(businessId).collection('shifts');
+    const shiftsSnapshot = await shiftsRef.get();
+    
+    const shiftsData = {};
+    let shiftsCount = 0;
+    
+    for (const doc of shiftsSnapshot.docs) {
+      const data = doc.data();
+      shiftsData[doc.id] = data;
+      shiftsCount++;
+    }
+
+    // Store backup in Firestore
+    const backupRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('shifts_backups')
+      .doc(backupId);
+    
+    await backupRef.set({
+      timestamp: timestamp,
+      backupId: backupId,
+      shiftsCount: shiftsCount,
+      shifts: shiftsData,
+      createdBy: 'system',
+      description: 'Manual shifts backup'
+    });
+
+    logger.info("✅ Shifts backup completed", { 
+      businessId, 
+      backupId, 
+      shiftsCount 
+    });
+
+    res.json({
+      success: true,
+      message: 'Shifts data backed up successfully',
+      backupId: backupId,
+      timestamp: timestamp,
+      shiftsCount: shiftsCount
+    });
+
+  } catch (error) {
+    logger.error("❌ Shifts backup failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 🔄 RESTORE SHIFTS DATA FROM BACKUP
+ */
+exports.restoreShifts = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId, backupId } = req.query;
+    
+    if (!businessId || !backupId) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: businessId and backupId' 
+      });
+    }
+
+    logger.info("🔄 Starting shifts data restore", { businessId, backupId });
+
+    const backupRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('shifts_backups')
+      .doc(backupId);
+    
+    const backupDoc = await backupRef.get();
+    
+    if (!backupDoc.exists) {
+      return res.status(404).json({ 
+        error: 'Backup not found',
+        backupId: backupId 
+      });
+    }
+
+    const backupData = backupDoc.data();
+    const shifts = backupData.shifts || {};
+    
+    // Restore shift documents
+    const shiftsRef = db.collection('businesses').doc(businessId).collection('shifts');
+    let restoredCount = 0;
+    
+    for (const [shiftId, shiftData] of Object.entries(shifts)) {
+      await shiftsRef.doc(shiftId).set(shiftData, { merge: true });
+      restoredCount++;
+    }
+
+    logger.info("✅ Shifts restore completed", { 
+      businessId, 
+      backupId, 
+      restoredCount 
+    });
+
+    res.json({
+      success: true,
+      message: 'Shifts data restored successfully',
+      restoredCount: restoredCount,
+      backupTimestamp: backupData.timestamp
+    });
+
+  } catch (error) {
+    logger.error("❌ Shifts restore failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 📋 LIST ALL SHIFTS BACKUPS
+ */
+exports.listShiftsBackups = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId parameter' });
+    }
+
+    const backupsRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('shifts_backups')
+      .orderBy('timestamp', 'desc')
+      .limit(10);
+    
+    const backupsSnapshot = await backupsRef.get();
+    
+    const backups = [];
+    backupsSnapshot.forEach(doc => {
+      const data = doc.data();
+      backups.push({
+        backupId: doc.id,
+        timestamp: data.timestamp,
+        shiftsCount: data.shiftsCount,
+        description: data.description,
+        createdBy: data.createdBy
+      });
+    });
+
+    res.json({
+      success: true,
+      businessId: businessId,
+      totalBackups: backups.length,
+      backups: backups
+    });
+
+  } catch (error) {
+    logger.error("❌ List shifts backups failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 🔄 AUTO-BACKUP ON SHIFT CHANGE
+ */
+exports.autoBackupOnShiftChange = onDocumentWritten(
+  'businesses/{businessId}/shifts/{shiftId}',
+  async (event) => {
+    try {
+      const businessId = event.params.businessId;
+      const shiftId = event.params.shiftId;
+      
+      let shiftName = shiftId;
+      if (event.data?.after?.exists) {
+        const afterData = event.data.after.data();
+        shiftName = afterData.name || afterData.shiftName || shiftId;
+      } else if (event.data?.before?.exists) {
+        const beforeData = event.data.before.data();
+        shiftName = beforeData.name || beforeData.shiftName || shiftId;
+      }
+
+      let changeType = 'modified';
+      if (!event.data?.before?.exists) {
+        changeType = 'created';
+      } else if (!event.data?.after?.exists) {
+        changeType = 'deleted';
+      }
+
+      logger.info("🔄 Shift change detected, creating auto-backup", { 
+        businessId, 
+        shiftId, 
+        shiftName,
+        changeType
+      });
+
+      const backupsCollectionRef = db.collection('businesses').doc(businessId).collection('shifts_backups');
+      const existingBackups = await backupsCollectionRef.orderBy('timestamp', 'asc').get();
+      
+      if (existingBackups.size >= 10) {
+        const oldestBackup = existingBackups.docs[0];
+        await oldestBackup.ref.delete();
+      }
+
+      const timestamp = new Date().toISOString();
+      const backupId = `auto_${Date.now()}`;
+      
+      const shiftsRef = db.collection('businesses').doc(businessId).collection('shifts');
+      const shiftsSnapshot = await shiftsRef.get();
+      
+      const shiftsData = {};
+      let shiftsCount = 0;
+      
+      for (const doc of shiftsSnapshot.docs) {
+        shiftsData[doc.id] = doc.data();
+        shiftsCount++;
+      }
+
+      const backupRef = db.collection('businesses')
+        .doc(businessId)
+        .collection('shifts_backups')
+        .doc(backupId);
+      
+      await backupRef.set({
+        timestamp: timestamp,
+        backupId: backupId,
+        shiftsCount: shiftsCount,
+        shifts: shiftsData,
+        createdBy: 'auto-trigger',
+        description: `Auto-backup: ${shiftName} ${changeType}`,
+        triggeredBy: {
+          shiftId: shiftId,
+          shiftName: shiftName,
+          changeType: changeType
+        }
+      });
+
+      logger.info("✅ Auto-shifts-backup completed", { 
+        businessId, 
+        backupId, 
+        shiftsCount
+      });
+
+    } catch (error) {
+      logger.error("❌ Auto-shifts-backup failed", { 
+        error: error.message,
+        businessId: event.params.businessId 
+      });
+    }
+  }
+);
+
+/**
+ * 🕐 BACKUP ALL TIMECARDS DATA  
+ * Creates a timestamped backup of all timecard entries
+ */
+exports.backupTimecards = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId parameter' });
+    }
+
+    logger.info("🕐 Starting timecards data backup", { businessId });
+
+    const backupsCollectionRef = db.collection('businesses').doc(businessId).collection('timecards_backups');
+    const existingBackups = await backupsCollectionRef.orderBy('timestamp', 'asc').get();
+    
+    if (existingBackups.size >= 10) {
+      const oldestBackup = existingBackups.docs[0];
+      await oldestBackup.ref.delete();
+      logger.info("🗑️ Deleted oldest timecards backup to maintain 10 backup limit", { 
+        businessId, 
+        deletedBackupId: oldestBackup.id 
+      });
+    }
+
+    const timestamp = new Date().toISOString();
+    const backupId = `backup_${Date.now()}`;
+    
+    // Get all attendance events (timecards)
+    const timecardsRef = db.collection('businesses').doc(businessId).collection('attendance_events');
+    const timecardsSnapshot = await timecardsRef.get();
+    
+    const timecardsData = {};
+    let timecardsCount = 0;
+    
+    for (const doc of timecardsSnapshot.docs) {
+      const data = doc.data();
+      timecardsData[doc.id] = data;
+      timecardsCount++;
+    }
+
+    // Store backup in Firestore
+    const backupRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('timecards_backups')
+      .doc(backupId);
+    
+    await backupRef.set({
+      timestamp: timestamp,
+      backupId: backupId,
+      timecardsCount: timecardsCount,
+      timecards: timecardsData,
+      createdBy: 'system',
+      description: 'Manual timecards backup'
+    });
+
+    logger.info("✅ Timecards backup completed", { 
+      businessId, 
+      backupId, 
+      timecardsCount 
+    });
+
+    res.json({
+      success: true,
+      message: 'Timecards data backed up successfully',
+      backupId: backupId,
+      timestamp: timestamp,
+      timecardsCount: timecardsCount
+    });
+
+  } catch (error) {
+    logger.error("❌ Timecards backup failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 🔄 RESTORE TIMECARDS DATA FROM BACKUP
+ */
+exports.restoreTimecards = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId, backupId } = req.query;
+    
+    if (!businessId || !backupId) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: businessId and backupId' 
+      });
+    }
+
+    logger.info("🔄 Starting timecards data restore", { businessId, backupId });
+
+    const backupRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('timecards_backups')
+      .doc(backupId);
+    
+    const backupDoc = await backupRef.get();
+    
+    if (!backupDoc.exists) {
+      return res.status(404).json({ 
+        error: 'Backup not found',
+        backupId: backupId 
+      });
+    }
+
+    const backupData = backupDoc.data();
+    const timecards = backupData.timecards || {};
+    
+    // Restore timecard documents
+    const timecardsRef = db.collection('businesses').doc(businessId).collection('attendance_events');
+    let restoredCount = 0;
+    
+    for (const [timecardId, timecardData] of Object.entries(timecards)) {
+      await timecardsRef.doc(timecardId).set(timecardData, { merge: true });
+      restoredCount++;
+    }
+
+    logger.info("✅ Timecards restore completed", { 
+      businessId, 
+      backupId, 
+      restoredCount 
+    });
+
+    res.json({
+      success: true,
+      message: 'Timecards data restored successfully',
+      restoredCount: restoredCount,
+      backupTimestamp: backupData.timestamp
+    });
+
+  } catch (error) {
+    logger.error("❌ Timecards restore failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 📋 LIST ALL TIMECARDS BACKUPS
+ */
+exports.listTimecardsBackups = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  
+  try {
+    const { businessId } = req.query;
+    
+    if (!businessId) {
+      return res.status(400).json({ error: 'Missing businessId parameter' });
+    }
+
+    const backupsRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('timecards_backups')
+      .orderBy('timestamp', 'desc')
+      .limit(10);
+    
+    const backupsSnapshot = await backupsRef.get();
+    
+    const backups = [];
+    backupsSnapshot.forEach(doc => {
+      const data = doc.data();
+      backups.push({
+        backupId: doc.id,
+        timestamp: data.timestamp,
+        timecardsCount: data.timecardsCount,
+        description: data.description,
+        createdBy: data.createdBy
+      });
+    });
+
+    res.json({
+      success: true,
+      businessId: businessId,
+      totalBackups: backups.length,
+      backups: backups
+    });
+
+  } catch (error) {
+    logger.error("❌ List timecards backups failed", { error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * 🔄 AUTO-BACKUP ON TIMECARD CHANGE
+ */
+exports.autoBackupOnTimecardChange = onDocumentWritten(
+  'businesses/{businessId}/attendance_events/{eventId}',
+  async (event) => {
+    try {
+      const businessId = event.params.businessId;
+      const eventId = event.params.eventId;
+      
+      let employeeName = 'Unknown';
+      if (event.data?.after?.exists) {
+        const afterData = event.data.after.data();
+        employeeName = afterData.employeeName || afterData.employeeId || eventId;
+      } else if (event.data?.before?.exists) {
+        const beforeData = event.data.before.data();
+        employeeName = beforeData.employeeName || beforeData.employeeId || eventId;
+      }
+
+      let changeType = 'modified';
+      if (!event.data?.before?.exists) {
+        changeType = 'created';
+      } else if (!event.data?.after?.exists) {
+        changeType = 'deleted';
+      }
+
+      logger.info("🔄 Timecard change detected, creating auto-backup", { 
+        businessId, 
+        eventId, 
+        employeeName,
+        changeType
+      });
+
+      const backupsCollectionRef = db.collection('businesses').doc(businessId).collection('timecards_backups');
+      const existingBackups = await backupsCollectionRef.orderBy('timestamp', 'asc').get();
+      
+      if (existingBackups.size >= 10) {
+        const oldestBackup = existingBackups.docs[0];
+        await oldestBackup.ref.delete();
+      }
+
+      const timestamp = new Date().toISOString();
+      const backupId = `auto_${Date.now()}`;
+      
+      const timecardsRef = db.collection('businesses').doc(businessId).collection('attendance_events');
+      const timecardsSnapshot = await timecardsRef.get();
+      
+      const timecardsData = {};
+      let timecardsCount = 0;
+      
+      for (const doc of timecardsSnapshot.docs) {
+        timecardsData[doc.id] = doc.data();
+        timecardsCount++;
+      }
+
+      const backupRef = db.collection('businesses')
+        .doc(businessId)
+        .collection('timecards_backups')
+        .doc(backupId);
+      
+      await backupRef.set({
+        timestamp: timestamp,
+        backupId: backupId,
+        timecardsCount: timecardsCount,
+        timecards: timecardsData,
+        createdBy: 'auto-trigger',
+        description: `Auto-backup: ${employeeName} timecard ${changeType}`,
+        triggeredBy: {
+          eventId: eventId,
+          employeeName: employeeName,
+          changeType: changeType
+        }
+      });
+
+      logger.info("✅ Auto-timecards-backup completed", { 
+        businessId, 
+        backupId, 
+        timecardsCount
+      });
+
+    } catch (error) {
+      logger.error("❌ Auto-timecards-backup failed", { 
+        error: error.message,
+        businessId: event.params.businessId 
       });
     }
   }
