@@ -188,6 +188,134 @@
         </table>
       </div>
 
+      <!-- Module Permissions Section -->
+      <div class="actions-bar" style="margin-top: 3rem;">
+        <h2>🔐 Module Permissions</h2>
+        <span style="color: #6b7280; font-size: 0.9rem;">Control which features each business can access</span>
+      </div>
+
+      <div id="modulePermissionsContainer" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+        <div style="margin-bottom: 1rem;">
+          <label for="businessSelector" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Select Business:</label>
+          <select id="businessSelector" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; max-width: 400px;">
+            <option value="">Loading businesses...</option>
+          </select>
+        </div>
+
+        <div id="moduleCheckboxes" style="display: none;">
+          <h3 style="margin: 1.5rem 0 1rem 0; color: #1f2937; font-size: 1.1rem;">Available Modules</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
+            <!-- Core Modules (Always Enabled) -->
+            <div style="background: #f9fafb; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: not-allowed;">
+                <input type="checkbox" checked disabled style="width: 18px; height: 18px;">
+                <span>📊 Dashboard <small style="color: #6b7280;">(Core)</small></span>
+              </label>
+            </div>
+            <div style="background: #f9fafb; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: not-allowed;">
+                <input type="checkbox" checked disabled style="width: 18px; height: 18px;">
+                <span>👥 Employees <small style="color: #6b7280;">(Core)</small></span>
+              </label>
+            </div>
+
+            <!-- Optional Modules -->
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="monitor" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>🔴 Monitor Mode</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="assessment" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>📊 Assessment</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="payslips" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>💰 Payslips</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="employee-stats" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>📈 Employee Stats</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="applications" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>📝 Applications</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="shifts" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>📅 Shifts</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="timecard" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>🕐 Timecard</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="punches" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>👊 Punches</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="sync" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>🔄 Device Sync</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="backup-restore" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>💾 Backup & Restore</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="sql-integration" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>🗄️ SQL Integration</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="whatsapp" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>📱 WhatsApp</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="whatsapp-logs" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>📊 WhatsApp Logs</span>
+              </label>
+            </div>
+            <div style="background: white; padding: 1rem; border-radius: 6px; border: 2px solid #e5e7eb;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" data-module="app-downloads" class="module-checkbox" style="width: 18px; height: 18px;">
+                <span>📱 App Downloads</span>
+              </label>
+            </div>
+          </div>
+
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; display: flex; gap: 1rem;">
+            <button id="savePermissionsBtn" class="btn btn-primary">💾 Save Permissions</button>
+            <button id="selectAllModulesBtn" class="btn" style="background: #6b7280; color: white;">✓ Enable All</button>
+            <button id="deselectAllModulesBtn" class="btn" style="background: #dc3545; color: white;">✗ Disable All</button>
+          </div>
+
+          <div id="permissionsSaveStatus" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px; display: none;"></div>
+        </div>
+      </div>
+
       <!-- Admin Tools Section -->
       <div class="actions-bar" style="margin-top: 3rem;">
         <h2>🛠️ Admin Utilities</h2>
@@ -922,6 +1050,136 @@ echo -e "============================${NC}"
         }
       });
     }
+
+    // ============================================
+    // Module Permissions Management
+    // ============================================
+    
+    let allBusinesses = [];
+    let currentSelectedBusinessId = null;
+
+    // Default modules (all enabled by default for new businesses)
+    const defaultModules = [
+      'monitor', 'assessment', 'payslips', 'employee-stats', 'applications',
+      'shifts', 'timecard', 'punches', 'sync', 'backup-restore',
+      'sql-integration', 'whatsapp', 'whatsapp-logs', 'app-downloads'
+    ];
+
+    // Load businesses into selector (called from dashboard.js)
+    window.loadBusinessesForPermissions = function(businesses) {
+      allBusinesses = businesses;
+      const selector = document.getElementById('businessSelector');
+      
+      selector.innerHTML = '<option value="">-- Select a Business --</option>';
+      businesses.forEach(biz => {
+        const option = document.createElement('option');
+        option.value = biz.id;
+        option.textContent = `${biz.businessName || biz.id} (${biz.id})`;
+        selector.appendChild(option);
+      });
+    };
+
+    // Business selector change handler
+    document.getElementById('businessSelector')?.addEventListener('change', async (e) => {
+      const businessId = e.target.value;
+      currentSelectedBusinessId = businessId;
+      
+      if (!businessId) {
+        document.getElementById('moduleCheckboxes').style.display = 'none';
+        return;
+      }
+
+      // Show module checkboxes
+      document.getElementById('moduleCheckboxes').style.display = 'block';
+      
+      // Load current permissions
+      await loadModulePermissions(businessId);
+    });
+
+    // Load module permissions for a business
+    async function loadModulePermissions(businessId) {
+      try {
+        const { db } = await import('../config/firebase.js');
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const businessDoc = await getDoc(doc(db, 'businesses', businessId));
+        const businessData = businessDoc.data();
+        
+        // Get enabled modules (default to all if not set)
+        const enabledModules = businessData?.enabledModules || defaultModules;
+        
+        // Update checkboxes
+        document.querySelectorAll('.module-checkbox').forEach(checkbox => {
+          const moduleName = checkbox.getAttribute('data-module');
+          checkbox.checked = enabledModules.includes(moduleName);
+        });
+        
+      } catch (error) {
+        console.error('Error loading module permissions:', error);
+        alert('Error loading permissions: ' + error.message);
+      }
+    }
+
+    // Save module permissions
+    document.getElementById('savePermissionsBtn')?.addEventListener('click', async () => {
+      if (!currentSelectedBusinessId) {
+        alert('Please select a business first');
+        return;
+      }
+
+      try {
+        // Get selected modules
+        const enabledModules = [];
+        document.querySelectorAll('.module-checkbox:checked').forEach(checkbox => {
+          enabledModules.push(checkbox.getAttribute('data-module'));
+        });
+
+        const { db } = await import('../config/firebase.js');
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        // Update business document
+        await updateDoc(doc(db, 'businesses', currentSelectedBusinessId), {
+          enabledModules: enabledModules,
+          permissionsUpdatedAt: new Date().toISOString()
+        });
+
+        // Show success message
+        const statusDiv = document.getElementById('permissionsSaveStatus');
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = '#d4edda';
+        statusDiv.style.color = '#155724';
+        statusDiv.style.border = '1px solid #c3e6cb';
+        statusDiv.innerHTML = `✅ Permissions saved successfully! ${enabledModules.length} module(s) enabled.`;
+        
+        setTimeout(() => {
+          statusDiv.style.display = 'none';
+        }, 5000);
+
+      } catch (error) {
+        console.error('Error saving permissions:', error);
+        
+        const statusDiv = document.getElementById('permissionsSaveStatus');
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = '#f8d7da';
+        statusDiv.style.color = '#721c24';
+        statusDiv.style.border = '1px solid #f5c6cb';
+        statusDiv.innerHTML = `❌ Error: ${error.message}`;
+      }
+    });
+
+    // Enable all modules
+    document.getElementById('selectAllModulesBtn')?.addEventListener('click', () => {
+      document.querySelectorAll('.module-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+      });
+    });
+
+    // Disable all modules
+    document.getElementById('deselectAllModulesBtn')?.addEventListener('click', () => {
+      document.querySelectorAll('.module-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+    });
   </script>
 
   <!-- Import as ES Module -->

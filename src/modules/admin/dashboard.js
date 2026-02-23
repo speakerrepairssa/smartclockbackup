@@ -302,6 +302,12 @@ class AdminDashboardController {
       });
 
       this.displayBusinesses();
+      
+      // Load businesses into permissions selector
+      if (window.loadBusinessesForPermissions) {
+        window.loadBusinessesForPermissions(this.businesses);
+      }
+      
       hideLoader();
 
     } catch (error) {

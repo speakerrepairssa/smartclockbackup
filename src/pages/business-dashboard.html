@@ -4399,6 +4399,69 @@
       console.log('Global loadMonitorData placeholder called');
     };
 
+    // Load module permissions and hide disabled modules
+    async function loadModulePermissions(businessId) {
+      try {
+        console.log('Loading module permissions for:', businessId);
+        
+        // Get business document
+        const businessDoc = await getDoc(doc(db, 'businesses', businessId));
+        
+        if (!businessDoc.exists()) {
+          console.warn('Business document not found');
+          return;
+        }
+        
+        const businessData = businessDoc.data();
+        const enabledModules = businessData.enabledModules;
+        
+        // If no enabledModules field, enable all modules (backward compatibility)
+        if (!enabledModules || !Array.isArray(enabledModules)) {
+          console.log('No module permissions set - all modules enabled');
+          return;
+        }
+        
+        console.log('Enabled modules:', enabledModules);
+        
+        // Module mapping: data-module attribute → menu elements
+        const moduleMapping = {
+          'monitor': '[data-module="monitor"]',
+          'assessment': '[data-module="assessment"]',
+          'payslips': '[data-module="payslips"]',
+          'employee-stats': '[data-module="employee-stats"]',
+          'applications': '[data-module="applications"]',
+          'shifts': '[data-module="shifts"]',
+          'timecard': '[data-module="timecard"]',
+          'punches': '[data-module="punches"]',
+          'sync': '[data-module="sync"]',
+          'backup-restore': '[data-module="backup-restore"]',
+          'sql-integration': '[data-module="sql-integration"]',
+          'app-downloads': '[data-module="app-downloads"]',
+          'whatsapp': 'a[href="whatsapp-settings.html"]',
+          'whatsapp-logs': '#whatsappLogsLink'
+        };
+        
+        // Hide disabled modules
+        for (const [moduleName, selector] of Object.entries(moduleMapping)) {
+          if (!enabledModules.includes(moduleName)) {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              // Hide the parent <li> if it's a menu button
+              const listItem = el.closest('li');
+              if (listItem) {
+                listItem.style.display = 'none';
+                console.log(`Hidden module: ${moduleName}`);
+              }
+            });
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error loading module permissions:', error);
+        // Don't block dashboard loading if permissions fail
+      }
+    }
+
     // Initialize on load
     document.addEventListener('DOMContentLoaded', () => {
       initDashboard();
@@ -4418,6 +4481,9 @@
         businessId = authService.getBusinessId();
         window.businessId = businessId; // Expose to global scope for modules
         console.log('Business ID:', businessId);
+        
+        // Load module permissions and hide disabled modules
+        await loadModulePermissions(businessId);
         
         // Set up WhatsApp logs link with businessId
         const whatsappLogsLink = document.getElementById('whatsappLogsLink');
