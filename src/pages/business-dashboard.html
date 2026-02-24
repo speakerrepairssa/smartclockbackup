@@ -9969,6 +9969,35 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           deviceSelect.innerHTML += `<option value="${doc.id}">${deviceData.name || doc.id}</option>`;
         });
         
+        // Add listener to auto-populate Monthly Sync form when device is selected
+        deviceSelect.onchange = async function() {
+          const selectedDeviceId = this.value;
+          if (!selectedDeviceId) return;
+          
+          try {
+            const deviceRef = doc(db, "businesses", businessId, "devices", selectedDeviceId);
+            const deviceSnap = await getDoc(deviceRef);
+            
+            if (deviceSnap.exists()) {
+              const deviceConfig = deviceSnap.data();
+              console.log('📱 Auto-populating Monthly Sync form with:', deviceConfig);
+              
+              // Auto-populate the Monthly Sync form fields
+              if (deviceConfig.ip) {
+                document.getElementById('monthlyDeviceIP').value = deviceConfig.ip;
+              }
+              if (deviceConfig.username) {
+                document.getElementById('monthlyUsername').value = deviceConfig.username;
+              }
+              if (deviceConfig.password) {
+                document.getElementById('monthlyPassword').value = deviceConfig.password;
+              }
+            }
+          } catch (err) {
+            console.error('Error loading device config:', err);
+          }
+        };
+        
       } catch (error) {
         console.error('Error loading device collections:', error);
         document.getElementById('deviceCollectionsList').innerHTML = '<p class="error">Error loading device collections</p>';
@@ -10013,17 +10042,49 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
      * Extract historical events from Hikvision device for a specific month
      */
     async function syncMonthlyDeviceEvents() {
-      const ip = document.getElementById('monthlyDeviceIP').value;
+      // Try to get device config from selected device first
+      const deviceSelect = document.getElementById('syncDeviceSelect');
+      const selectedDeviceId = deviceSelect?.value;
+      
+      let ip = document.getElementById('monthlyDeviceIP').value;
+      let username = document.getElementById('monthlyUsername').value;
+      let password = document.getElementById('monthlyPassword').value;
       const month = document.getElementById('monthlyMonth').value;
       const year = document.getElementById('monthlyYear').value;
-      const username = document.getElementById('monthlyUsername').value;
-      const password = document.getElementById('monthlyPassword').value;
       const statusDiv = document.getElementById('monthlySyncStatus');
       const statusText = document.getElementById('monthlySyncStatusText');
       const progressText = document.getElementById('monthlySyncProgress');
       
+      // If a device is selected, try to get config from Firebase
+      if (selectedDeviceId) {
+        try {
+          console.log('📱 Loading device config from Firebase...');
+          const deviceRef = doc(db, "businesses", businessId, "devices", selectedDeviceId);
+          const deviceSnap = await getDoc(deviceRef);
+          
+          if (deviceSnap.exists()) {
+            const deviceConfig = deviceSnap.data();
+            console.log('✅ Device config loaded:', deviceConfig);
+            
+            // Use Firebase config if available
+            if (deviceConfig.ip) ip = deviceConfig.ip;
+            if (deviceConfig.username) username = deviceConfig.username;
+            if (deviceConfig.password) password = deviceConfig.password;
+            
+            // Auto-populate the form for user visibility
+            if (deviceConfig.ip) document.getElementById('monthlyDeviceIP').value = deviceConfig.ip;
+            if (deviceConfig.username) document.getElementById('monthlyUsername').value = deviceConfig.username;
+            if (deviceConfig.password) document.getElementById('monthlyPassword').value = deviceConfig.password;
+          } else {
+            console.log('⚠️ Device not found in Firebase, using form values');
+          }
+        } catch (err) {
+          console.log('⚠️ Error loading device config:', err);
+        }
+      }
+      
       if (!ip || !password) {
-        alert('⚠️ Please provide device IP and password');
+        alert('⚠️ Device credentials missing.\n\nPlease either:\n1. Select a device from "Device to Sync" dropdown (if configured), OR\n2. Fill in the device IP and password fields below');
         return;
       }
       
