@@ -4337,7 +4337,7 @@
 
   <script type="module">
     import authService from '../modules/auth/auth.service.js';
-    import { doc, getDoc, collection, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { doc, getDoc, collection, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, updateDoc, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getDatabase, ref, get, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { db } from '../config/firebase.js';
 
@@ -10188,7 +10188,10 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         return;
       }
       
-      if (!confirm(`🚨 Recover Offline Events\n\nThis will check device collections and heal missing events.\n\nDevice: ${selectedDeviceId}\nDate: Today\n\nContinue?`)) {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      if (!confirm(`🚨 Recover Offline Events\n\nThis will extract today's events from the Hikvision device and import them.\n\nDevice: ${selectedDeviceId}\nDate: ${todayStr}\n\nNote: Sync service must be running on localhost:3002\n\nContinue?`)) {
         return;
       }
       
@@ -10212,201 +10215,182 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         console.log('📱 Device config:', deviceConfig);
         
         if (!deviceConfig.ip || !deviceConfig.username || !deviceConfig.password) {
-          throw new Error('Device credentials missing. Please configure device IP, username, and password.');
+          throw new Error('Device credentials missing. Please configure device IP, username, and password in the Devices section.');
         }
         
-        // Step 2: Load staff mapping
-        console.log('👥 Loading staff mapping...');
+        // Step 2: Load employee mapping (check both employees and staff)
+        console.log('👥 Loading employee mapping...');
+        
+        // Try employees collection first
+        const employeesRef = collection(db, "businesses", businessId, "employees");
+        const employeesSnap = await getDocs(employeesRef);
+        
+        const employeeMapping = new Map();
+        
+        employeesSnap.forEach(doc => {
+          const data = doc.data();
+          // Map by device employee ID
+          if (data.deviceEmployeeId) {
+            employeeMapping.set(data.deviceEmployeeId.toString(), {
+              id: doc.id,
+              name: data.name,
+              deviceEmployeeId: data.deviceEmployeeId
+            });
+          }
+          if (data.employeeNumber) {
+            employeeMapping.set(data.employeeNumber.toString(), {
+              id: doc.id,
+              name: data.name,
+              deviceEmployeeId: data.employeeNumber
+            });
+          }
+        });
+        
+        // Also check staff collection (legacy)
         const staffRef = collection(db, "businesses", businessId, "staff");
         const staffSnap = await getDocs(staffRef);
         
-        const staffMapping = new Map();
         staffSnap.forEach(doc => {
           const data = doc.data();
           if (data.active || data.isActive) {
             if (data.badgeNumber) {
-              staffMapping.set(data.badgeNumber, {
+              employeeMapping.set(data.badgeNumber.toString(), {
+                id: doc.id,
+                name: data.employeeName,
                 slotNumber: doc.id,
-                employeeName: data.employeeName,
-                badgeNumber: data.badgeNumber
+                isStaff: true
               });
             }
             if (data.deviceId) {
-              staffMapping.set(data.deviceId, {
+              employeeMapping.set(data.deviceId.toString(), {
+                id: doc.id,
+                name: data.employeeName,
                 slotNumber: doc.id,
-                employeeName: data.employeeName,
-                badgeNumber: data.badgeNumber
+                isStaff: true
               });
             }
           }
         });
         
-        console.log(`✅ Loaded ${staffMapping.size} staff mappings`);
+        console.log(`✅ Loaded ${employeeMapping.size} employee mappings`);
         
-        // Step 3: Pull events from device
-        console.log('📥 Pulling events from device...');
-        const today = new Date().toISOString().split('T')[0];
-        const auth = btoa(`${deviceConfig.username}:${deviceConfig.password}`);
+        // Step 3: Pull today's events from device via sync service
+        console.log('📥 Pulling today\'s events from device...');
         
-        const xmlPayload = `<?xml version="1.0" encoding="UTF-8"?>
-<AcsEventCond>
-  <searchID>1</searchID>
-  <maxResults>2000</maxResults>
-  <searchResultPosition>0</searchResultPosition>
-  <major>5</major>
-  <minor>75</minor>
-  <startTime>${today}T00:00:00</startTime>
-  <endTime>${today}T23:59:59</endTime>
-</AcsEventCond>`;
+        const syncServiceUrl = `http://localhost:3002/device/sync-month?ip=${encodeURIComponent(deviceConfig.ip)}&username=${encodeURIComponent(deviceConfig.username)}&password=${encodeURIComponent(deviceConfig.password)}&month=${today.getMonth() + 1}&year=${today.getFullYear()}`;
         
-        const endpoints = [
-          `http://${deviceConfig.ip}/ISAPI/AccessControl/AcsEvent`,
-          `https://${deviceConfig.ip}/ISAPI/AccessControl/AcsEvent`
-        ];
+        console.log('🔗 Calling sync service...');
+        const response = await fetch(syncServiceUrl);
         
-        let xmlData = null;
-        let successEndpoint = null;
-        
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`🔍 Trying ${endpoint}...`);
-            const response = await fetch(endpoint, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Basic ${auth}`,
-                'Content-Type': 'application/xml',
-                'Accept': 'application/xml, text/xml'
-              },
-              body: xmlPayload
-            });
-            
-            if (response.ok) {
-              xmlData = await response.text();
-              successEndpoint = endpoint;
-              console.log(`✅ Success! Got ${xmlData.length} characters`);
-              break;
-            } else {
-              console.log(`❌ ${endpoint} - ${response.status}`);
-            }
-          } catch (err) {
-            console.log(`⚠️ ${endpoint} - ${err.message}`);
-          }
+        if (!response.ok) {
+          throw new Error(`Sync service returned ${response.status}. Make sure the service is running: cd hikvision-sync-service && node server.js`);
         }
         
-        if (!xmlData) {
-          throw new Error('Could not connect to device. Check device IP, credentials, and network connectivity.');
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
         }
         
-        // Step 4: Parse events
-        console.log('🔍 Parsing events...');
-        const events = [];
-        const infoListMatches = [...xmlData.matchAll(/<InfoList>(.*?)<\/InfoList>/gs)];
+        const allEvents = data.events || [];
+        console.log(`✅ Found ${allEvents.length} events for this month`);
         
-        for (const match of infoListMatches) {
-          const eventXml = match[1];
-          
-          const employeeNo = extractXMLValue(eventXml, 'employeeNoString') || 
-                            extractXMLValue(eventXml, 'cardNo');
-          const name = extractXMLValue(eventXml, 'name');
-          const time = extractXMLValue(eventXml, 'time');
-          const major = extractXMLValue(eventXml, 'major');
-          const minor = extractXMLValue(eventXml, 'minor');
-          
-          if (!employeeNo || !time) continue;
-          
-          // Determine clock in/out (minor 75 = in, 76 = out typically)
-          const isClockIn = minor === '75' || major === '5';
-          
-          events.push({
-            employeeNo,
-            name,
-            time,
-            major,
-            minor,
-            type: isClockIn ? 'clock-in' : 'clock-out',
-            status: isClockIn ? 'in' : 'out'
-          });
-        }
+        // Filter to today only
+        const events = allEvents.filter(event => {
+          if (!event.time || event.time.startsWith('1970')) return false;
+          const eventDate = new Date(event.time);
+          return eventDate.toISOString().split('T')[0] === todayStr;
+        });
         
-        console.log(`✅ Found ${events.length} events`);
+        console.log(`✅ Filtered to ${events.length} events for today`);
+        console.log(`✅ Filtered to ${events.length} events for today`);
         
         if (events.length === 0) {
-          alert('ℹ️ No events found on device for today.\n\nThe device may have already synced, or no one clocked in yet.');
+          alert(`ℹ️ No events found on device for today (${todayStr}).\n\nThe device may have already synced, or no one has clocked in yet today.`);
+          recoverBtn.textContent = originalText;
+          recoverBtn.disabled = false;
           return;
         }
         
-        // Step 5: Import to Firebase
+        // Step 4: Import to Firebase
         console.log('💾 Importing to Firebase...');
         let imported = 0;
         let skipped = 0;
         const importDetails = [];
         
         for (const event of events) {
-          const staff = staffMapping.get(event.employeeNo);
+          const employeeNoString = event.employeeNoString?.toString();
           
-          if (!staff) {
-            console.log(`⚠️ Skipped: Badge ${event.employeeNo} (${event.name}) not found in staff`);
+          if (!employeeNoString) {
+            console.log(`⚠️ Skipped: Event has no employee ID`, event);
+            skipped++;
+            continue;
+          }
+          
+          const employee = employeeMapping.get(employeeNoString);
+          
+          if (!employee) {
+            console.log(`⚠️ Skipped: Employee ID ${employeeNoString} (${event.name}) not found in database`);
             skipped++;
             continue;
           }
           
           try {
             const timestamp = new Date(event.time);
-            const eventId = `${staff.slotNumber}_${timestamp.getTime()}_${event.type}`;
+            const eventType = event.minor === 75 ? 'access_granted' : (event.minor === 76 ? 'access_denied' : 'unknown');
             
-            // Check if already exists
-            const existingRef = doc(db, "businesses", businessId, "attendance_events", eventId);
-            const existingSnap = await getDoc(existingRef);
+            // Create attendance event document
+            const eventDoc = {
+              employeeId: employee.id,
+              employeeName: employee.name,
+              businessId: businessId,
+              timestamp: Timestamp.fromDate(timestamp),
+              date: todayStr,
+              eventType: eventType,
+              source: 'offline_recovery',
+              deviceId: selectedDeviceId,
+              deviceSerialNo: event.serialNo,
+              rawEvent: event,
+              recoveredAt: Timestamp.now()
+            };
             
-            if (existingSnap.exists()) {
-              console.log(`⏭️ Skipped (exists): ${staff.employeeName} at ${event.time}`);
+            // Check if event already exists (by serial number to avoid duplicates)
+            const existingQuery = query(
+              collection(db, "businesses", businessId, "attendance_events"),
+              where("deviceSerialNo", "==", event.serialNo),
+              where("deviceId", "==", selectedDeviceId)
+            );
+            
+            const existingSnap = await getDocs(existingQuery);
+            
+            if (!existingSnap.empty) {
+              console.log(`⏭️ Skipped (exists): ${employee.name} serial ${event.serialNo}`);
               skipped++;
               continue;
             }
             
-            const eventDoc = {
-              employeeId: staff.slotNumber,
-              employeeName: staff.employeeName,
-              slotNumber: parseInt(staff.slotNumber),
-              badgeNumber: staff.badgeNumber,
-              time: timestamp.toTimeString().split(' ')[0],
-              timestamp: timestamp.toISOString(),
-              type: event.type,
-              attendanceStatus: event.status,
-              deviceId: selectedDeviceId,
-              source: 'offline_recovery',
-              recoveredAt: new Date().toISOString()
-            };
+            // Save to attendance_events collection
+            await addDoc(collection(db, "businesses", businessId, "attendance_events"), eventDoc);
             
-            // Save to attendance_events
-            await setDoc(existingRef, eventDoc);
-            
-            // Update status
-            const statusRef = doc(db, "businesses", businessId, "status", staff.slotNumber);
-            await setDoc(statusRef, {
-              attendanceStatus: event.status,
-              lastClockTime: timestamp.toISOString(),
-              lastEventType: event.type,
-              deviceId: selectedDeviceId,
-              updatedAt: new Date().toISOString()
-            }, { merge: true });
-            
-            console.log(`✅ Imported: ${staff.employeeName} - ${event.type} at ${event.time}`);
-            importDetails.push(`✅ ${staff.employeeName} - ${event.type} (${timestamp.toLocaleTimeString()})`);
+            const timeStr = timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            console.log(`✅ Imported: ${employee.name} - ${eventType} at ${timeStr}`);
+            importDetails.push(`✅ ${employee.name} - ${eventType} (${timeStr})`);
             imported++;
             
           } catch (importErr) {
-            console.error(`❌ Error importing event:`, importErr);
+            console.error(`❌ Error importing event:`, importErr, event);
+            skipped++;
           }
         }
         
         // Show results
         const resultMessage = `🚨 OFFLINE EVENT RECOVERY COMPLETE\n\n` +
           `📊 Results:\n` +
-          `   • Events found on device: ${events.length}\n` +
+          `   • Events found on device (today): ${events.length}\n` +
           `   • Successfully imported: ${imported}\n` +
-          `   • Skipped (no staff match or duplicate): ${skipped}\n\n` +
-          (importDetails.length > 0 ? `Imported Events:\n${importDetails.join('\n')}` : '');
+          `   • Skipped (no match or duplicate): ${skipped}\n\n` +
+          (importDetails.length > 0 ? `Imported Events:\n${importDetails.slice(0, 10).join('\n')}` + 
+           (importDetails.length > 10 ? `\n... and ${importDetails.length - 10} more` : '') : 'No events imported.');
         
         alert(resultMessage);
         
@@ -10418,7 +10402,13 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         
       } catch (error) {
         console.error('❌ Recovery failed:', error);
-        alert(`❌ Recovery Failed\n\n${error.message}\n\nCheck console for details.`);
+        let errorMsg = error.message;
+        
+        if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError')) {
+          errorMsg += '\n\n💡 Make sure the Hikvision sync service is running:\ncd hikvision-sync-service && node server.js';
+        }
+        
+        alert(`❌ Recovery Failed\n\n${errorMsg}\n\nCheck console for details.`);
       } finally {
         const recoverBtn = document.querySelector('[onclick="recoverOfflineEvents()"]');
         if (recoverBtn) {
