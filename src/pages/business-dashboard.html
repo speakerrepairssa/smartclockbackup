@@ -10042,6 +10042,14 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
      * Extract historical events from Hikvision device for a specific month
      */
     async function syncMonthlyDeviceEvents() {
+      // ⚙️ SYNC SERVICE CONFIGURATION
+      // Change this to your VPS IP if deployed remotely
+      // Local: http://localhost:3002
+      // VPS: http://YOUR_VPS_IP:3002
+      const SYNC_SERVICE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:3002'
+        : 'http://69.62.109.168:3002'; // Your VPS
+      
       // Try to get device config from selected device first
       const deviceSelect = document.getElementById('syncDeviceSelect');
       const selectedDeviceId = deviceSelect?.value;
@@ -10105,7 +10113,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         statusText.textContent = 'Extracting events from device...';
         progressText.textContent = 'Using Hikvision API with monthly filter';
         
-        const syncServiceUrl = `http://localhost:3002/device/sync-month?ip=${encodeURIComponent(ip)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&month=${month}&year=${year}`;
+        const syncServiceUrl = `${SYNC_SERVICE_URL}/device/sync-month?ip=${encodeURIComponent(ip)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&month=${month}&year=${year}`;
         
         const response = await fetch(syncServiceUrl);
         if (!response.ok) {
@@ -10241,6 +10249,11 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
      * Check device collections and heal missing events to attendance_events
      */
     async function recoverOfflineEvents() {
+      // ⚙️ SYNC SERVICE CONFIGURATION
+      const SYNC_SERVICE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:3002'
+        : 'http://69.62.109.168:3002';
+      
       const deviceSelect = document.getElementById('syncDeviceSelect');
       const selectedDeviceId = deviceSelect.value;
       
@@ -10350,7 +10363,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         // Step 3: Pull today's events from device via sync service
         console.log('📥 Pulling today\'s events from device...');
         
-        const syncServiceUrl = `http://localhost:3002/device/sync-month?ip=${encodeURIComponent(deviceIp)}&username=${encodeURIComponent(deviceUsername)}&password=${encodeURIComponent(devicePassword)}&month=${today.getMonth() + 1}&year=${today.getFullYear()}`;
+        const syncServiceUrl = `${SYNC_SERVICE_URL}/device/sync-month?ip=${encodeURIComponent(deviceIp)}&username=${encodeURIComponent(deviceUsername)}&password=${encodeURIComponent(devicePassword)}&month=${today.getMonth() + 1}&year=${today.getFullYear()}`;
         
         console.log('🔗 Calling sync service...');
         const response = await fetch(syncServiceUrl);
