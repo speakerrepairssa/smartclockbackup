@@ -10058,10 +10058,10 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       // Use VPS relay that can access local network devices
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
-      // VPS relay on port 7660 (same server that handles webhooks)
+      // Firebase Function proxy (HTTPS) -> VPS relay -> device
       const SYNC_SERVICE_URL = isLocal
         ? 'http://localhost:7660'  // Local testing
-        : 'http://69.62.109.168:7660'; // VPS relay (HTTP is fine - relays to local device)
+        : 'https://devicesyncproxy-4q7htrps4q-uc.a.run.app'; // HTTPS proxy via Firebase Function
       
       // Try to get device config from selected device first
       const deviceSelect = document.getElementById('syncDeviceSelect');
@@ -10126,7 +10126,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         statusText.textContent = 'Extracting events from device...';
         progressText.textContent = 'Using Hikvision API with monthly filter';
         
-        const syncServiceUrl = `${SYNC_SERVICE_URL}/device-sync-month?ip=${encodeURIComponent(ip)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&month=${month}&year=${year}`;
+        const syncServiceUrl = `${SYNC_SERVICE_URL}?ip=${encodeURIComponent(ip)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&month=${month}&year=${year}`;
         
         const response = await fetch(syncServiceUrl);
         if (!response.ok) {
@@ -10267,7 +10267,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       
       const SYNC_SERVICE_URL = isLocal
         ? 'http://localhost:7660'
-        : 'http://69.62.109.168:7660'; // VPS relay
+        : 'https://devicesyncproxy-4q7htrps4q-uc.a.run.app'; // HTTPS proxy via Firebase Function
       
       const deviceSelect = document.getElementById('syncDeviceSelect');
       const selectedDeviceId = deviceSelect.value;
@@ -10818,7 +10818,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         
         // Get sync service URL
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const SYNC_SERVICE_URL = isLocal ? 'http://localhost:7660' : 'http://69.62.109.168:7660';
+        const SYNC_SERVICE_URL = isLocal ? 'http://localhost:7660' : 'https://devicesyncproxy-4q7htrps4q-uc.a.run.app';
         
         resultsContent.textContent += `🔗 Service URL: ${SYNC_SERVICE_URL}\n`;
         
@@ -10852,7 +10852,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         
         resultsContent.textContent += `📥 Fetching ${month}/${year} events...\n`;
         
-        const url = `${SYNC_SERVICE_URL}/device-sync-month?ip=${encodeURIComponent(deviceIp)}&username=${encodeURIComponent(deviceUsername)}&password=${encodeURIComponent(devicePassword)}&month=${month}&year=${year}`;
+        const url = `${SYNC_SERVICE_URL}?ip=${encodeURIComponent(deviceIp)}&username=${encodeURIComponent(deviceUsername)}&password=${encodeURIComponent(devicePassword)}&month=${month}&year=${year}`;
         
         const response = await fetch(url);
         

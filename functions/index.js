@@ -17,6 +17,10 @@ exports.debugWebhook = debugWebhook;
 const { syncDevice } = require('./sync-device.js');
 exports.syncDevice = syncDevice;
 
+// Add device sync proxy (routes HTTPS requests to HTTP VPS relay)
+const { deviceSyncProxy } = require('./deviceSyncProxy.js');
+exports.deviceSyncProxy = deviceSyncProxy;
+
 // Import cache calculation functions (isolated module)
 const { calculateAndCacheAssessment } = require('./cacheCalculation.js');
 
