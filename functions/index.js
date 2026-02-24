@@ -13,6 +13,10 @@ const db = getFirestore();
 const { debugWebhook } = require('./debug-webhook.js');
 exports.debugWebhook = debugWebhook;
 
+// Add Hikvision device sync proxy (HTTPS endpoint for browser access)
+const { syncDevice } = require('./sync-device.js');
+exports.syncDevice = syncDevice;
+
 // Import cache calculation functions (isolated module)
 const { calculateAndCacheAssessment } = require('./cacheCalculation.js');
 

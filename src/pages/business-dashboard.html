@@ -10055,15 +10055,15 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
      */
     async function syncMonthlyDeviceEvents() {
       // ⚙️ SYNC SERVICE CONFIGURATION
-      // Detect protocol and hostname
+      //  Detect protocol and hostname
       const isSecure = window.location.protocol === 'https:';
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
-      // For HTTPS sites, we need an HTTPS sync service (or use localhost for testing)
+      // For HTTPS sites, use Firebase Cloud Function (automatically HTTPS)
       const SYNC_SERVICE_URL = isLocal
         ? 'http://localhost:3002'
         : isSecure
-        ? 'https://69.62.109.168:3002' // TODO: Set up SSL on VPS
+        ? 'https://us-central1-aiclock-82608.cloudfunctions.net/syncDevice'
         : 'http://69.62.109.168:3002';
       
       // Try to get device config from selected device first
@@ -10272,7 +10272,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       const SYNC_SERVICE_URL = isLocal
         ? 'http://localhost:3002'
         : isSecure
-        ? 'https://69.62.109.168:3002'
+        ? 'https://us-central1-aiclock-82608.cloudfunctions.net/syncDevice'
         : 'http://69.62.109.168:3002';
       
       const deviceSelect = document.getElementById('syncDeviceSelect');
@@ -10825,7 +10825,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         // Get sync service URL
         const isSecure = window.location.protocol === 'https:';
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const SYNC_SERVICE_URL = isLocal ? 'http://localhost:3002' : (isSecure ? 'https://69.62.109.168:3002' : 'http://69.62.109.168:3002');
+        const SYNC_SERVICE_URL = isLocal ? 'http://localhost:3002' : (isSecure ? 'https://us-central1-aiclock-82608.cloudfunctions.net/syncDevice' : 'http://69.62.109.168:3002');
         
         resultsContent.textContent += `🔗 Service URL: ${SYNC_SERVICE_URL}\n`;
         

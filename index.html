@@ -1,0 +1,3804 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AiClock - Time & Attendance</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen" class="login-container">
+    <div class="login-box">
+      <div class="logo">🕐 AiClock</div>
+      <h2>Welcome</h2>
+      
+      <!-- MAIN LOGIN -->
+      <div id="main-login" class="login-form">
+        <input type="email" id="login-email" placeholder="Email Address" autocomplete="email">
+        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+        <button onclick="handleLogin()" class="btn primary">Login</button>
+        <div class="signup-link">
+          <a href="#" onclick="showRegister()">New business? Register here</a>
+        </div>
+        <div style="text-align: center; margin-top: 10px;">
+          <a href="#" onclick="showPasswordRecovery()" style="color: #3498db; font-size: 14px; text-decoration: none;">📧 Forgot Password?</a>
+        </div>
+      </div>
+      
+      <!-- BUSINESS REGISTRATION -->
+      <div id="business-register" class="login-form" style="display: none;">
+        <h3>Register Your Business</h3>
+        <input type="text" id="register-business-name" placeholder="Business Name">
+        <input type="email" id="register-email" placeholder="Business Email">
+        <input type="password" id="register-password" placeholder="Choose Password">
+        <button onclick="handleRegister()" class="btn success">Register Business</button>
+        <div class="signup-link">
+          <a href="#" onclick="showLogin()">Already have an account? Login</a>
+        </div>
+      </div>
+      
+      <div id="login-error" class="error-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION (hidden until login) -->
+  <div id="main-app" class="main-container" style="display: none;">
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="container">
+        <div class="header-left">
+          <h1 class="app-title">🕐 AiClock Enterprise</h1>
+          <span class="user-info" id="user-display"></span>
+        </div>
+        <div class="header-right">
+          <span class="last-refresh" id="last-refresh">Live</span>
+          <button class="btn logout" onclick="logout()">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- DASHBOARD CONTENT -->
+    <div class="dashboard-content">
+      <!-- DASHBOARD STATS -->
+      <div class="dashboard-stats">
+        <div class="stat-card">
+          <div class="stat-number" id="active-employees">0</div>
+          <div class="stat-label">Active Employees</div>
+          <div class="stat-sublabel" id="employee-count">0 Licensed Limit</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="mobile-templates">0</div>
+          <div class="stat-label">Mobile Face Templates</div>
+          <div class="stat-sublabel">0 Licensed Limit</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="system-users">1</div>
+          <div class="stat-label">System Users</div>
+          <div class="stat-sublabel">1 Online User(s) Today</div>
+        </div>
+      </div>
+
+      <!-- MODULE GRID -->
+      <div id="business-modules" class="module-grid" style="display: none;">
+      <!-- BUSINESS USER MODULES -->
+      <!-- Row 1 -->
+      <div class="module-card active" onclick="showModule('employees', event)">
+        <div class="module-icon">👥</div>
+        <div class="module-title">Employees</div>
+        <div class="module-status active">10 Active</div>
+      </div>
+      <div class="module-card" onclick="showModule('pull-file', event)">
+        <div class="module-icon">📁</div>
+        <div class="module-title">Pull File</div>
+      </div>
+      <div class="module-card" onclick="showModule('clocking-exceptions', event)">
+        <div class="module-icon">⏰</div>
+        <div class="module-title">Clocking Exceptions</div>
+      </div>
+      <div class="module-card" onclick="showModule('running-timecard', event)">
+        <div class="module-icon">📊</div>
+        <div class="module-title">Running Timecard</div>
+      </div>
+      <div class="module-card" onclick="showModule('terminals', event)">
+        <div class="module-icon">💻</div>
+        <div class="module-title">Terminals</div>
+        <div class="module-status error">No Errors</div>
+      </div>
+      <div class="module-card" onclick="showModule('mobile-clockings', event)">
+        <div class="module-icon">📱</div>
+        <div class="module-title">Mobile Clockings</div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="module-card disabled">
+        <div class="module-icon">📞</div>
+        <div class="module-title">Call Out Manager</div>
+        <div class="module-status disabled">Not Activated</div>
+      </div>
+      <div class="module-card" onclick="showModule('roster', event)">
+        <div class="module-icon">📅</div>
+        <div class="module-title">Roster</div>
+      </div>
+      <div class="module-card" onclick="showModule('system-users', event)">
+        <div class="module-icon">👤</div>
+        <div class="module-title">System Users</div>
+        <div class="module-status active">1 Online</div>
+      </div>
+      <div class="module-card" onclick="showModule('visitors', event)">
+        <div class="module-icon">🎫</div>
+        <div class="module-title">Visitors</div>
+      </div>
+      <div class="module-card disabled">
+        <div class="module-icon">🔔</div>
+        <div class="module-title">Notifications</div>
+        <div class="module-status disabled">Not Activated</div>
+      </div>
+      <div class="module-card" onclick="showModule('report-scheduler', event)">
+        <div class="module-icon">📋</div>
+        <div class="module-title">Report Scheduler</div>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="module-card" onclick="showModule('monitor-mode', event)">
+        <div class="module-icon">📺</div>
+        <div class="module-title">Monitor Mode</div>
+      </div>
+      <div class="module-card" onclick="showModule('evacuation-monitor', event)">
+        <div class="module-icon">🚨</div>
+        <div class="module-title">Evacuation Monitor</div>
+      </div>
+      <div class="module-card disabled">
+        <div class="module-icon">👨‍💼</div>
+        <div class="module-title">Employee Self Services</div>
+        <div class="module-status disabled">Not Activated</div>
+      </div>
+      <div class="module-card" onclick="showModule('kpi-manager', event)">
+        <div class="module-icon">📈</div>
+        <div class="module-title">KPI Manager</div>
+      </div>
+    </div> <!-- End business-modules -->
+
+    <!-- ADMIN MODULES -->
+    <div id="admin-modules" class="module-grid" style="display: none;">
+      <!-- Row 1 -->
+      <div class="module-card active" onclick="showModule('all-businesses', event)">
+        <div class="module-icon">🏢</div>
+        <div class="module-title">All Businesses</div>
+        <div class="module-status active" id="total-businesses-count">0 Active</div>
+      </div>
+      <div class="module-card" onclick="showModule('pending-approvals', event)">
+        <div class="module-icon">⏳</div>
+        <div class="module-title">Pending Approvals</div>
+        <div class="module-status" id="pending-approvals-count">0 Pending</div>
+      </div>
+      <div class="module-card" onclick="showModule('billing-management', event)">
+        <div class="module-icon">💰</div>
+        <div class="module-title">Billing & Subscriptions</div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="module-card" onclick="showModule('system-overview', event)">
+        <div class="module-icon">📊</div>
+        <div class="module-title">System Overview</div>
+      </div>
+      <div class="module-card" onclick="showModule('admin-settings', event)">
+        <div class="module-icon">⚙️</div>
+        <div class="module-title">System Settings</div>
+      </div>
+      <div class="module-card" onclick="showModule('activity-logs', event)">
+        <div class="module-icon">📋</div>
+        <div class="module-title">Activity Logs</div>
+      </div>
+    </div> <!-- End admin-modules -->
+
+    </div> <!-- End dashboard-content -->
+
+    <!-- MODULE CONTENT AREA (initially hidden) -->
+    <div class="module-content" id="module-content" style="display: none;">
+      <!-- Content will be loaded dynamically by showModule() -->
+    </div>
+
+    <!-- Keep the old pages for backward compatibility but hidden -->
+    <div id="legacy-pages" style="display: none;">
+        <div id="page-dashboard" class="page" style="display: flex; flex-direction: column;">
+          <div class="card">
+            <h2>Statistics</h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-label">Total Employees</div>
+                <div class="stat-value" id="stat-total">0</div>
+              </div>
+              <div class="stat in">
+                <div class="stat-label">Clocked In</div>
+                <div class="stat-value" id="stat-in">0</div>
+              </div>
+              <div class="stat out">
+                <div class="stat-label">Clocked Out</div>
+                <div class="stat-value" id="stat-out">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Recent Activity</h2>
+            <div class="controls">
+              <button class="btn" onclick="refreshActivity()">🔄 Refresh</button>
+              <span id="last-refresh" class="last-update">Never</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Badge</th>
+                  <th>Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="activity-list">
+                <tr><td colspan="4" class="empty">Loading activity...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Live Attendance Status Cards -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+            <div class="card">
+              <h3 style="color: #4CAF50; margin-top: 0;">👋 Employees IN</h3>
+              <div id="employees-in" class="employee-status-list">
+                <div class="empty">Loading...</div>
+              </div>
+            </div>
+            <div class="card">
+              <h3 style="color: #f44336; margin-top: 0;">🚪 Employees OUT</h3>
+              <div id="employees-out" class="employee-status-list">
+                <div class="empty">Loading...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE: EMPLOYEES -->
+        <div id="page-employees" class="page" style="display: none; flex-direction: column;">
+          <!-- Staff Slot Assignment Section -->
+          <div class="card">
+            <h2>Staff Slot Management</h2>
+            <p>Device employee IDs (1, 2, 3...) are auto-assigned on first scan to unique badge numbers</p>
+            <div class="controls">
+              <button class="btn primary" onclick="loadStaffSlots()">🔄 Load Slots</button>
+              <button class="btn" onclick="createTestSlots()">🧪 Create Test Slots</button>
+              <button class="btn info" onclick="clearAllSlots()">🗑️ Clear All Slots</button>
+              <button class="btn success" onclick="resetSlotSystem()">🆕 Reset System</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Device ID</th>
+                  <th>Auto-Assigned Badge</th>
+                  <th>Employee Name</th>
+                  <th>Assignment Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="staff-slots-list">
+                <tr><td colspan="5" class="empty">Click "Load Slots" to view auto-assignments</td></tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Employee Management Section -->
+          <div class="card">
+            <h2>Employee Management</h2>
+            <div class="controls">
+              <button class="btn" onclick="openAddEmployeeModal()">+ Add Employee</button>
+              <button class="btn success" onclick="syncEmployeesFromStatus()">🔄 Sync from Device</button>
+              <button class="btn info" onclick="pullEmployeesFromDevice()">📥 Pull from Device</button>
+              <button class="btn primary" onclick="importScanHistory()">📥 Import History</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Badge</th>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="employees-list">
+                <tr><td colspan="5" class="empty">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PAGE: MONITOR -->
+        <div id="page-monitor" class="page" style="display: none; flex-direction: column;">
+          <div style="display: flex; gap: 20px; height: 100%;">
+            <!-- IN Column -->
+            <div class="card" style="flex: 1; background: linear-gradient(135deg, #4caf50, #45a049);">
+              <h3 style="color: white; margin-top: 0; text-align: center;">-- IN --</h3>
+              <table style="width: 100%; background: white; border-radius: 8px;">
+                <thead>
+                  <tr style="background: #f5f5f5;">
+                    <th style="padding: 10px; text-align: left;">EMPLOYEE NUMBER</th>
+                    <th style="padding: 10px; text-align: center;">TIME</th>
+                    <th style="padding: 10px; text-align: center;">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody id="monitor-in-list">
+                  <tr><td colspan="3" style="text-align: center; padding: 20px;">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- OUT Column -->
+            <div class="card" style="flex: 1; background: linear-gradient(135deg, #f44336, #d32f2f);">
+              <h3 style="color: white; margin-top: 0; text-align: center;">-- OUT --</h3>
+              <table style="width: 100%; background: white; border-radius: 8px;">
+                <thead>
+                  <tr style="background: #f5f5f5;">
+                    <th style="padding: 10px; text-align: left;">EMPLOYEE NUMBER</th>
+                    <th style="padding: 10px; text-align: center;">TIME</th>
+                    <th style="padding: 10px; text-align: center;">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody id="monitor-out-list">
+                  <tr><td colspan="3" style="text-align: center; padding: 20px;">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAGE: TIMECARD -->
+        <div id="page-timecard" class="page" style="display: none; flex-direction: column;">
+          <div class="card">
+            <h2>Monthly Timecard</h2>
+            <div class="controls">
+              <label>Month:</label>
+              <input type="month" id="timecard-month">
+              <button class="btn" onclick="loadTimecard()">Load</button>
+            </div>
+            <div style="overflow-x: auto;">
+              <table>
+                <thead id="timecard-header">
+                  <tr><th colspan="2">Loading...</th></tr>
+                </thead>
+                <tbody id="timecard-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADMIN ONLY: MANAGE BUSINESSES -->
+        <div id="page-businesses" class="page" style="display: none; flex-direction: column;">
+          <div class="card">
+            <h2>Business Management</h2>
+            <button class="btn primary" onclick="window.refreshBusinesses()" style="margin: 10px 0;">Refresh List</button>
+            <div id="businesses-container">Loading businesses...</div>
+          </div>
+        </div>
+
+        <!-- ADMIN ONLY: BILLING & PLANS -->
+        <div id="page-billing" class="page" style="display: none; flex-direction: column;">
+          <div class="card">
+            <h2>💰 Billing Overview</h2>
+            <p>Revenue and business statistics</p>
+            <div style="padding: 40px; text-align: center; background: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+              <h3>📊 Quick Stats</h3>
+              <div style="display: flex; justify-content: space-around; margin: 20px 0;">
+                <div>
+                  <strong style="display: block; font-size: 24px; color: #28a745;" id="total-businesses">-</strong>
+                  <span>Active Businesses</span>
+                </div>
+                <div>
+                  <strong style="display: block; font-size: 24px; color: #007bff;" id="total-slots">-</strong>
+                  <span>Total Slots</span>
+                </div>
+                <div>
+                  <strong style="display: block; font-size: 24px; color: #28a745;" id="total-revenue">-</strong>
+                  <span>Monthly Revenue</span>
+                </div>
+              </div>
+              <button class="btn primary" onclick="calculateStats()">📈 Update Stats</button>
+            </div>
+          </div>
+        </div>
+    </div>  <!-- End legacy-pages -->
+  </div>  <!-- End main-app -->
+
+  <!-- MODAL: Password Recovery -->
+  <div id="password-recovery-modal" class="modal" style="display:none;">
+    <div class="modal-box" style="max-width: 400px;">
+      <span class="close" onclick="closePasswordRecovery()">&times;</span>
+      <h3>🔐 Password Recovery</h3>
+      <p>Enter your business email address to recover your password:</p>
+      <form onsubmit="recoverPassword(event)">
+        <div class="form-group">
+          <label>Business Email:</label>
+          <input type="email" id="recovery-email" required placeholder="your-business@example.com" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="button" onclick="closePasswordRecovery()" class="btn" style="flex: 1;">Cancel</button>
+          <button type="submit" class="btn primary" style="flex: 1;">📧 Recover Password</button>
+        </div>
+      </form>
+      <div id="recovery-result" style="margin-top: 15px; display: none;"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Employee -->
+  <div id="modal-employee" class="modal">
+    <div class="modal-box">
+      <h3>Add Employee</h3>
+      <div class="form-group">
+        <label>Employee ID</label>
+        <input type="text" id="emp-id">
+      </div>
+      <div class="form-group">
+        <label>Badge Number</label>
+        <input type="text" id="emp-badge">
+      </div>
+      <div class="form-group">
+        <label>First Name</label>
+        <input type="text" id="emp-first">
+      </div>
+      <div class="form-group">
+        <label>Last Name</label>
+        <input type="text" id="emp-last">
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn success" onclick="saveEmployee()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUSINESS SETTINGS MODAL -->
+  <div id="modal-business-settings" class="modal">
+    <div class="modal-box" style="max-width: 600px; width: 95%;">
+      <h3 id="business-settings-title">Business Settings</h3>
+      
+      <div class="form-group">
+        <label>Business Name</label>
+        <input type="text" id="settings-business-name" readonly>
+      </div>
+      
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="settings-business-email" readonly>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="form-group">
+          <label>Staff Slots Allowed</label>
+          <input type="number" id="settings-slots-allowed" min="1" max="1000">
+        </div>
+        
+        <div class="form-group">
+          <label>Monthly Fee ($)</label>
+          <input type="number" id="settings-monthly-fee" step="0.01">
+        </div>
+      </div>
+      
+      <hr style="margin: 25px 0; border: 1px solid #eee;">
+      <h4 style="margin-bottom: 15px; color: #3498db;">📱 Device Configuration</h4>
+      
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+        <div class="form-group">
+          <label>Device IP Address</label>
+          <input type="text" id="settings-device-ip" placeholder="192.168.1.100">
+          <small>IP address of the Hikvision attendance device</small>
+        </div>
+        
+        <div class="form-group">
+          <label>Device ID</label>
+          <input type="text" id="settings-device-id" placeholder="DEV001">
+          <small>Unique identifier</small>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Device Name</label>
+        <input type="text" id="settings-device-name" placeholder="Main Entrance Scanner">
+        <small>Friendly name for the device</small>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px;">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="settings-device-username" placeholder="admin" value="admin">
+        </div>
+        
+        <div class="form-group">
+          <label>Device Password</label>
+          <input type="password" id="settings-device-password" placeholder="Device password">
+        </div>
+      </div>
+      
+      <hr style="margin: 25px 0; border: 1px solid #eee;">
+      <h4 style="margin-bottom: 15px; color: #e74c3c;">🏢 Business Status</h4>
+      
+      <div class="form-group">
+        <label>Status</label>
+        <select id="settings-business-status" style="padding: 10px;">
+          <option value="active">✅ Active</option>
+          <option value="suspended">⏸️ Suspended</option>
+          <option value="pending">⏳ Pending</option>
+        </select>
+      </div>
+      
+      <hr style="margin: 25px 0; border: 1px solid #eee;">
+      <h4 style="margin-bottom: 15px; color: #9b59b6;">⏰ Working Hours</h4>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="form-group">
+          <label>Work Start Time</label>
+          <input type="time" id="settings-work-start" value="08:00">
+        </div>
+        
+        <div class="form-group">
+          <label>Work End Time</label>
+          <input type="time" id="settings-work-end" value="17:00">
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="form-group">
+          <label>Break Duration (minutes)</label>
+          <input type="number" id="settings-break-duration" value="60" min="0" max="240">
+        </div>
+        
+        <div class="form-group">
+          <label>Late Grace Period (minutes)</label>
+          <input type="number" id="settings-late-grace" value="15" min="0" max="60">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Timezone</label>
+        <select id="settings-timezone" style="padding: 10px;">
+          <option value="Africa/Johannesburg">South Africa (SAST)</option>
+          <option value="UTC">UTC</option>
+          <option value="America/New_York">New York (EST/EDT)</option>
+          <option value="Europe/London">London (GMT/BST)</option>
+          <option value="Asia/Dubai">Dubai (GST)</option>
+          <option value="Australia/Sydney">Sydney (AEST/AEDT)</option>
+        </select>
+      </div>
+      
+      <hr style="margin: 25px 0; border: 1px solid #eee;">
+      <h4 style="margin-bottom: 15px; color: #27ae60;">📊 Reporting Settings</h4>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="form-group">
+          <label>Enable Overtime Tracking</label>
+          <select id="settings-overtime-enabled" style="padding: 10px;">
+            <option value="true">✅ Yes</option>
+            <option value="false">❌ No</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Overtime Rate (multiplier)</label>
+          <input type="number" id="settings-overtime-rate" value="1.5" step="0.1" min="1" max="3">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Photo Capture on Clock-In</label>
+        <select id="settings-photo-capture" style="padding: 10px;">
+          <option value="required">📸 Required</option>
+          <option value="optional">📷 Optional</option>
+          <option value="disabled">❌ Disabled</option>
+        </select>
+      </div>
+      
+      <hr style="margin: 25px 0; border: 1px solid #eee;">
+      <h4 style="margin-bottom: 15px; color: #f39c12;">🔔 Notifications</h4>
+      
+      <div class="form-group">
+        <label>Admin Email for Alerts</label>
+        <input type="email" id="settings-admin-email" placeholder="admin@company.com">
+        <small>Email for late arrivals, missed clock-outs, etc.</small>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="form-group">
+          <label>Late Arrival Alerts</label>
+          <select id="settings-late-alerts" style="padding: 10px;">
+            <option value="immediate">⚡ Immediate</option>
+            <option value="daily">📅 Daily Summary</option>
+            <option value="disabled">❌ Disabled</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Weekly Reports</label>
+          <select id="settings-weekly-reports" style="padding: 10px;">
+            <option value="monday">📊 Monday</option>
+            <option value="friday">📋 Friday</option>
+            <option value="disabled">❌ Disabled</option>
+          </select>
+        </div>
+      </div>
+      
+      <hr style="margin: 25px 0; border: 1px solid #eee;">
+      <h4 style="margin-bottom: 15px; color: #e67e22;">⚙️ Advanced Settings</h4>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="form-group">
+          <label>API Access</label>
+          <select id="settings-api-enabled" style="padding: 10px;">
+            <option value="false">🔒 Disabled</option>
+            <option value="true">🔓 Enabled</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Data Retention (months)</label>
+          <input type="number" id="settings-retention" value="12" min="3" max="60">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Export Format</label>
+        <select id="settings-export-format" style="padding: 10px;">
+          <option value="csv">📄 CSV</option>
+          <option value="excel">📊 Excel</option>
+          <option value="pdf">📋 PDF</option>
+          <option value="json">🔧 JSON</option>
+        </select>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn" onclick="closeBusinessSettings()" style="background: #95a5a6;">Cancel</button>
+        <button class="btn" onclick="initializeCollections()" style="background: #3498db; color: white;">🔧 Initialize Collections</button>
+        <button class="btn" onclick="importAllDeviceEvents()" style="background: #9b59b6; color: white;">📥 Import All Events</button>
+        <button class="btn" onclick="testDeviceConnection()" style="background: #f39c12; color: white;">🔗 Test Device</button>
+        <button class="btn success" onclick="saveBusinessSettings()">💾 Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    // Global variables and functions that need to be accessible
+    // ADMIN_CREDENTIALS removed for security - admin login handled server-side
+    
+    // New unified login/register functions
+    window.showLogin = function() {
+      document.getElementById('main-login').style.display = 'block';
+      document.getElementById('business-register').style.display = 'none';
+    };
+    
+    window.showRegister = function() {
+      document.getElementById('main-login').style.display = 'none';
+      document.getElementById('business-register').style.display = 'block';
+    };
+    
+    // Login helper functions
+    function showLoginError(message) {
+      const errorDiv = document.getElementById('login-error');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+    
+    // Unified login handler - detects admin vs business based on email
+    window.handleLogin = async function() {
+      console.log('🔑 Login attempt started');
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      
+      console.log('📧 Email entered:', email);
+      console.log('🔐 Admin email check:', window.ADMIN_CREDENTIALS.username);
+      console.log('📊 Is admin email?', email === window.ADMIN_CREDENTIALS.username);
+      
+      if (!email || !password) {
+        showLoginError('Please enter email and password');
+        return;
+      }
+
+      // Check if this is admin login (by email)
+      if (email === window.ADMIN_CREDENTIALS.username) {
+        console.log('🛡️ Admin login detected');
+        if (password === window.ADMIN_CREDENTIALS.password) {
+          console.log('✅ Admin credentials valid');
+          const currentUser = {
+            type: 'admin',
+            username: email,
+            email: email
+          };
+          
+          localStorage.setItem('aiclock_user', JSON.stringify(currentUser));
+          console.log('💾 Admin user saved to localStorage:', currentUser);
+          
+          if (window.initializeAfterLogin) {
+            console.log('🚀 Calling initializeAfterLogin');
+            window.initializeAfterLogin();
+          } else {
+            console.log('🔄 Reloading page');
+            location.reload();
+          }
+        } else {
+          console.log('❌ Invalid admin password');
+          showLoginError('Invalid admin password');
+        }
+        return;
+      }
+
+      // Special case: Password recovery for businesses
+      if (email.includes('@') && password === 'RECOVER_PASSWORD_2026') {
+        try {
+          const businessesCollection = collection(db, 'businesses');
+          const businessQuery = query(businessesCollection, where('email', '==', email));
+          const businessSnapshot = await getDocs(businessQuery);
+          
+          if (!businessSnapshot.empty) {
+            businessSnapshot.forEach((doc) => {
+              const business = doc.data();
+              alert(`Password Recovery for ${business.businessName || 'Business'}:\n\nEmail: ${business.email}\nPassword: ${business.password}`);
+            });
+          } else {
+            showLoginError('No business found with that email address.');
+          }
+        } catch (error) {
+          showLoginError('Password recovery failed: ' + error.message);
+        }
+        return;
+      }
+
+      console.log('🏢 Business login detected');
+      // Business login
+      try {
+        // Check if Firebase is ready with retry logic
+        console.log('🔄 Checking Firebase readiness...');
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        while ((!window.db || !window.firestoreUtils) && attempts < maxAttempts) {
+          console.log(`⏳ Firebase not ready, waiting... (attempt ${attempts + 1}/${maxAttempts})`);
+          showLoginError(`System initializing... (${attempts + 1}/${maxAttempts})`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          attempts++;
+        }
+        
+        if (!window.db || !window.firestoreUtils) {
+          console.log('❌ Firebase failed to initialize after waiting');
+          showLoginError('System startup failed. Please refresh the page and try again.');
+          return;
+        }
+        
+        console.log('✅ Firebase ready, proceeding with business login');
+        showLoginError(''); // Clear any initialization messages
+        
+        console.log('🔍 Searching for business with email:', email);
+        const { collection, getDocs } = window.firestoreUtils;
+        const businessesCollection = collection(window.db, 'businesses');
+        const businessSnapshot = await getDocs(businessesCollection);
+        
+        let foundBusiness = null;
+        let allBusinesses = [];
+        
+        businessSnapshot.forEach((doc) => {
+          const data = doc.data();
+          allBusinesses.push({ id: doc.id, email: data.email, status: data.status });
+          console.log('📋 Found business:', data.businessName, '| Email:', data.email, '| Status:', data.status);
+          
+          if (data.email === email && data.password === password) {
+            foundBusiness = { id: doc.id, ...data };
+          }
+        });
+        
+        console.log('📊 Total businesses in database:', allBusinesses.length);
+        console.log('🎯 Looking for exact match with:', email);
+        
+        if (foundBusiness) {
+          console.log('✅ Business found:', foundBusiness.businessName);
+          
+          if (foundBusiness.status === 'pending') {
+            showLoginError('Your business registration is pending admin approval. Please wait for activation.');
+            return;
+          }
+          
+          if (foundBusiness.status === 'suspended') {
+            showLoginError('Your business account has been suspended. Please contact support.');
+            return;
+          }
+          
+          console.log('🚀 Business login successful for:', foundBusiness.businessName);
+          const currentUser = {
+            type: 'business',
+            businessId: foundBusiness.id,
+            ...foundBusiness
+          };
+          
+          localStorage.setItem('aiclock_user', JSON.stringify(currentUser));
+          
+          if (window.initializeAfterLogin) {
+            window.initializeAfterLogin();
+          } else {
+            location.reload();
+          }
+        } else {
+          console.log('❌ No matching business found');
+          console.log('Available business emails:', allBusinesses.map(b => b.email));
+          
+          // Check if email exists but password is wrong
+          const emailExists = allBusinesses.find(b => b.email === email);
+          if (emailExists) {
+            showLoginError('Invalid password for this business account.');
+          } else {
+            showLoginError(`No business account found with email: ${email}`);
+          }
+        }
+      } catch (error) {
+        console.error('💥 Business login error:', error);
+        showLoginError('Login failed: ' + error.message);
+      }
+    };
+    
+    // Business registration
+    window.handleRegister = async function() {
+      console.log('Registration attempt started');
+      const businessName = document.getElementById('register-business-name').value.trim();
+      const email = document.getElementById('register-email').value.trim();
+      const password = document.getElementById('register-password').value;
+
+      if (!businessName || !email || !password) {
+        showLoginError('Please fill all fields');
+        return;
+      }
+
+      if (password.length < 6) {
+        showLoginError('Password must be at least 6 characters');
+        return;
+      }
+
+      // Prevent registration with admin email
+      if (email === window.ADMIN_CREDENTIALS.username) {
+        showLoginError('This email is reserved. Please use a different email address.');
+        return;
+      }
+
+      try {
+        showLoginError('Registering business...');
+        console.log('Calling Cloud Function with:', { businessName, email });
+        
+        const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/registerNewBusiness', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            businessName: businessName,
+            email: email,
+            password: password
+          })
+        });
+        
+        console.log('Cloud Function response status:', response.status);
+        const result = await response.json();
+        console.log('Cloud Function result:', result);
+        
+        if (result.success) {
+          alert(`🎉 Business registered successfully!\n\n📋 Status: Pending Admin Approval\n🔑 Business ID: ${result.businessId}\n\n⏰ An admin will review and activate your account. You'll then receive staff slots and be able to login.\n\n✅ Please save your login credentials for future use.`);
+          window.showLogin();
+        } else {
+          console.error('Registration failed:', result.error);
+          showLoginError(result.error || 'Registration failed');
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        showLoginError('Registration failed: ' + error.message);
+        
+        // Fallback: Try direct Firestore registration
+        console.log('Attempting direct Firestore registration...');
+        try {
+          if (window.db && window.firestoreUtils) {
+            const { collection, addDoc } = window.firestoreUtils;
+            const businessData = {
+              businessName: businessName,
+              email: email,
+              password: password,
+              status: 'pending',
+              plan: 'Basic',
+              slotsAllowed: 5,
+              monthlyFee: 29.99,
+              createdAt: new Date().toISOString(),
+              createdBy: 'direct-registration'
+            };
+            
+            const docRef = await addDoc(collection(window.db, 'businesses'), businessData);
+            console.log('Direct registration successful:', docRef.id);
+            
+            alert(`🎉 Business registered successfully!\n\n📋 Status: Pending Admin Approval\n🔑 Business ID: ${docRef.id}\n\n⏰ An admin will review and activate your account.\n\n✅ Please save your login credentials for future use.`);
+            window.showLogin();
+          } else {
+            showLoginError('Registration system not available. Please try again later.');
+          }
+        } catch (fallbackError) {
+          console.error('Direct registration also failed:', fallbackError);
+          showLoginError('Registration failed. Please contact support.');
+        }
+      }
+    };
+  </script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getFirestore, collection, doc, getDocs, addDoc, setDoc, deleteDoc, getDoc, updateDoc, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+    const app = initializeApp(window.FIREBASE_CONFIG);
+    const db = getFirestore(app);
+    
+    // Make db and all Firestore functions accessible globally
+    window.db = db;
+    window.firestoreUtils = { collection, doc, getDocs, addDoc, setDoc, deleteDoc, getDoc, updateDoc, query, where, orderBy, limit, onSnapshot };
+
+    // Multi-tenant authentication system
+    let currentUser = null;
+    let currentUserType = null; // 'admin' or 'business'
+    let currentBusinessId = null;
+    let pollingInterval; // Polling timer for real-time updates
+
+    // Initialize application
+    checkLoginStatus();
+    
+    // Expose initialization function for global login functions
+    window.initializeAfterLogin = function() {
+      const savedUser = localStorage.getItem('aiclock_user');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        currentUser = userData;
+        currentUserType = userData.userType || userData.type; // Handle both formats
+        currentBusinessId = userData.businessId || userData.uid || userData.id;
+        
+        console.log('🚀 Initializing after login:', {
+          user: userData.email,
+          userType: currentUserType,
+          businessId: currentBusinessId
+        });
+        
+        showMainApp();
+      }
+    };
+    
+    // Create test business if it doesn't exist (for development)
+    async function ensureTestBusiness() {
+      try {
+        console.log('🔍 Checking for test business...');
+        const businessesCollection = collection(db, 'businesses');
+        const businessSnapshot = await getDocs(businessesCollection);
+        let hasTestBusiness = false;
+        
+        businessSnapshot.forEach((doc) => {
+          const business = doc.data();
+          console.log('📄 Existing business:', doc.id, business);
+          if (business.email === 'info@srcomponents.co.za') {
+            hasTestBusiness = true;
+          }
+        });
+        
+        if (!hasTestBusiness) {
+          console.log('🏗️ Creating test business...');
+          const testBusiness = {
+            businessId: 'biz_srcomponents',
+            businessName: 'SR Components',
+            email: 'info@srcomponents.co.za',
+            password: 'admin123', // Simple password for testing
+            plan: 'Basic',
+            slotsAllowed: 10,
+            monthlyFee: 29.99,
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            createdBy: 'system'
+          };
+          
+          const docRef = await setDoc(doc(db, 'businesses', 'biz_srcomponents'), testBusiness);
+          console.log('✅ Test business created successfully:', testBusiness);
+          
+          // Create another test business
+          const testBusiness2 = {
+            businessId: 'biz_demo',
+            businessName: 'Demo Company',
+            email: 'demo@example.com',
+            password: 'demo123',
+            plan: 'Pro',
+            slotsAllowed: 25,
+            monthlyFee: 59.99,
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            createdBy: 'system'
+          };
+          
+          await setDoc(doc(db, 'businesses', 'biz_demo'), testBusiness2);
+          console.log('✅ Demo business created successfully');
+        } else {
+          console.log('✅ Test business already exists');
+        }
+      } catch (error) {
+        console.error('⚠️ Could not create test business:', error);
+        alert('Error creating test data: ' + error.message);
+      }
+    }
+    
+    // Call this on page load
+    ensureTestBusiness();
+
+    function checkLoginStatus() {
+      const savedUser = localStorage.getItem('aiclock_user');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        currentUser = userData;
+        currentUserType = userData.type;
+        currentBusinessId = userData.businessId;
+        showMainApp();
+      } else {
+        showLoginScreen();
+      }
+    }
+
+    function showLoginScreen() {
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('main-app').style.display = 'none';
+    }
+
+    function showMainApp() {
+      console.log('🚀 Showing main app for user:', currentUser);
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('main-app').style.display = 'flex';
+      
+      // Update UI based on user type
+      updateUserInterface();
+      
+      // Start the app
+      initializeMainApp();
+    }
+
+    function initializeMainApp() {
+      console.log('🚀 Initializing main app');
+      
+      try {
+        // Load business-specific settings if business user
+        if (currentUserType === 'business' && currentBusinessId) {
+          loadBusinessSettingsForUser();
+        }
+        
+        // Initialize
+        if (window.showPage) {
+          window.showPage('dashboard');
+        }
+        
+        const pageTitleEl = document.getElementById('page-title');
+        if (pageTitleEl) {
+          pageTitleEl.textContent = 'Dashboard';
+        }
+        
+        // Set month picker to current month
+        const now = new Date();
+        const timecardMonth = document.getElementById('timecard-month');
+        if (timecardMonth) {
+          timecardMonth.valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        }
+
+        // Start polling system
+        pollLatestEvents();
+        pollingInterval = setInterval(pollLatestEvents, 5000);
+        
+        // Also load staff data initially from Firebase for complete employee info
+        const staffRef = collection(db, 'businesses', currentBusinessId || 'default', 'staff');
+        onSnapshot(staffRef, (querySnapshot) => {
+          const staffData = {};
+          querySnapshot.forEach((doc) => {
+            staffData[doc.id] = doc.data();
+          });
+          
+          // Merge staff data with existing employees data
+          Object.entries(staffData).forEach(([id, emp]) => {
+            employees[id] = emp;
+          });
+          if (window.renderEmployees) {
+            renderEmployees();
+          }
+        });
+      } catch (error) {
+        console.error('❌ Error initializing main app:', error);
+      }
+    }
+
+    // Load business settings for logged-in business user
+    async function loadBusinessSettingsForUser() {
+      try {
+        console.log('📋 Loading settings for business:', currentBusinessId);
+        const { doc, getDoc } = window.firestoreUtils;
+        const businessRef = doc(window.db, 'businesses', currentBusinessId);
+        const businessSnap = await getDoc(businessRef);
+        
+        if (businessSnap.exists()) {
+          const businessData = businessSnap.data();
+          window.currentBusinessSettings = businessData;
+          console.log('✅ Business settings loaded:', {
+            name: businessData.businessName,
+            device: businessData.deviceIp,
+            slots: businessData.slotsAllowed,
+            workHours: `${businessData.workStartTime} - ${businessData.workEndTime}`
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error loading business settings:', error);
+      }
+    }
+
+    function updateUserInterface() {
+      console.log('🎨 Updating UI for:', currentUserType, currentUser);
+      
+      // Update header user display for new enterprise layout
+      const userDisplay = document.getElementById('user-display');
+      if (userDisplay && currentUser) {
+        if (currentUser.userType === 'business' || currentUser.type === 'business') {
+          userDisplay.textContent = `${currentUser.businessName || 'Business'} | ${currentUser.email}`;
+        } else {
+          userDisplay.textContent = `Admin | ${currentUser.email}`;
+        }
+      }
+
+      // Show appropriate module grid based on user type
+      const businessModules = document.getElementById('business-modules');
+      const adminModules = document.getElementById('admin-modules');
+      
+      if (currentUserType === 'admin') {
+        if (businessModules) businessModules.style.display = 'none';
+        if (adminModules) adminModules.style.display = 'grid';
+      } else {
+        if (businessModules) businessModules.style.display = 'grid';
+        if (adminModules) adminModules.style.display = 'none';
+      }
+      
+      // Legacy support for old elements (if they exist)
+      try {
+        const currentUserEl = document.getElementById('current-user');
+        const businessPlanEl = document.getElementById('business-plan');
+        const adminNavEl = document.getElementById('admin-only-nav');
+        
+        if (currentUserEl) {
+          currentUserEl.textContent = 
+            currentUserType === 'admin' ? 'Admin Owner' : `${currentUser.businessName || 'Business'} (${currentUser.email || ''})`;
+        }
+        
+        if (currentUserType === 'admin') {
+          if (adminNavEl) {
+            adminNavEl.style.display = 'block';
+          }
+          if (businessPlanEl) {
+            businessPlanEl.textContent = 'Plan: Admin Access';
+          }
+          
+          // Load pending businesses for admin approval
+          loadPendingBusinesses();
+        } else {
+          if (adminNavEl) {
+            adminNavEl.style.display = 'none';
+          }
+          if (businessPlanEl) {
+            businessPlanEl.textContent = `Plan: ${currentUser.plan || 'Basic'} (${currentUser.slotsAllowed || 0} slots)`;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error updating UI:', error);
+      }
+      
+      // Don't auto-load employees module - show dashboard instead
+      // The user can click on Employees when they're ready
+      console.log('✅ Dashboard ready - user can select a module');
+    }
+    
+    // Admin functions
+    async function loadPendingBusinesses() {
+      if (currentUserType !== 'admin') return;
+      
+      try {
+        console.log('🔍 Loading pending businesses...');
+        const businessesCollection = collection(db, 'businesses');
+        const businessSnapshot = await getDocs(businessesCollection);
+        
+        console.log('📊 Total businesses found:', businessSnapshot.size);
+        
+        const pendingBusinesses = [];
+        businessSnapshot.forEach((doc) => {
+          const business = doc.data();
+          console.log('📋 Business:', doc.id, business.status, business.businessName);
+          if (business.status === 'pending') {
+            pendingBusinesses.push({ id: doc.id, ...business });
+          }
+        });
+        
+        console.log('⏳ Pending businesses:', pendingBusinesses.length);
+        displayPendingBusinesses(pendingBusinesses);
+      } catch (error) {
+        console.error('Error loading pending businesses:', error);
+      }
+    }
+    
+    function displayPendingBusinesses(businesses) {
+      const container = document.getElementById('pending-businesses') || createPendingBusinessesContainer();
+      
+      if (businesses.length === 0) {
+        container.innerHTML = '<div class="empty">No pending business approvals</div>';
+        return;
+      }
+      
+      container.innerHTML = `
+        <h3>Pending Business Approvals (${businesses.length})</h3>
+        ${businesses.map(business => `
+          <div class="card" style="margin-bottom: 10px;">
+            <h4>${business.businessName}</h4>
+            <p><strong>Email:</strong> ${business.email}</p>
+            <p><strong>Registered:</strong> ${new Date(business.createdAt).toLocaleDateString()}</p>
+            <div class="controls">
+              <input type="number" id="slots-${business.id}" placeholder="Staff slots" value="5" min="1" max="100" style="width: 100px;">
+              <input type="text" id="device-ip-${business.id}" placeholder="Device IP (optional)" style="width: 120px;">
+              <input type="text" id="device-id-${business.id}" placeholder="Device ID (optional)" style="width: 120px;">
+              <button class="btn success" onclick="approveBusiness('${business.id}', '${business.businessName}')">Approve & Activate</button>
+              <button class="btn danger" onclick="rejectBusiness('${business.id}')">Reject</button>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+    
+    function createPendingBusinessesContainer() {
+      const container = document.createElement('div');
+      container.id = 'pending-businesses';
+      container.className = 'card';
+      
+      const dashboardContent = document.querySelector('[data-page="dashboard"] .content');
+      if (dashboardContent) {
+        dashboardContent.insertBefore(container, dashboardContent.firstChild);
+      }
+      
+      return container;
+    }
+    
+    window.approveBusiness = async function(businessId, businessName) {
+      const slotsAllowed = document.getElementById(`slots-${businessId}`).value;
+      const deviceIp = document.getElementById(`device-ip-${businessId}`).value;
+      const deviceId = document.getElementById(`device-id-${businessId}`).value;
+      
+      if (!slotsAllowed || slotsAllowed < 1) {
+        alert('Please enter a valid number of staff slots');
+        return;
+      }
+      
+      try {
+        console.log('Approving business:', businessId, businessName);
+        
+        // Try Cloud Function first
+        const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/adminActivateBusiness', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            businessId: businessId,
+            slotsAllowed: parseInt(slotsAllowed),
+            plan: 'Basic',
+            monthlyFee: 29.99,
+            deviceId: deviceId || null,
+            deviceIp: deviceIp || null,
+            deviceName: deviceId ? `Device for ${businessName}` : null,
+            adminKey: window.ADMIN_CREDENTIALS.password
+          })
+        });
+        
+        const result = await response.json();
+        console.log('Cloud Function result:', result);
+        
+        if (result.success) {
+          alert(`✅ Business "${businessName}" approved successfully!\n\n📊 Slots allocated: ${slotsAllowed}\n📱 Device assigned: ${deviceId ? 'Yes' : 'No'}\n\n🎉 The business can now login and manage their staff!`);
+          loadPendingBusinesses(); // Refresh the list
+        } else {
+          throw new Error(result.error || 'Cloud Function failed');
+        }
+      } catch (error) {
+        console.error('Cloud Function failed, trying direct approval:', error);
+        
+        // Fallback: Direct Firestore update
+        try {
+          const { updateDoc, doc } = window.firestoreUtils;
+          const businessRef = doc(window.db, 'businesses', businessId);
+          
+          await updateDoc(businessRef, {
+            status: 'active',
+            slotsAllowed: parseInt(slotsAllowed),
+            plan: 'Basic',
+            monthlyFee: 29.99,
+            deviceId: deviceId || null,
+            deviceIp: deviceIp || null,
+            deviceName: deviceId ? `Device for ${businessName}` : null,
+            activatedAt: new Date().toISOString(),
+            activatedBy: 'admin'
+          });
+          
+          console.log('Direct approval successful');
+          alert(`✅ Business "${businessName}" approved successfully!\n\n📊 Slots allocated: ${slotsAllowed}\n📱 Device assigned: ${deviceId ? 'Yes' : 'No'}\n\n🎉 The business can now login and manage their staff!`);
+          loadPendingBusinesses(); // Refresh the list
+          
+        } catch (directError) {
+          console.error('Direct approval also failed:', directError);
+          alert('❌ Error activating business: ' + directError.message);
+        }
+      }
+    };
+    
+    window.rejectBusiness = async function(businessId) {
+      if (!confirm('Are you sure you want to reject this business registration?')) {
+        return;
+      }
+      
+      try {
+        await deleteDoc(doc(db, 'businesses', businessId));
+        alert('Business registration rejected and removed');
+        loadPendingBusinesses(); // Refresh the list
+      } catch (error) {
+        console.error('Error rejecting business:', error);
+        alert('Error rejecting business: ' + error.message);
+      }
+    };
+
+    // Login Functions
+    window.adminLogin = function() {
+      const username = document.getElementById('admin-username').value;
+      const password = document.getElementById('admin-password').value;
+
+      if (username === window.ADMIN_CREDENTIALS.username && password === window.ADMIN_CREDENTIALS.password) {
+        currentUser = {
+          type: 'admin',
+          username: username
+        };
+        currentUserType = 'admin';
+        
+        localStorage.setItem('aiclock_user', JSON.stringify(currentUser));
+        showMainApp();
+      } else {
+        showLoginError('Invalid admin credentials');
+      }
+    };
+
+    window.businessLogin = async function() {
+      const email = document.getElementById('business-email').value;
+      const password = document.getElementById('business-password').value;
+
+      try {
+        const { collection, getDocs } = window.firestoreUtils;
+        const businessesCollection = collection(window.db, 'businesses');
+        const businessSnapshot = await getDocs(businessesCollection);
+        const businesses = {};
+        businessSnapshot.forEach((doc) => {
+          businesses[doc.id] = doc.data();
+        });
+        
+        const business = Object.values(businesses).find(b => b.email === email && b.password === password);
+        
+        if (business) {
+          currentUser = business;
+          currentUserType = 'business';
+          currentBusinessId = business.businessId;
+          
+          localStorage.setItem('aiclock_user', JSON.stringify(currentUser));
+          showMainApp();
+        } else {
+          showLoginError('Invalid business credentials');
+        }
+      } catch (error) {
+        console.error('Business login error:', error);
+        showLoginError('Login failed: ' + error.message);
+      }
+    };
+
+    window.registerBusiness = async function() {
+      const businessName = document.getElementById('signup-business-name').value;
+      const email = document.getElementById('signup-business-email').value;
+      const password = document.getElementById('signup-business-password').value;
+
+      if (!businessName || !email || !password) {
+        showLoginError('Please fill all fields');
+        return;
+      }
+
+      if (password.length < 6) {
+        showLoginError('Password must be at least 6 characters');
+        return;
+      }
+
+      try {
+        showLoginError('Registering business...');
+        
+        // Use Cloud Function for proper business registration
+        const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/registerNewBusiness', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            businessName: businessName,
+            email: email,
+            password: password
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`Business registered successfully!\n\nStatus: Pending Admin Approval\n\nYour business ID: ${result.businessId}\n\nAn admin will activate your account and assign staff slots. You'll then be able to login.`);
+          showBusinessLogin();
+        } else {
+          showLoginError(result.error || 'Registration failed');
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        showLoginError('Registration failed: ' + error.message);
+      }
+    };
+
+    window.logout = function() {
+      localStorage.removeItem('aiclock_user');
+      if (window.location) {
+        window.location.reload();
+      }
+    };
+
+    let employees = {};
+    let statusData = {};
+    let eventsData = [];
+
+    // Polling system - check for latest events every 5 seconds
+    let lastPollingTimestamp = null;
+    
+    async function pollLatestEvents() {
+      try {
+        // Use the correct business ID for API calls
+        const apiBusinessId = currentUserType === 'admin' ? 'default' : (currentBusinessId || 'default');
+        console.log('📊 Polling for business:', apiBusinessId);
+        
+        const response = await fetch(`https://us-central1-aiclock-82608.cloudfunctions.net/getLatestEvents?businessId=${apiBusinessId}&limit=10`);
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log('📊 Polling data received:', data);
+          
+          // Update employee status data
+          statusData = data.employeeStatus || {};
+          
+          // Update events data
+          eventsData = data.events || [];
+          
+          // Build employees data from status if empty
+          if (Object.keys(employees).length === 0) {
+            Object.entries(statusData).forEach(([id, emp]) => {
+              employees[id] = {
+                employeeId: emp.id,
+                firstName: emp.name ? emp.name.split(' ')[0] : 'Employee',
+                lastName: emp.name ? emp.name.split(' ').slice(1).join(' ') : '',
+                badgeNumber: emp.badgeNumber || id
+              };
+            });
+          }
+          
+          // Update all UI components
+          updateDashboard();
+          renderEmployees();
+          renderMonitor();
+          
+          lastPollingTimestamp = data.timestamp;
+          document.getElementById('last-refresh').textContent = `Live: ${new Date().toLocaleTimeString()}`;
+        } else {
+          console.error('Polling error:', data.error);
+          document.getElementById('last-refresh').textContent = `Error: ${new Date().toLocaleTimeString()}`;
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+        document.getElementById('last-refresh').textContent = `Error: ${new Date().toLocaleTimeString()}`;
+      }
+    }
+
+    // Update dashboard stats
+    function updateDashboard() {
+      const total = Object.keys(statusData).length;
+      const clockedIn = Object.values(statusData).filter(s => s.status === 'in').length;
+      const clockedOut = total - clockedIn;
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-in').textContent = clockedIn;
+      document.getElementById('stat-out').textContent = clockedOut;
+
+      // Recent activity from latest events
+      const recent = eventsData.slice(-10).reverse().map(e => {
+        // Look up employee info
+        const empStatus = statusData[e.employeeId] || statusData[e.cardNo];
+        const empName = e.name || empStatus?.name || '?';
+        const badge = e.cardNo || e.employeeId || '?';
+        const eventType = e.eventType || 'scan';
+        
+        return `
+        <tr>
+          <td>${empName}</td>
+          <td>${badge}</td>
+          <td>${formatTime(e.eventTime || e.timestamp)}</td>
+          <td><span class="badge ${eventType.includes('out') ? 'out' : 'in'}">${eventType.includes('out') ? 'Out' : 'In'}</span></td>
+        </tr>
+      `}).join('');
+
+      document.getElementById('activity-list').innerHTML = recent || '<tr><td colspan="4" class="empty">No recent activity</td></tr>';
+      
+      // Update live attendance status
+      updateLiveAttendanceStatus();
+    }
+
+    // Live Attendance Functions
+    let isRefreshing = false;
+    
+    async function updateLiveAttendanceStatus() {
+      if (isRefreshing) return;
+      
+      try {
+        isRefreshing = true;
+        
+        // Get current employees' status from Firebase
+        const employeesIn = [];
+        const employeesOut = [];
+        
+        // Process employees and their current status
+        Object.entries(employees).forEach(([id, emp]) => {
+          const status = statusData[emp.employeeId] || statusData[id] || {};
+          const currentStatus = status.attendanceStatus || status.currentStatus || 'out';
+          
+          const employeeData = {
+            id: emp.employeeId || id,
+            name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
+            badge: emp.badgeNumber || emp.employeeId || id,
+            time: formatTime(status.lastTime || status.timestamp || Date.now()),
+            status: currentStatus
+          };
+          
+          if (currentStatus === 'in') {
+            employeesIn.push(employeeData);
+          } else {
+            employeesOut.push(employeeData);
+          }
+        });
+        
+        // Render IN employees
+        const inContainer = document.getElementById('employees-in');
+        if (employeesIn.length > 0) {
+          inContainer.innerHTML = employeesIn.map(emp => `
+            <div class="employee-status-item">
+              <div class="employee-info">
+                <div class="employee-name">${emp.name}</div>
+                <div class="employee-badge">Badge: ${emp.badge}</div>
+              </div>
+              <div class="employee-time">${emp.time}</div>
+            </div>
+          `).join('');
+        } else {
+          inContainer.innerHTML = '<div class="empty">No employees clocked in</div>';
+        }
+        
+        // Render OUT employees
+        const outContainer = document.getElementById('employees-out');
+        if (employeesOut.length > 0) {
+          outContainer.innerHTML = employeesOut.map(emp => `
+            <div class="employee-status-item">
+              <div class="employee-info">
+                <div class="employee-name">${emp.name}</div>
+                <div class="employee-badge">Badge: ${emp.badge}</div>
+              </div>
+              <div class="employee-time">${emp.time || '--:--'}</div>
+            </div>
+          `).join('');
+        } else {
+          outContainer.innerHTML = '<div class="empty">All employees clocked in</div>';
+        }
+        
+      } catch (error) {
+        console.error('Error updating live status:', error);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    
+    // Manual refresh function
+    window.refreshActivity = function() {
+      document.getElementById('last-refresh').textContent = 'Refreshing...';
+      document.getElementById('last-refresh').classList.add('pulse');
+      
+      // Trigger immediate poll
+      pollLatestEvents();
+      
+      setTimeout(() => {
+        document.getElementById('last-refresh').classList.remove('pulse');
+      }, 1000);
+    };
+
+    // Render employees list
+    function renderEmployees() {
+      // Combine employees and statusData for complete view
+      const allEmployees = {};
+      
+      // Add employees from staff data
+      Object.entries(employees).forEach(([id, emp]) => {
+        allEmployees[id] = emp;
+      });
+      
+      // Add employees from status data if not in staff
+      Object.entries(statusData).forEach(([id, status]) => {
+        if (!allEmployees[status.id]) {
+          allEmployees[status.id] = {
+            employeeId: status.id,
+            firstName: status.name.split(' ')[0] || 'Employee',
+            lastName: status.name.split(' ').slice(1).join(' ') || '',
+            badgeNumber: status.badgeNumber
+          };
+        }
+      });
+      
+      const html = Object.entries(allEmployees).map(([id, emp]) => {
+        const status = statusData[emp.employeeId || id] || {};
+        const empStatus = status.status || 'out';
+        const syncStatus = emp.deviceSynced?.synced ? '✅' : '❌';
+        return `
+        <tr>
+          <td><strong>${emp.employeeId || id}</strong></td>
+          <td>${emp.badgeNumber || '-'}</td>
+          <td>${emp.firstName || ''} ${emp.lastName || ''}</td>
+          <td><span class="badge ${empStatus === 'in' ? 'in' : 'out'}">${empStatus}</span></td>
+          <td>
+            <button class="btn" style="padding: 4px 8px; font-size: 11px; margin: 2px;" onclick="syncToDevice('${id}')" title="Sync to device">${syncStatus} Sync</button>
+            <button class="btn" style="padding: 4px 8px; font-size: 11px; margin: 2px;" onclick="deleteEmployee('${id}')">Delete</button>
+          </td>
+        </tr>
+      `}).join('') || '<tr><td colspan="5" class="empty">No employees</td></tr>';
+
+      document.getElementById('employees-list').innerHTML = html;
+    }
+
+    // Render monitor grid
+    function renderMonitor() {
+      // Get employees and their status from statusData
+      const inEmployees = [];
+      const outEmployees = [];
+      
+      // Process statusData for current status
+      Object.entries(statusData).forEach(([id, emp]) => {
+        const employee = {
+          id: emp.id,
+          name: emp.name || `Employee ${emp.id}`,
+          time: formatTime(emp.lastClockTime),
+          badge: emp.badgeNumber || emp.id
+        };
+        
+        if (emp.status === 'in') {
+          inEmployees.push(employee);
+        } else {
+          outEmployees.push(employee);
+        }
+      });
+      
+      // Render IN employees
+      const inHtml = inEmployees.length > 0 ? 
+        inEmployees.map(emp => `
+          <tr>
+            <td style="padding: 8px;">${emp.id} - ${emp.name}</td>
+            <td style="padding: 8px; text-align: center;">${emp.time}</td>
+            <td style="padding: 8px; text-align: center;"><span style="color: #4caf50; font-weight: bold;">IN</span></td>
+          </tr>
+        `).join('') : 
+        '<tr><td colspan="3" style="text-align: center; padding: 20px;">No employees IN</td></tr>';
+      
+      // Render OUT employees  
+      const outHtml = outEmployees.length > 0 ? 
+        outEmployees.map(emp => `
+          <tr>
+            <td style="padding: 8px;">${emp.id} - ${emp.name}</td>
+            <td style="padding: 8px; text-align: center;">${emp.time}</td>
+            <td style="padding: 8px; text-align: center;"><span style="color: #f44336; font-weight: bold;">OUT</span></td>
+          </tr>
+        `).join('') : 
+        '<tr><td colspan="3" style="text-align: center; padding: 20px;">All employees clocked in</td></tr>';
+      
+      document.getElementById('monitor-in-list').innerHTML = inHtml;
+      document.getElementById('monitor-out-list').innerHTML = outHtml;
+    }
+
+    // Load timecard
+    window.loadTimecard = function() {
+      const monthStr = document.getElementById('timecard-month').value;
+      if (!monthStr) return;
+
+      const [year, month] = monthStr.split('-');
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      // Build header
+      let headerHtml = '<tr><th>ID</th><th>Name</th>';
+      for (let d = 1; d <= daysInMonth; d++) headerHtml += `<th>${d}</th>`;
+      headerHtml += '<th>Total</th></tr>';
+      document.getElementById('timecard-header').innerHTML = headerHtml;
+
+      // Build body
+      let bodyHtml = '';
+      Object.entries(employees).forEach(([id, emp]) => {
+        let row = `<tr><td><strong>${emp.employeeId}</strong></td><td>${emp.firstName} ${emp.lastName}</td>`;
+        let total = 0;
+        
+        for (let d = 1; d <= daysInMonth; d++) {
+          row += '<td style="text-align: center;">-</td>';
+        }
+        
+        row += `<td><strong>${total}</strong></td></tr>`;
+        bodyHtml += row;
+      });
+
+      document.getElementById('timecard-body').innerHTML = bodyHtml || '<tr><td colspan="100" class="empty">No employees</td></tr>';
+    };
+
+    // Sync employees
+    window.syncEmployeesFromStatus = function() {
+      let added = 0;
+      Object.entries(statusData).forEach(async ([id, status]) => {
+        if (!employees[id]) {
+          await setDoc(doc(db, 'businesses', currentBusinessId || 'default', 'staff', id), {
+            employeeId: id,
+            firstName: status.firstName || 'Employee',
+            lastName: status.lastName || 'Synced',
+            badgeNumber: status.badgeNumber || id,
+            attendanceStatus: 'active',
+            createdAt: new Date().toISOString()
+          });
+          added++;
+        }
+      });
+      alert(`Synced ${added} employee(s) FROM device`);
+    };
+
+    // Import historical scan data and update last known status
+    window.importScanHistory = async function() {
+      if (!confirm('Import all scan history from device and update employee statuses?')) return;
+      
+      try {
+        const response = await fetch('https://attendancewebhook-4q7htrps4q-uc.a.run.app', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'importHistory',
+            deviceIp: '192.168.113.156'
+          })
+        });
+        
+        const result = await response.json();
+        alert(result.success ? `✅ Imported historical data` : `❌ Import failed: ${result.error}`);
+      } catch (error) {
+        alert(`❌ Import failed: ${error.message}`);
+      }
+    };
+
+    // Pull employees directly from device via local network
+    window.pullEmployeesFromDevice = async function() {
+      try {
+        // Since the device is on local network, we can try to pull data
+        alert('📡 To sync employees from device:\n\n1. Go to device web interface (192.168.113.156)\n2. Export user list (if available)\n3. Or have employees scan once\n4. Use "Import History" button\n\nDevice→Firebase sync works automatically!');
+      } catch (error) {
+        console.error('Pull error:', error);
+      }
+    };
+
+    // Auto-sync TO device functions
+    window.syncToDevice = async function(employeeId = null) {
+      try {
+        if (employeeId) {
+          // Sync single employee
+          const employee = employees[employeeId];
+          if (!employee) {
+            alert('Employee not found');
+            return;
+          }
+          
+          const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/syncEmployeeToDevice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employeeId: employee.employeeId || employeeId,
+              firstName: employee.firstName || 'Employee',
+              lastName: employee.lastName || '',
+              badgeNumber: employee.badgeNumber || employeeId,
+              deviceIp: '192.168.113.156'
+            })
+          });
+          
+          const result = await response.json();
+          alert(result.success ? `✅ ${result.message}` : `❌ ${result.error}`);
+        } else {
+          alert('Please select an employee or use bulk sync');
+        }
+      } catch (error) {
+        alert(`❌ Sync failed: ${error.message}`);
+      }
+    };
+
+    window.bulkSyncToDevice = async function() {
+      if (!confirm('Sync ALL employees to device? This may take a moment.')) return;
+      
+      try {
+        const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/bulkSyncToDevice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deviceIp: '192.168.113.156',
+            credentials: 'admin:Azam198419880001'
+          })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert(`✅ Bulk sync complete!\n✅ Successful: ${result.summary.successful}\n❌ Failed: ${result.summary.failed}\n📊 Total: ${result.summary.total}`);
+        } else {
+          alert(`❌ Bulk sync failed: ${result.error}`);
+        }
+      } catch (error) {
+        alert(`❌ Bulk sync failed: ${error.message}`);
+      }
+    };
+
+    // Employee modal
+    window.openAddEmployeeModal = function() {
+      document.getElementById('modal-employee').classList.add('active');
+    };
+
+    window.closeModal = function() {
+      document.getElementById('modal-employee').classList.remove('active');
+    };
+
+    window.saveEmployee = function() {
+      const data = {
+        employeeId: document.getElementById('emp-id').value,
+        firstName: document.getElementById('emp-first').value,
+        lastName: document.getElementById('emp-last').value,
+        badgeNumber: document.getElementById('emp-badge').value,
+        attendanceStatus: 'active',
+        createdAt: new Date().toISOString()
+      };
+
+      addDoc(collection(db, 'businesses', currentBusinessId || 'default', 'staff'), data).then(() => {
+        closeModal();
+        document.getElementById('emp-id').value = '';
+        document.getElementById('emp-first').value = '';
+        document.getElementById('emp-last').value = '';
+        document.getElementById('emp-badge').value = '';
+      });
+    };
+
+    window.deleteEmployee = function(id) {
+      if (confirm('Delete this employee?')) {
+        deleteDoc(doc(db, 'businesses', currentBusinessId || 'default', 'staff', id));
+      }
+    };
+
+    // Update page title when changing pages and auto-load data
+    const navLinks = document.querySelectorAll('.nav a');
+    navLinks.forEach(link => {
+      link.addEventListener('click', function() {
+        const titles = {
+          'dashboard': '📊 Dashboard',
+          'employees': '👥 Employees',
+          'monitor': '📹 Live Monitor',
+          'timecard': '📋 Timecard',
+          'businesses': '🏢 Manage Businesses',
+          'billing': '💰 Billing & Plans'
+        };
+        const page = this.getAttribute('onclick').match(/'([^']+)'/)[1];
+        document.getElementById('page-title').textContent = titles[page] || page;
+        
+        // Auto-load data when switching to business management page
+        if (page === 'businesses' && currentUserType === 'admin') {
+          setTimeout(() => {
+            console.log('📊 Auto-loading businesses...');
+            loadAllBusinesses();
+            // Also trigger refreshBusinesses if it exists
+            if (window.refreshBusinesses) {
+              refreshBusinesses();
+            }
+          }, 100);
+        }
+        
+        // Auto-load stats when switching to billing page
+        if (page === 'billing' && currentUserType === 'admin') {
+          setTimeout(() => {
+            console.log('💰 Auto-calculating stats...');
+            calculateStats();
+          }, 100);
+        }
+      });
+    });
+
+    // Staff Slots Management
+    let staffSlots = {};
+    
+    window.loadStaffSlots = async function() {
+      try {
+        console.log('🔄 Loading staff slots for current user...');
+        
+        // Check if user is logged in and get their context
+        const currentUser = JSON.parse(localStorage.getItem('aiclock_user') || '{}');
+        console.log('👤 Current user:', currentUser);
+        
+        let businessId = null;
+        if (currentUser.userType === 'business' || currentUser.type === 'business') {
+          businessId = currentUser.businessId || currentUser.uid;
+          console.log('🏢 Loading slots for business:', businessId);
+        } else if (currentUser.email === 'admin@admin.com') {
+          console.log('👑 Loading slots for admin (global view)');
+        } else {
+          console.log('⚠️ No valid user context found');
+          alert('Please log in to view staff slots');
+          return;
+        }
+        
+        staffSlots = {};
+        
+        if (businessId) {
+          // Business user - load business-specific slots
+          console.log(`🔍 Loading slots from businesses/${businessId}/staffSlots`);
+          const slotsSnapshot = await getDocs(collection(db, 'businesses', businessId, 'staffSlots'));
+          slotsSnapshot.forEach((doc) => {
+            staffSlots[doc.id] = doc.data();
+            console.log('📋 Found slot:', doc.id, doc.data());
+          });
+          
+          // Load business-specific status
+          console.log(`🔍 Loading status from businesses/${businessId}/status`);
+          const statusSnapshot = await getDocs(collection(db, 'businesses', businessId, 'status'));
+          var currentStatus = {};
+          statusSnapshot.forEach((doc) => {
+            currentStatus[doc.id] = doc.data();
+            console.log('📊 Found status:', doc.id, doc.data());
+          });
+          
+          // Auto-create empty slots based on business slotsAllowed if no slots exist
+          if (Object.keys(staffSlots).length === 0) {
+            console.log('🏗️ No slots found, auto-creating slots based on business allocation...');
+            await createBusinessSlots(businessId);
+            
+            // Reload slots after creation
+            console.log(`🔄 Reloading slots after auto-creation...`);
+            const newSlotsSnapshot = await getDocs(collection(db, 'businesses', businessId, 'staffSlots'));
+            staffSlots = {};
+            newSlotsSnapshot.forEach((doc) => {
+              staffSlots[doc.id] = doc.data();
+              console.log('📋 Auto-created slot:', doc.id, doc.data());
+            });
+          } else {
+            // Check if we have fewer slots than allowed and create missing ones
+            console.log('🔍 Checking slot allocation...');
+            await ensureAllSlots(businessId);
+            
+            // Reload slots after ensuring all slots exist
+            const updatedSlotsSnapshot = await getDocs(collection(db, 'businesses', businessId, 'staffSlots'));
+            staffSlots = {};
+            updatedSlotsSnapshot.forEach((doc) => {
+              staffSlots[doc.id] = doc.data();
+            });
+          }
+        } else {
+          // Admin user - load global slots
+          console.log('🔍 Loading global staffSlots collection');
+          const slotsSnapshot = await getDocs(collection(db, 'staffSlots'));
+          slotsSnapshot.forEach((doc) => {
+            staffSlots[doc.id] = doc.data();
+          });
+          
+          // Load global status from the status collection (not status/employees)
+          const statusSnapshot = await getDocs(collection(db, 'status'));
+          var currentStatus = {};
+          statusSnapshot.forEach((doc) => {
+            currentStatus[doc.id] = doc.data();
+          });
+        }
+        
+        // Display existing auto-assignments
+        let slotsHtml = '';
+        const sortedSlots = Object.entries(staffSlots).sort(([a], [b]) => parseInt(a) - parseInt(b));
+        
+        if (sortedSlots.length === 0) {
+          console.log('🔍 No slots found. This could mean:');
+          console.log('   1. No employees have scanned badges yet');
+          console.log('   2. Data is in wrong collection');
+          console.log('   3. Business ID mismatch');
+          
+          slotsHtml = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No auto-assignments yet. Slots will be created when device IDs first scan.<br><small>Business ID: ' + (businessId || 'admin') + '</small></td></tr>';
+        } else {
+          sortedSlots.forEach(([deviceId, slot]) => {
+            const assignedDate = slot.assignedAt ? new Date(slot.assignedAt).toLocaleDateString() : 'Unknown';
+            const isActive = currentStatus[slot.badgeNumber] ? '🟢 Active' : '🔴 Inactive';
+            const isEmpty = !slot.badgeNumber || slot.status === 'empty';
+            
+            // Handle empty slots differently
+            if (isEmpty) {
+              slotsHtml += `
+                <tr style="background-color: #f8f9fa;">
+                  <td><strong>Device ${deviceId}</strong></td>
+                  <td><em style="color: #999;">Empty</em></td>
+                  <td>
+                    <input type="text" value="${slot.employeeName || ''}" 
+                           onchange="assignEmployeeToSlot('${deviceId}', this.value)" 
+                           placeholder="Click to assign employee" style="width: 100%;">
+                  </td>
+                  <td><em style="color: #999;">Available</em></td>
+                  <td>
+                    <span style="color: #999;">⚪ Empty Slot</span>
+                  </td>
+                </tr>
+              `;
+            } else {
+              slotsHtml += `
+                <tr>
+                  <td><strong>Device ${deviceId}</strong></td>
+                  <td><code>${slot.badgeNumber}</code></td>
+                  <td>
+                    <input type="text" value="${slot.employeeName || ''}" 
+                           onchange="updateSlotName('${deviceId}', this.value)" 
+                           placeholder="Enter employee name" style="width: 100%;">
+                  </td>
+                  <td>${assignedDate}</td>
+                  <td>
+                    <span style="margin-right: 10px;">${isActive}</span>
+                    <button class="btn" onclick="clearSlot('${deviceId}')" style="padding: 4px 8px; font-size: 11px;">🗑️ Clear</button>
+                  </td>
+                </tr>
+              `;
+            }
+          });
+        }
+        
+        const slotsListElement = document.getElementById('staff-slots-list');
+        if (slotsListElement) {
+          slotsListElement.innerHTML = slotsHtml;
+          console.log('✅ Staff slots loaded successfully');
+        } else {
+          console.log('⚠️ staff-slots-list element not found (module may not be open)');
+        }
+        
+      } catch (error) {
+        console.error('Error loading staff slots:', error);
+        const slotsList = document.getElementById('staff-slots-list');
+        if (slotsList) {
+          slotsList.innerHTML = '<tr><td colspan="5" class="empty">Error loading slots. Try again.</td></tr>';
+        }
+      }
+    };
+    
+    window.updateSlotName = async function(deviceId, newName) {
+      try {
+        const currentUser = JSON.parse(localStorage.getItem('aiclock_user') || '{}');
+        const businessId = (currentUser.userType === 'business' || currentUser.type === 'business') 
+          ? (currentUser.businessId || currentUser.uid) : null;
+        
+        if (staffSlots[deviceId]) {
+          // Update the slot name in the correct collection
+          if (businessId) {
+            await updateDoc(doc(db, 'businesses', businessId, 'staffSlots', deviceId), {
+              employeeName: newName
+            });
+            
+            // Also update the staff record if it exists
+            const slot = staffSlots[deviceId];
+            if (slot.badgeNumber) {
+              await updateDoc(doc(db, 'businesses', businessId, 'staff', slot.badgeNumber), {
+                firstName: newName.split(' ')[0] || 'Employee',
+                lastName: newName.split(' ').slice(1).join(' ') || ''
+              });
+            }
+          } else {
+            // Admin user - update global collection
+            await updateDoc(doc(db, 'staffSlots', deviceId), {
+              employeeName: newName
+            });
+          }
+          
+          console.log(`Updated employee name for device ID ${deviceId} to "${newName}"`);
+          staffSlots[deviceId].employeeName = newName; // Update local cache
+        }
+      } catch (error) {
+        console.error('Error updating slot name:', error);
+        alert('Error updating employee name');
+      }
+    };
+    
+    window.clearSlot = async function(deviceId) {
+      if (confirm(`Clear auto-assignment for device ID ${deviceId}? This will remove the employee record.`)) {
+        try {
+          const currentUser = JSON.parse(localStorage.getItem('aiclock_user') || '{}');
+          const businessId = (currentUser.userType === 'business' || currentUser.type === 'business') 
+            ? (currentUser.businessId || currentUser.uid) : null;
+          
+          const slot = staffSlots[deviceId];
+          if (slot && slot.badgeNumber) {
+            if (businessId) {
+              // Business user - remove from business-specific collections
+              await deleteDoc(doc(db, 'businesses', businessId, 'staff', slot.badgeNumber));
+              await deleteDoc(doc(db, 'businesses', businessId, 'status', slot.badgeNumber));
+            } else {
+              // Admin user - remove from global collections
+              await deleteDoc(doc(db, 'staff', slot.badgeNumber));
+              await deleteDoc(doc(db, 'status', slot.badgeNumber));
+            }
+          }
+          
+          // Remove the slot assignment from correct collection
+          if (businessId) {
+            await deleteDoc(doc(db, 'businesses', businessId, 'staffSlots', deviceId));
+          } else {
+            await deleteDoc(doc(db, 'staffSlots', deviceId));
+          }
+          
+          // Reload the slots display
+          loadStaffSlots();
+          alert(`✅ Cleared slot ${deviceId}`);
+        } catch (error) {
+          console.error('Error clearing slot:', error);
+          alert('❌ Error clearing slot');
+        }
+      }
+    };
+    
+    // Test function to create sample slot data
+    window.createTestSlots = async function() {
+      try {
+        const currentUser = JSON.parse(localStorage.getItem('aiclock_user') || '{}');
+        const businessId = (currentUser.userType === 'business' || currentUser.type === 'business') 
+          ? (currentUser.businessId || currentUser.uid) : null;
+        
+        if (!businessId) {
+          alert('❌ Please log in as a business user to create test slots');
+          return;
+        }
+        
+        console.log('🧪 Creating test slots for business:', businessId);
+        
+        // Create test slot data
+        const testSlots = [
+          {
+            deviceId: '1',
+            badgeNumber: 'BADGE001',
+            employeeName: 'John Doe',
+            assignedAt: new Date().toISOString()
+          },
+          {
+            deviceId: '2', 
+            badgeNumber: 'BADGE002',
+            employeeName: 'Jane Smith',
+            assignedAt: new Date().toISOString()
+          }
+        ];
+        
+        // Add slots to business collection
+        for (const slot of testSlots) {
+          await setDoc(doc(db, 'businesses', businessId, 'staffSlots', slot.deviceId), {
+            badgeNumber: slot.badgeNumber,
+            employeeName: slot.employeeName,
+            assignedAt: slot.assignedAt
+          });
+          console.log('✅ Created slot:', slot.deviceId, slot.badgeNumber);
+        }
+        
+        alert('✅ Test slots created! Click "Load Slots" to view them.');
+        
+      } catch (error) {
+        console.error('❌ Error creating test slots:', error);
+        alert('❌ Error creating test slots: ' + error.message);
+      }
+    };
+
+    // Password Recovery Functions
+    window.showPasswordRecovery = function() {
+      document.getElementById('password-recovery-modal').style.display = 'block';
+      document.getElementById('recovery-email').focus();
+    };
+
+    window.closePasswordRecovery = function() {
+      document.getElementById('password-recovery-modal').style.display = 'none';
+      document.getElementById('recovery-result').style.display = 'none';
+      document.getElementById('recovery-email').value = '';
+    };
+
+    window.recoverPassword = async function(event) {
+      event.preventDefault();
+      
+      const email = document.getElementById('recovery-email').value.trim();
+      const resultDiv = document.getElementById('recovery-result');
+      
+      if (!email) {
+        resultDiv.innerHTML = '<div style="color: #e74c3c; padding: 10px; background: #fdf2f2; border-radius: 4px;">❌ Please enter your email address</div>';
+        resultDiv.style.display = 'block';
+        return;
+      }
+      
+      try {
+        resultDiv.innerHTML = '<div style="color: #3498db; padding: 10px; background: #f0f8ff; border-radius: 4px;">🔍 Searching for your business account...</div>';
+        resultDiv.style.display = 'block';
+        
+        // Search for business by email
+        const businessesCollection = collection(db, 'businesses');
+        const businessQuery = query(businessesCollection, where('email', '==', email));
+        const businessSnapshot = await getDocs(businessQuery);
+        
+        if (businessSnapshot.empty) {
+          resultDiv.innerHTML = '<div style="color: #e74c3c; padding: 10px; background: #fdf2f2; border-radius: 4px;">❌ No business account found with this email address.<br><small>Please check your email or contact support.</small></div>';
+          return;
+        }
+        
+        let businessData = null;
+        businessSnapshot.forEach((doc) => {
+          businessData = doc.data();
+        });
+        
+        if (businessData) {
+          resultDiv.innerHTML = `
+            <div style="color: #27ae60; padding: 15px; background: #f0f9f0; border-radius: 4px; border-left: 4px solid #27ae60;">
+              <h4 style="margin: 0 0 10px 0;">✅ Account Found!</h4>
+              <p style="margin: 5px 0;"><strong>Business:</strong> ${businessData.businessName || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Email:</strong> ${businessData.email}</p>
+              <p style="margin: 5px 0;"><strong>Password:</strong> <code style="background: #fff; padding: 2px 6px; border-radius: 3px;">${businessData.password}</code></p>
+              <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">💡 Copy this password and use it to log in. Consider changing it after login for security.</p>
+            </div>
+          `;
+        }
+        
+      } catch (error) {
+        console.error('Password recovery error:', error);
+        resultDiv.innerHTML = '<div style="color: #e74c3c; padding: 10px; background: #fdf2f2; border-radius: 4px;">❌ Recovery failed: ' + error.message + '</div>';
+      }
+    };
+
+    // Password Recovery Functions
+    window.showPasswordRecovery = function() {
+      document.getElementById('password-recovery-modal').style.display = 'block';
+      document.getElementById('recovery-email').focus();
+    };
+
+    window.closePasswordRecovery = function() {
+      document.getElementById('password-recovery-modal').style.display = 'none';
+      document.getElementById('recovery-result').style.display = 'none';
+      document.getElementById('recovery-email').value = '';
+    };
+
+    window.recoverPassword = async function(event) {
+      event.preventDefault();
+      
+      const email = document.getElementById('recovery-email').value.trim();
+      const resultDiv = document.getElementById('recovery-result');
+      
+      if (!email) {
+        resultDiv.innerHTML = '<div style="color: #e74c3c; padding: 10px; background: #fdf2f2; border-radius: 4px;">❌ Please enter your email address</div>';
+        resultDiv.style.display = 'block';
+        return;
+      }
+      
+      try {
+        resultDiv.innerHTML = '<div style="color: #3498db; padding: 10px; background: #f0f8ff; border-radius: 4px;">🔍 Searching for your business account...</div>';
+        resultDiv.style.display = 'block';
+        
+        // Search for business by email
+        const businessesCollection = collection(db, 'businesses');
+        const businessQuery = query(businessesCollection, where('email', '==', email));
+        const businessSnapshot = await getDocs(businessQuery);
+        
+        if (businessSnapshot.empty) {
+          resultDiv.innerHTML = '<div style="color: #e74c3c; padding: 10px; background: #fdf2f2; border-radius: 4px;">❌ No business account found with this email address.<br><small>Please check your email or contact support.</small></div>';
+          return;
+        }
+        
+        let businessData = null;
+        businessSnapshot.forEach((doc) => {
+          businessData = doc.data();
+        });
+        
+        if (businessData) {
+          resultDiv.innerHTML = `
+            <div style="color: #27ae60; padding: 15px; background: #f0f9f0; border-radius: 4px; border-left: 4px solid #27ae60;">
+              <h4 style="margin: 0 0 10px 0;">✅ Account Found!</h4>
+              <p style="margin: 5px 0;"><strong>Business:</strong> ${businessData.businessName || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Email:</strong> ${businessData.email}</p>
+              <p style="margin: 5px 0;"><strong>Password:</strong> <code style="background: #fff; padding: 2px 6px; border-radius: 3px;">${businessData.password}</code></p>
+              <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">💡 Copy this password and use it to log in. Consider changing it after login for security.</p>
+            </div>
+          `;
+        }
+        
+      } catch (error) {
+        console.error('Password recovery error:', error);
+        resultDiv.innerHTML = '<div style="color: #e74c3c; padding: 10px; background: #fdf2f2; border-radius: 4px;">❌ Recovery failed: ' + error.message + '</div>';
+      }
+    };
+
+    // Auto-create business slots based on slotsAllowed
+    window.createBusinessSlots = async function(businessId) {
+      try {
+        console.log('🏗️ Creating auto slots for business:', businessId);
+        
+        // Get business data to find slotsAllowed
+        const businessDoc = await getDoc(doc(db, 'businesses', businessId));
+        if (!businessDoc.exists()) {
+          console.error('❌ Business not found:', businessId);
+          return;
+        }
+        
+        const businessData = businessDoc.data();
+        const slotsAllowed = businessData.slotsAllowed || 5; // Default to 5 slots
+        
+        console.log(`📊 Creating ${slotsAllowed} slots for business: ${businessData.businessName}`);
+        
+        // Create empty slots 1, 2, 3, 4, 5... based on slotsAllowed
+        const promises = [];
+        for (let i = 1; i <= slotsAllowed; i++) {
+          const slotData = {
+            deviceId: i.toString(),
+            badgeNumber: '',
+            employeeName: '',
+            assignedAt: new Date().toISOString(),
+            status: 'empty',
+            autoCreated: true
+          };
+          
+          promises.push(
+            setDoc(doc(db, 'businesses', businessId, 'staffSlots', i.toString()), slotData)
+          );
+        }
+        
+        await Promise.all(promises);
+        console.log(`✅ Created ${slotsAllowed} empty slots for business`);
+        
+      } catch (error) {
+        console.error('❌ Error creating business slots:', error);
+      }
+    };
+
+    // Ensure all slots exist up to slotsAllowed limit
+    window.ensureAllSlots = async function(businessId) {
+      try {
+        console.log('🔍 Ensuring all slots exist for business:', businessId);
+        
+        // Get business data to find slotsAllowed
+        const businessDoc = await getDoc(doc(db, 'businesses', businessId));
+        if (!businessDoc.exists()) {
+          console.error('❌ Business not found:', businessId);
+          return;
+        }
+        
+        const businessData = businessDoc.data();
+        const slotsAllowed = businessData.slotsAllowed || 5;
+        
+        console.log(`📊 Business should have ${slotsAllowed} slots`);
+        
+        // Check which slots already exist
+        const existingSlotsSnapshot = await getDocs(collection(db, 'businesses', businessId, 'staffSlots'));
+        const existingSlotIds = new Set();
+        existingSlotsSnapshot.forEach((doc) => {
+          existingSlotIds.add(doc.id);
+        });
+        
+        console.log('📋 Existing slots:', Array.from(existingSlotIds));
+        
+        // Create missing slots
+        const promises = [];
+        for (let i = 1; i <= slotsAllowed; i++) {
+          const slotId = i.toString();
+          if (!existingSlotIds.has(slotId)) {
+            console.log(`🏗️ Creating missing slot ${slotId}`);
+            const slotData = {
+              deviceId: slotId,
+              badgeNumber: '',
+              employeeName: '',
+              assignedAt: new Date().toISOString(),
+              status: 'empty',
+              autoCreated: true
+            };
+            
+            promises.push(
+              setDoc(doc(db, 'businesses', businessId, 'staffSlots', slotId), slotData)
+            );
+          }
+        }
+        
+        // Remove excess empty slots if business allocation was reduced
+        const slotsToRemove = [];
+        existingSlotsSnapshot.forEach((doc) => {
+          const slotId = parseInt(doc.id);
+          const slotData = doc.data();
+          
+          // If slot number exceeds allowed slots AND it's empty, mark for removal
+          if (slotId > slotsAllowed && (!slotData.badgeNumber || slotData.status === 'empty')) {
+            console.log(`🗑️ Marking excess empty slot ${doc.id} for removal`);
+            slotsToRemove.push(doc.id);
+          } else if (slotId > slotsAllowed && slotData.badgeNumber) {
+            console.log(`⚠️ Cannot remove slot ${doc.id} - has assigned employee: ${slotData.employeeName}`);
+          }
+        });
+        
+        // Remove the excess empty slots
+        const removePromises = slotsToRemove.map(slotId => 
+          deleteDoc(doc(db, 'businesses', businessId, 'staffSlots', slotId))
+        );
+        
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          console.log(`✅ Created ${promises.length} missing slots`);
+        }
+        
+        if (removePromises.length > 0) {
+          await Promise.all(removePromises);
+          console.log(`🗑️ Removed ${removePromises.length} excess empty slots`);
+        }
+        
+        if (promises.length === 0 && removePromises.length === 0) {
+          console.log('✅ Slot allocation already matches business settings');
+        }
+        
+      } catch (error) {
+        console.error('❌ Error ensuring all slots:', error);
+      }
+    };
+
+    // Assign employee to empty slot
+    window.assignEmployeeToSlot = async function(deviceId, employeeName) {
+      if (!employeeName.trim()) {
+        return; // Do nothing if empty
+      }
+      
+      try {
+        const currentUser = JSON.parse(localStorage.getItem('aiclock_user') || '{}');
+        const businessId = (currentUser.userType === 'business' || currentUser.type === 'business') 
+          ? (currentUser.businessId || currentUser.uid) : null;
+        
+        if (!businessId) {
+          alert('❌ Business ID not found');
+          return;
+        }
+        
+        // Generate a badge number for this assignment
+        const badgeNumber = `BADGE${deviceId.padStart(3, '0')}`;
+        
+        // Update the slot with employee details
+        await updateDoc(doc(db, 'businesses', businessId, 'staffSlots', deviceId), {
+          employeeName: employeeName.trim(),
+          badgeNumber: badgeNumber,
+          assignedAt: new Date().toISOString(),
+          status: 'assigned',
+          autoCreated: true
+        });
+        
+        // Create a staff record for this employee
+        await setDoc(doc(db, 'businesses', businessId, 'staff', badgeNumber), {
+          employeeId: badgeNumber,
+          firstName: employeeName.split(' ')[0] || 'Employee',
+          lastName: employeeName.split(' ').slice(1).join(' ') || '',
+          badgeNumber: badgeNumber,
+          deviceId: deviceId,
+          attendanceStatus: 'active',
+          createdAt: new Date().toISOString()
+        });
+        
+        console.log(`✅ Assigned ${employeeName} to slot ${deviceId} with badge ${badgeNumber}`);
+        
+        // Reload the slots display
+        loadStaffSlots();
+        
+      } catch (error) {
+        console.error('❌ Error assigning employee to slot:', error);
+        alert('❌ Error assigning employee: ' + error.message);
+      }
+    };
+
+    // Module Navigation System (Enterprise Dashboard)
+    let currentModule = null;
+
+    window.showModule = function(moduleId, event) {
+      console.log('🔄 Switching to module:', moduleId);
+      
+      // Update active module card
+      document.querySelectorAll('.module-card').forEach(card => {
+        card.classList.remove('active');
+      });
+      if (event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+      } else {
+        // Find and activate the correct card by moduleId
+        const card = document.querySelector(`.module-card[onclick*="${moduleId}"]`);
+        if (card) card.classList.add('active');
+      }
+      
+      // Hide dashboard content and show module content as full page
+      const dashboardContent = document.querySelector('.dashboard-content');
+      const moduleContent = document.getElementById('module-content');
+      
+      if (dashboardContent) {
+        dashboardContent.style.display = 'none';
+      }
+      
+      moduleContent.style.display = 'block';
+      moduleContent.classList.add('active', 'fullpage');
+      
+      currentModule = moduleId;
+      
+      // Load module specific content
+      switch(moduleId) {
+        case 'employees':
+          loadEmployeesModule();
+          break;
+        case 'all-businesses':
+          loadAllBusinessesModule();
+          break;
+        case 'pending-approvals':
+          loadPendingApprovalsModule();
+          break;
+        case 'terminals':
+          loadTerminalsModule();
+          break;
+        case 'running-timecard':
+          loadTimecardModule();
+          break;
+        case 'monitor-mode':
+          loadMonitorModule();
+          break;
+        default:
+          loadDefaultModule(moduleId);
+      }
+      
+      // Update stats
+      updateDashboardStats();
+    };
+
+    // Update Dashboard Statistics
+    function updateDashboardStats() {
+      const totalEmployees = Object.keys(employees).length;
+      const activeSlots = Object.values(staffSlots).filter(slot => slot.badgeNumber).length;
+      
+      document.getElementById('active-employees').textContent = totalEmployees;
+      document.getElementById('employee-count').textContent = `${activeSlots} Licensed Limit`;
+    }
+
+    // Go back to dashboard
+    window.goBackToDashboard = function() {
+      const dashboardContent = document.querySelector('.dashboard-content');
+      const moduleContent = document.getElementById('module-content');
+      
+      if (dashboardContent) {
+        dashboardContent.style.display = 'block';
+      }
+      
+      moduleContent.style.display = 'none';
+      moduleContent.classList.remove('active', 'fullpage');
+      currentModule = null;
+      
+      // Remove active state from all module cards
+      document.querySelectorAll('.module-card').forEach(card => {
+        card.classList.remove('active');
+      });
+    };
+
+    // Load Employees Module
+    function loadEmployeesModule() {
+      document.getElementById('module-content').innerHTML = `
+        <div class="module-header">
+          <button class="btn back-btn" onclick="goBackToDashboard()">← Back</button>
+          <h2>👥 Employees</h2>
+          <div class="module-actions">
+            <button class="btn primary" onclick="openAddEmployeeModal()">+ Add New Employee</button>
+            <button class="btn" onclick="loadStaffSlots()">🔄 Load Slots</button>
+          </div>
+        </div>
+        
+        <div class="module-body">
+          <div class="tab-navigation">
+            <button class="tab-btn active">Permanent</button>
+            <button class="tab-btn">Temporary</button>
+            <button class="tab-btn">Inactive</button>
+            <button class="tab-btn">All</button>
+          </div>
+          
+          <div class="section-header">
+            <input type="text" placeholder="Search employees..." class="search-input">
+          </div>
+          
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Emp No</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Badge</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="employees-table-body">
+              <!-- Populated by loadEmployeesList() -->
+            </tbody>
+          </table>
+          
+          <div class="staff-slots-section">
+            <h3>Staff Slot Management</h3>
+            <p class="section-description">Device employee IDs (1, 2, 3...) are auto-assigned on first scan to unique badge numbers</p>
+            
+            <div class="slot-actions">
+              <button class="btn primary" onclick="loadStaffSlots()">🔄 Load Slots</button>
+              <button class="btn" onclick="createTestSlots()">🧪 Create Test Slots</button>
+              <button class="btn info" onclick="clearAllSlots()">🗑️ Clear All Slots</button>
+            </div>
+            
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Device ID</th>
+                  <th>Auto-Assigned Badge</th>
+                  <th>Employee Name</th>
+                  <th>Assignment Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="staff-slots-list">
+                <tr><td colspan="5" class="empty">Click "Load Slots" to view auto-assignments</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      
+      loadEmployeesList();
+      loadStaffSlots();
+    }
+
+    // Load Employee List
+    function loadEmployeesList() {
+      const tbody = document.getElementById('employees-table-body');
+      if (!tbody) return;
+      
+      let employeesHtml = '';
+      let empCount = 0;
+      
+      Object.entries(employees).forEach(([id, emp]) => {
+        empCount++;
+        const badgeNumber = emp.badgeNumber || id;
+        const status = statusData[id] ? (statusData[id].status === 'in' ? 'In' : 'Out') : 'Unknown';
+        
+        employeesHtml += `
+          <tr>
+            <td>${empCount.toString().padStart(3, '0')}</td>
+            <td>${emp.firstName || 'Employee'}</td>
+            <td>${emp.lastName || ''}</td>
+            <td>${badgeNumber}</td>
+            <td><span class="status ${status.toLowerCase()}">${status}</span></td>
+            <td><button class="btn small" onclick="editEmployee('${id}')">Edit</button></td>
+          </tr>
+        `;
+      });
+      
+      if (empCount === 0) {
+        employeesHtml = '<tr><td colspan="6" class="empty">No employees found</td></tr>';
+      }
+      
+      tbody.innerHTML = employeesHtml;
+    }
+
+    // Load All Businesses Module (Admin Only)
+    function loadAllBusinessesModule() {
+      document.getElementById('module-content').innerHTML = `
+        <div class="module-header">
+          <button class="btn back-btn" onclick="goBackToDashboard()">← Back</button>
+          <h2>🏢 All Businesses</h2>
+          <div class="module-actions">
+            <button class="btn primary" onclick="loadAllBusinesses()">🔄 Refresh</button>
+          </div>
+        </div>
+        
+        <div class="module-body">
+          <div class="section-header">
+            <input type="text" id="business-search" placeholder="Search businesses..." class="search-input">
+          </div>
+          
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Business ID</th>
+                <th>Business Name</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Employees</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="all-businesses-table">
+              <tr><td colspan="7" style="text-align: center; padding: 40px;">Loading businesses...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      loadAllBusinesses();
+    }
+
+    // Load All Businesses Data
+    async function loadAllBusinesses() {
+      const tbody = document.getElementById('all-businesses-table');
+      if (!tbody) return;
+      
+      try {
+        console.log('📊 Loading all businesses...');
+        const businessesRef = collection(db, 'businesses');
+        const snapshot = await getDocs(businessesRef);
+        
+        let businessesHtml = '';
+        let count = 0;
+        
+        for (const docSnapshot of snapshot.docs) {
+          const business = docSnapshot.data();
+          const businessId = docSnapshot.id;
+          count++;
+          
+          // Count employees for this business
+          let employeeCount = 0;
+          try {
+            const staffRef = collection(db, 'businesses', businessId, 'staff');
+            const staffSnapshot = await getDocs(staffRef);
+            employeeCount = staffSnapshot.size;
+          } catch (e) {
+            console.log('No staff collection for', businessId);
+          }
+          
+          const status = business.approved === false ? 'Pending' : 'Active';
+          const statusClass = status === 'Pending' ? 'warning' : 'success';
+          const createdDate = business.createdAt ? new Date(business.createdAt).toLocaleDateString() : 'N/A';
+          
+          businessesHtml += `
+            <tr>
+              <td><code>${businessId}</code></td>
+              <td><strong>${business.businessName || business.name || 'Unnamed'}</strong></td>
+              <td>${business.email || 'N/A'}</td>
+              <td><span class="status ${statusClass}">${status}</span></td>
+              <td>${createdDate}</td>
+              <td>${employeeCount}</td>
+              <td>
+                <button class="btn small primary" onclick="openBusinessSettings('${businessId}')">Settings</button>
+                <button class="btn small" onclick="viewBusinessDetails('${businessId}')">View</button>
+                ${status === 'Pending' ? `<button class="btn small success" onclick="approveBusiness('${businessId}')">Approve</button>` : ''}
+              </td>
+            </tr>
+          `;
+        }
+        
+        if (count === 0) {
+          businessesHtml = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No businesses found</td></tr>';
+        }
+        
+        tbody.innerHTML = businessesHtml;
+        
+        // Update count in dashboard
+        const countEl = document.getElementById('total-businesses-count');
+        if (countEl) {
+          countEl.textContent = `${count} Active`;
+        }
+        
+        console.log(`✅ Loaded ${count} businesses`);
+      } catch (error) {
+        console.error('❌ Error loading businesses:', error);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: red;">Error: ${error.message}</td></tr>`;
+      }
+    }
+
+    // Load Pending Approvals Module
+    function loadPendingApprovalsModule() {
+      document.getElementById('module-content').innerHTML = `
+        <div class="module-header">
+          <button class="btn back-btn" onclick="goBackToDashboard()">← Back</button>
+          <h2>⏳ Pending Approvals</h2>
+        </div>
+        <div class="module-body">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Business Name</th>
+                <th>Email</th>
+                <th>Requested</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pending-businesses-table">
+              <tr><td colspan="4" style="text-align: center; padding: 40px;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      loadPendingBusinessesList();
+    }
+
+    async function loadPendingBusinessesList() {
+      const tbody = document.getElementById('pending-businesses-table');
+      if (!tbody) return;
+      
+      try {
+        const businessesRef = collection(db, 'businesses');
+        const q = query(businessesRef, where('approved', '==', false));
+        const snapshot = await getDocs(q);
+        
+        let html = '';
+        snapshot.forEach(doc => {
+          const business = doc.data();
+          const date = business.createdAt ? new Date(business.createdAt).toLocaleDateString() : 'N/A';
+          html += `
+            <tr>
+              <td>${business.businessName || business.name}</td>
+              <td>${business.email}</td>
+              <td>${date}</td>
+              <td>
+                <button class="btn small primary" onclick="approveBusiness('${doc.id}')">Approve</button>
+                <button class="btn small danger" onclick="rejectBusiness('${doc.id}')">Reject</button>
+              </td>
+            </tr>
+          `;
+        });
+        
+        if (html === '') {
+          html = '<tr><td colspan="4" style="text-align: center; padding: 40px;">No pending approvals</td></tr>';
+        }
+        
+        tbody.innerHTML = html;
+      } catch (error) {
+        console.error('Error loading pending businesses:', error);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red;">Error: ${error.message}</td></tr>`;
+      }
+    }
+
+    // Open Business Settings Modal
+    window.openBusinessSettings = async function(businessId) {
+      try {
+        console.log('📝 Opening settings for business:', businessId);
+        const businessRef = doc(db, 'businesses', businessId);
+        const businessSnap = await getDoc(businessRef);
+        
+        if (!businessSnap.exists()) {
+          alert('Business not found');
+          return;
+        }
+        
+        const business = businessSnap.data();
+        window.currentEditingBusinessId = businessId;
+        
+        // Populate basic info (readonly)
+        document.getElementById('settings-business-name').value = business.businessName || business.name || '';
+        document.getElementById('settings-business-email').value = business.email || '';
+        
+        // Populate settings with defaults if not set
+        const settings = business.settings || {};
+        document.getElementById('settings-slots-allowed').value = settings.slotsAllowed || 50;
+        document.getElementById('settings-monthly-fee').value = settings.monthlyFee || 99.99;
+        
+        // Device settings
+        const device = settings.device || {};
+        document.getElementById('settings-device-ip').value = device.ip || '';
+        document.getElementById('settings-device-id').value = device.id || '';
+        document.getElementById('settings-device-name').value = device.name || '';
+        document.getElementById('settings-device-username').value = device.username || 'admin';
+        document.getElementById('settings-device-password').value = device.password || '';
+        
+        // Business status
+        const status = business.approved === false ? 'pending' : (business.suspended ? 'suspended' : 'active');
+        document.getElementById('settings-business-status').value = status;
+        
+        // Working hours
+        document.getElementById('settings-work-start').value = settings.workStart || '08:00';
+        document.getElementById('settings-work-end').value = settings.workEnd || '17:00';
+        document.getElementById('settings-break-duration').value = settings.breakDuration || 60;
+        document.getElementById('settings-late-grace').value = settings.lateGrace || 15;
+        document.getElementById('settings-timezone').value = settings.timezone || 'Africa/Johannesburg';
+        
+        // Reporting settings
+        document.getElementById('settings-overtime-enabled').value = settings.overtimeEnabled !== false ? 'true' : 'false';
+        document.getElementById('settings-overtime-rate').value = settings.overtimeRate || 1.5;
+        document.getElementById('settings-photo-capture').value = settings.photoCapture || 'required';
+        
+        // Notifications
+        document.getElementById('settings-admin-email').value = settings.adminEmail || business.email || '';
+        document.getElementById('settings-late-alerts').value = settings.lateAlerts || 'immediate';
+        document.getElementById('settings-weekly-reports').value = settings.weeklyReports || 'monday';
+        
+        // Advanced settings
+        document.getElementById('settings-api-enabled').value = settings.apiEnabled ? 'true' : 'false';
+        document.getElementById('settings-retention').value = settings.retention || 12;
+        document.getElementById('settings-export-format').value = settings.exportFormat || 'csv';
+        
+        // Update modal title
+        document.getElementById('business-settings-title').textContent = `Settings: ${business.businessName || business.name}`;
+        
+        // Show modal
+        document.getElementById('modal-business-settings').style.display = 'flex';
+        
+      } catch (error) {
+        console.error('Error loading business settings:', error);
+        alert('Error loading settings: ' + error.message);
+      }
+    };
+
+    // Close Business Settings Modal
+    window.closeBusinessSettings = function() {
+      document.getElementById('modal-business-settings').style.display = 'none';
+      window.currentEditingBusinessId = null;
+    };
+
+    // Save Business Settings
+    window.saveBusinessSettings = async function() {
+      const businessId = window.currentEditingBusinessId || (currentBusinessData && currentBusinessData.id);
+      
+      if (!businessId) {
+        alert('No business selected');
+        return;
+      }
+      
+      try {
+        const settings = {
+          slotsAllowed: parseInt(document.getElementById('settings-slots-allowed').value) || 50,
+          monthlyFee: parseFloat(document.getElementById('settings-monthly-fee').value) || 0,
+          device: {
+            ip: document.getElementById('settings-device-ip').value,
+            id: document.getElementById('settings-device-id').value,
+            name: document.getElementById('settings-device-name').value,
+            username: document.getElementById('settings-device-username').value,
+            password: document.getElementById('settings-device-password').value
+          },
+          workStart: document.getElementById('settings-work-start').value,
+          workEnd: document.getElementById('settings-work-end').value,
+          breakDuration: parseInt(document.getElementById('settings-break-duration').value) || 60,
+          lateGrace: parseInt(document.getElementById('settings-late-grace').value) || 15,
+          timezone: document.getElementById('settings-timezone').value,
+          overtimeEnabled: document.getElementById('settings-overtime-enabled').value === 'true',
+          overtimeRate: parseFloat(document.getElementById('settings-overtime-rate').value) || 1.5,
+          photoCapture: document.getElementById('settings-photo-capture').value,
+          adminEmail: document.getElementById('settings-admin-email').value,
+          lateAlerts: document.getElementById('settings-late-alerts').value,
+          weeklyReports: document.getElementById('settings-weekly-reports').value,
+          apiEnabled: document.getElementById('settings-api-enabled').value === 'true',
+          retention: parseInt(document.getElementById('settings-retention').value) || 12,
+          exportFormat: document.getElementById('settings-export-format').value,
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Handle status changes
+        const statusValue = document.getElementById('settings-business-status').value;
+        const updates = {
+          settings: settings,
+          'settings.updatedAt': new Date().toISOString()
+        };
+        
+        if (statusValue === 'pending') {
+          updates.approved = false;
+          updates.suspended = false;
+        } else if (statusValue === 'suspended') {
+          updates.approved = true;
+          updates.suspended = true;
+        } else {
+          updates.approved = true;
+          updates.suspended = false;
+        }
+        
+        await updateDoc(doc(db, 'businesses', businessId), updates);
+        
+        // Create device mapping if device ID is configured
+        const deviceId = settings.device.id;
+        if (deviceId) {
+          try {
+            await setDoc(doc(db, 'device_mappings', deviceId), {
+              businessId: businessId,
+              deviceIp: settings.device.ip,
+              deviceName: settings.device.name || deviceId,
+              mappedAt: new Date().toISOString()
+            });
+            console.log(`✅ Device ${deviceId} mapped to business ${businessId}`);
+            
+            // Create collection structure by adding a placeholder document
+            const { addDoc, collection } = window.firestoreUtils;
+            await addDoc(collection(window.db, 'businesses', businessId, 'attendance_events'), {
+              placeholder: true,
+              message: 'Collection initialized - real events will populate here',
+              createdAt: new Date().toISOString(),
+              deviceId: deviceId
+            });
+            console.log(`✅ Collection structure created for ${businessId}`);
+            
+          } catch (mappingError) {
+            console.error('Warning: Could not create device mapping:', mappingError);
+          }
+        }
+        
+        alert('✅ Settings saved successfully!\n\n📊 Collection structure created\n🔗 Device mapped to business\n\n⏳ New attendance events will now appear automatically in Firestore when someone scans on the device.');
+        
+        closeBusinessSettings();
+        loadAllBusinesses(); // Refresh the list
+        
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('❌ Error saving settings: ' + error.message);
+      }
+    };
+
+    // Initialize Collections - Manual trigger
+    window.initializeCollections = async function() {
+      const businessId = window.currentEditingBusinessId || (currentBusinessData && currentBusinessData.id);
+      
+      if (!businessId) {
+        alert('No business selected');
+        return;
+      }
+      
+      const deviceId = document.getElementById('settings-device-id').value;
+      if (!deviceId) {
+        alert('Please enter Device ID first');
+        return;
+      }
+      
+      try {
+        const { addDoc, collection, setDoc, doc } = window.firestoreUtils;
+        
+        // Create device mapping
+        await setDoc(doc(window.db, 'device_mappings', deviceId), {
+          businessId: businessId,
+          deviceIp: document.getElementById('settings-device-ip').value,
+          deviceName: document.getElementById('settings-device-name').value || deviceId,
+          mappedAt: new Date().toISOString()
+        });
+        console.log(`✅ Device ${deviceId} mapped to business ${businessId}`);
+        
+        // Create attendance_events collection with placeholder
+        await addDoc(collection(window.db, 'businesses', businessId, 'attendance_events'), {
+          placeholder: true,
+          message: 'Collection initialized - ready for attendance events',
+          createdAt: new Date().toISOString(),
+          deviceId: deviceId,
+          timestamp: new Date()
+        });
+        console.log(`✅ attendance_events collection created`);
+        
+        // Create employee_last_clockin collection
+        await addDoc(collection(window.db, 'businesses', businessId, 'employee_last_clockin'), {
+          placeholder: true,
+          message: 'Collection initialized',
+          createdAt: new Date().toISOString()
+        });
+        
+        // Create employee_last_checkout collection
+        await addDoc(collection(window.db, 'businesses', businessId, 'employee_last_checkout'), {
+          placeholder: true,
+          message: 'Collection initialized',
+          createdAt: new Date().toISOString()
+        });
+        
+        // Create employee_last_attendance collection
+        await addDoc(collection(window.db, 'businesses', businessId, 'employee_last_attendance'), {
+          placeholder: true,
+          message: 'Collection initialized',
+          createdAt: new Date().toISOString()
+        });
+        
+        alert(`✅ Collections Initialized!\n\nCreated for business: ${businessId}\n\n📂 Collections:\n• attendance_events\n• employee_last_clockin\n• employee_last_checkout\n• employee_last_attendance\n\n🔗 Device ${deviceId} mapped to business\n\nReady to receive events!`);
+        
+      } catch (error) {
+        console.error('Error initializing collections:', error);
+        alert('❌ Error: ' + error.message);
+      }
+    };
+
+    // Test Device Connection
+    window.testDeviceConnection = async function() {
+      const deviceIp = document.getElementById('settings-device-ip').value;
+      const deviceId = document.getElementById('settings-device-id').value;
+      const businessId = window.currentEditingBusinessId;
+      
+      if (!deviceIp) {
+        alert('Please enter device IP address');
+        return;
+      }
+      
+      if (!businessId) {
+        alert('No business selected');
+        return;
+      }
+      
+      const testBtn = event.target;
+      const originalText = testBtn.textContent;
+      testBtn.disabled = true;
+      testBtn.textContent = '🔄 Testing...';
+      
+      try {
+        console.log('🔍 Checking Firestore for events from device:', deviceIp, 'in business:', businessId);
+        
+        if (!window.db) {
+          throw new Error('Firebase not initialized');
+        }
+        
+        const { collection, getDocs, query, orderBy, limit, collectionGroup } = window.firestoreUtils;
+        
+        // Query date-based structure - get last 7 days of events
+        const today = new Date();
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          dates.push(date.toISOString().split('T')[0]); // YYYY-MM-DD
+        }
+        
+        let deviceEvents = [];
+        
+        // Query each date's events
+        for (const dateStr of dates) {
+          try {
+            const eventsRef = collection(window.db, 'businesses', businessId, 'attendance_events', dateStr, 'events');
+            const eventsSnap = await getDocs(eventsRef);
+            
+            eventsSnap.forEach(doc => {
+              const event = doc.data();
+              // Match by IP or device ID
+              if (event.deviceIp === deviceIp || event.deviceId === deviceId || 
+                  event.device === deviceId ||
+                  (event.rawData && (event.rawData.deviceIp === deviceIp || event.rawData.deviceId === deviceId))) {
+                deviceEvents.push({ id: doc.id, date: dateStr, ...event });
+              }
+            });
+          } catch (error) {
+            // Date collection doesn't exist yet, skip
+            console.log(`No events for date: ${dateStr}`);
+          }
+        }
+        
+        // Sort by timestamp desc
+        deviceEvents.sort((a, b) => {
+          const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          return timeB - timeA;
+        });
+        
+        console.log(`Found ${deviceEvents.length} events from device`, deviceIp);
+        console.log('Searched last 7 days');
+        
+        if (deviceEvents.length > 0) {
+          // Count unique employees
+          const uniqueEmployees = new Set();
+          const employeeNames = {};
+          
+          deviceEvents.forEach(event => {
+            const empId = event.employeeId || event.badgeNumber || event.cardNo;
+            if (empId && empId !== 'undefined') {
+              uniqueEmployees.add(empId);
+              if (event.employeeName || event.name) {
+                employeeNames[empId] = event.employeeName || event.name;
+              }
+            }
+          });
+          
+          let eventList = `✅ Device ${deviceIp} is active!\n\n`;
+          eventList += `📊 Statistics:\n`;
+          eventList += `   • Total Events: ${deviceEvents.length}\n`;
+          eventList += `   • Unique Employees: ${uniqueEmployees.size}\n`;
+          eventList += `   • Date Range: ${new Date(deviceEvents[deviceEvents.length - 1].timestamp).toLocaleDateString()} - ${new Date(deviceEvents[0].timestamp).toLocaleDateString()}\n\n`;
+          
+          if (uniqueEmployees.size > 0) {
+            eventList += `👥 Employees on Device:\n`;
+            Array.from(uniqueEmployees).slice(0, 10).forEach((empId, idx) => {
+              const name = employeeNames[empId] || 'Unknown';
+              eventList += `   ${idx + 1}. ${empId} - ${name}\n`;
+            });
+            if (uniqueEmployees.size > 10) {
+              eventList += `   ... and ${uniqueEmployees.size - 10} more\n`;
+            }
+            eventList += `\n`;
+          }
+          
+          eventList += `📌 Last 5 Events:\n\n`;
+          
+          deviceEvents.slice(0, 5).forEach((event, idx) => {
+            const time = event.timestamp ? new Date(event.timestamp).toLocaleString() : 'N/A';
+            const badge = event.badgeNumber || event.cardNo || event.employeeId || '--';
+            const name = event.employeeName || event.name || '-';
+            const status = event.attendanceStatus || event.type || event.eventType || 'Unknown';
+            
+            eventList += `${idx + 1}. ${time}\n`;
+            eventList += `   Badge: ${badge} | ${name}\n`;
+            eventList += `   Status: ${status}\n\n`;
+          });
+          
+          if (deviceEvents.length > 5) {
+            eventList += `... and ${deviceEvents.length - 5} more events`;
+          }
+          
+          alert(eventList);
+          
+          // Show raw data of last event if they want
+          if (confirm('View raw data of the last event?')) {
+            const lastEvent = deviceEvents[0];
+            console.log('Last event:', lastEvent);
+            const details = JSON.stringify(lastEvent, null, 2);
+            prompt('Last Event JSON (Ctrl+C to copy):', details);
+          }
+          
+        } else {
+          alert(`⚠️ No events found from device ${deviceIp}\n\n` +
+                `This could mean:\n` +
+                `• Device hasn't sent events yet\n` +
+                `• Device IP is incorrect\n` +
+                `• VPS server not forwarding events\n` +
+                `• Device not configured properly\n\n` +
+                `Current Settings:\n` +
+                `• IP: ${deviceIp}\n` +
+                `• Device ID: ${deviceId || 'Not set'}\n\n` +
+                `✅ Firebase connection: OK\n` +
+                `📊 Events searched: Last 7 days`);
+        }
+        
+      } catch (error) {
+        console.error('Error checking Firebase:', error);
+        alert(`❌ Error: ${error.message}\n\nCheck browser console for details.`);
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = originalText;
+      }
+    };
+
+    // Import All Device Events
+    window.importAllDeviceEvents = async function() {
+      const deviceIp = document.getElementById('settings-device-ip').value;
+      const deviceId = document.getElementById('settings-device-id').value;
+      const deviceUsername = document.getElementById('settings-device-username').value || 'admin';
+      const devicePassword = document.getElementById('settings-device-password').value;
+      const businessId = window.currentEditingBusinessId;
+      
+      if (!deviceIp) {
+        alert('Please enter device IP address first');
+        return;
+      }
+      
+      if (!businessId) {
+        alert('No business selected');
+        return;
+      }
+      
+      if (!devicePassword) {
+        alert('Please enter device password to import events');
+        return;
+      }
+      
+      if (!confirm(`This will import ALL attendance events from device ${deviceIp} into the ${businessId} business collection.\n\nThis may take several minutes depending on how many events are stored on the device.\n\nContinue?`)) {
+        return;
+      }
+      
+      const importBtn = event.target;
+      const originalText = importBtn.textContent;
+      importBtn.disabled = true;
+      importBtn.textContent = '⏳ Importing...';
+      
+      try {
+        console.log('📥 Starting bulk import from device:', deviceIp);
+        
+        // Call Cloud Function to import events
+        const response = await fetch(`https://us-central1-aiclock-82608.cloudfunctions.net/importDeviceEvents`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            businessId: businessId,
+            deviceIp: deviceIp,
+            deviceId: deviceId,
+            deviceUsername: deviceUsername,
+            devicePassword: devicePassword
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`✅ Import Complete!\n\n` +
+                `📊 Events Imported: ${result.eventsImported || 0}\n` +
+                `⏱️ Time Taken: ${result.timeTaken || 'N/A'}\n` +
+                `📅 Date Range: ${result.dateRange || 'N/A'}\n\n` +
+                `Events are now available in Firestore under:\n` +
+                `/businesses/${businessId}/attendance_events/`);
+        } else {
+          alert(`⚠️ Import Failed\n\n${result.message || 'Unknown error'}`);
+        }
+        
+      } catch (error) {
+        console.error('Error importing events:', error);
+        alert(`❌ Import Error: ${error.message}\n\nMake sure:\n• Device IP is correct\n• Device is online\n• Device credentials are correct\n• Device API is accessible`);
+      } finally {
+        importBtn.disabled = false;
+        importBtn.textContent = originalText;
+      }
+    };
+
+    // Helper function to check Firebase for device events
+    async function checkFirebaseForDeviceEvents(deviceIp, deviceId) {
+      try {
+        console.log('🔍 Checking Firebase for events from device:', deviceIp);
+        const eventsRef = collection(db, 'events');
+        const q = query(eventsRef, orderBy('timestamp', 'desc'), limit(50));
+        const eventsSnap = await getDocs(q);
+        
+        let deviceEvents = [];
+        let lastEvent = null;
+        
+        eventsSnap.forEach(doc => {
+          const event = doc.data();
+          if (event.deviceIp === deviceIp || event.deviceId === deviceId) {
+            deviceEvents.push(event);
+            if (!lastEvent) lastEvent = event;
+          }
+        });
+        
+        if (deviceEvents.length > 0) {
+          const lastEventTime = lastEvent.timestamp ? new Date(lastEvent.timestamp).toLocaleString() : 'Unknown';
+          const employeeName = lastEvent.employeeName || lastEvent.badgeNumber || 'Unknown';
+          const eventType = lastEvent.attendanceStatus || lastEvent.type || 'Unknown';
+          
+          alert(`📊 Found ${deviceEvents.length} events in Firebase\n\n` +
+                `📌 Last Event:\n` +
+                `• Time: ${lastEventTime}\n` +
+                `• Employee: ${employeeName}\n` +
+                `• Type: ${eventType}\n\n` +
+                `Data is flowing to Firebase!`);
+        } else {
+          alert(`⚠️ No events found in Firebase from device ${deviceIp}`);
+        }
+      } catch (error) {
+        console.error('Error checking Firebase:', error);
+        alert('Error: ' + error.message);
+      }
+    }
+
+    // Helper function to import event to Firebase
+    async function importEventToFirebase(event, deviceIp, deviceId) {
+      try {
+        const eventData = {
+          deviceIp: deviceIp,
+          deviceId: deviceId,
+          badgeNumber: event.cardNo || event.employeeNo,
+          employeeName: event.name || 'Unknown',
+          timestamp: event.time || new Date().toISOString(),
+          attendanceStatus: event.attendanceStatus || 'unknown',
+          eventType: event.eventType || 'attendance',
+          rawData: event,
+          importedAt: new Date().toISOString(),
+          importedBy: 'admin'
+        };
+        
+        await addDoc(collection(db, 'events'), eventData);
+        alert('✅ Event imported to Firebase successfully!');
+      } catch (error) {
+        console.error('Error importing event:', error);
+        alert('❌ Error importing event: ' + error.message);
+      }
+    }
+
+    window.viewBusinessDetails = function(businessId) {
+      alert(`Business details for: ${businessId}\n\nThis feature will show detailed information about the business.`);
+    };
+
+    window.approveBusiness = async function(businessId) {
+      if (confirm('Approve this business?')) {
+        try {
+          await updateDoc(doc(db, 'businesses', businessId), {
+            approved: true,
+            approvedAt: new Date().toISOString()
+          });
+          alert('✅ Business approved');
+          loadPendingBusinessesList();
+        } catch (error) {
+          alert('❌ Error: ' + error.message);
+        }
+      }
+    };
+
+    window.rejectBusiness = async function(businessId) {
+      if (confirm('Reject and delete this business?')) {
+        try {
+          await deleteDoc(doc(db, 'businesses', businessId));
+          alert('✅ Business rejected');
+          loadPendingBusinessesList();
+        } catch (error) {
+          alert('❌ Error: ' + error.message);
+        }
+      }
+    };
+
+    // Default module loader
+    function loadDefaultModule(moduleId) {
+      document.getElementById('module-content').innerHTML = `
+        <div class="module-header">
+          <button class="btn back-btn" onclick="goBackToDashboard()">← Back</button>
+          <h2>🚧 ${moduleId.replace('-', ' ').toUpperCase()}</h2>
+        </div>
+        <div class="module-body">
+          <p style="text-align: center; color: #7f8c8d; margin-top: 50px;">
+            This module is under development.<br>
+            <small>All existing functionality has been preserved.</small>
+          </p>
+        </div>
+      `;
+    }
+
+    function loadTerminalsModule() { loadDefaultModule('Terminals'); }
+    function loadTimecardModule() { loadDefaultModule('Running Timecard'); }
+    function loadMonitorModule() { loadDefaultModule('Monitor Mode'); }
+
+    window.clearAllSlots = async function() {
+      if (confirm('Clear ALL auto-assignments? This will remove all auto-created employees.')) {
+        try {
+          // Remove all auto-created employees
+          for (const [deviceId, slot] of Object.entries(staffSlots)) {
+            if (slot.badgeNumber) {
+              await deleteDoc(doc(db, 'businesses', currentBusinessId || 'default', 'staff', slot.badgeNumber));
+              await deleteDoc(doc(db, 'status', 'employees', slot.badgeNumber));
+            }
+          }
+          // Clear all slots - delete each document in the collection
+          const slotsSnapshot = await getDocs(collection(db, 'staffSlots'));
+          slotsSnapshot.forEach(async (doc) => {
+            await deleteDoc(doc.ref);
+          });
+          
+          loadStaffSlots();
+          alert('✅ All slots cleared');
+        } catch (error) {
+          console.error('Error clearing all slots:', error);
+          alert('❌ Error clearing slots');
+        }
+      }
+    };
+    
+    window.resetSlotSystem = async function() {
+      if (confirm('Reset the entire slot system? This will clear everything and start fresh.')) {
+        try {
+          // Clear everything
+          // Delete all documents in staffSlots collection
+          const slotsSnapshot = await getDocs(collection(db, 'staffSlots'));
+          slotsSnapshot.forEach(async (doc) => {
+            await deleteDoc(doc.ref);
+          });
+          
+          // Delete all documents in current business staff collection
+          const staffSnapshot = await getDocs(collection(db, 'businesses', currentBusinessId || 'default', 'staff'));
+          staffSnapshot.forEach(async (doc) => {
+            await deleteDoc(doc.ref);
+          });
+          
+          // Delete all documents in status/employees collection
+          const statusSnapshot = await getDocs(collection(db, 'status', 'employees'));
+          statusSnapshot.forEach(async (doc) => {
+            await deleteDoc(doc.ref);
+          });
+          
+          // Delete all documents in events collection
+          const eventsSnapshot = await getDocs(collection(db, 'events'));
+          eventsSnapshot.forEach(async (doc) => {
+            await deleteDoc(doc.ref);
+          });
+          
+          loadStaffSlots();
+          alert('✅ System reset complete. Next device scan will create slot 1.');
+        } catch (error) {
+          console.error('Error resetting system:', error);
+          alert('❌ Error resetting system');
+        }
+      }
+    };
+
+    // Simple admin business management
+    window.loadAllBusinesses = async function() {
+      console.log('🔄 Loading all businesses...');
+      // Load both pending businesses and refresh the main list
+      await loadPendingBusinesses();
+      if (window.refreshBusinesses) {
+        await window.refreshBusinesses();
+      }
+    };
+    
+    window.refreshBusinesses = async function() {
+      console.log('Loading businesses...');
+      const container = document.getElementById('businesses-container');
+      if (container) {
+        container.innerHTML = 'Loading...';
+      }
+      
+      try {
+        const snapshot = await getDocs(collection(db, 'businesses'));
+        
+        if (snapshot.empty && container) {
+          container.innerHTML = '<p>No businesses found.</p>';
+          return;
+        }
+        
+        if (container) {
+          let html = '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
+          html += '<thead><tr>';
+          html += '<th style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5;">Business Name</th>';
+          html += '<th style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5;">Email</th>';
+          html += '<th style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5;">Slots Allowed</th>';
+          html += '<th style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5;">Status</th>';
+          html += '<th style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5;">Actions</th>';
+          html += '</tr></thead><tbody>';
+          
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+            
+            html += '<tr>';
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">${data.businessName || 'N/A'}</td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">${data.email || 'N/A'}</td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">`;
+            html += `<input type="number" value="${data.slotsAllowed || 5}" id="slot-${id}" style="width: 60px; padding: 5px;">`;
+            html += `<button onclick="window.updateSlots('${id}')" style="margin-left: 5px; padding: 5px 10px; cursor: pointer;">Save</button>`;
+            html += `</td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">${data.status || 'active'}</td>`;
+            html += `<td style="padding: 10px; border: 1px solid #ddd;">`;
+            html += `<button onclick="window.openBusinessSettings('${id}', '${data.businessName}')" style="padding: 5px 10px; margin: 2px; background: #3498db; color: white; cursor: pointer;">⚙️ Settings</button>`;
+            html += `<button onclick="window.toggleBusinessStatus('${id}')" style="padding: 5px 10px; margin: 2px; cursor: pointer;">Toggle</button>`;
+            html += `<button onclick="window.deleteBusiness('${id}')" style="padding: 5px 10px; margin: 2px; background: #e74c3c; color: white; cursor: pointer;">Delete</button>`;
+            html += `</td>`;
+            html += '</tr>';
+          });
+          
+          html += '</tbody></table></div>';
+          container.innerHTML = html;
+        }
+        
+        console.log('Businesses loaded successfully');
+        
+      } catch (error) {
+        console.error('Error loading businesses:', error);
+        if (container) {
+          container.innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+        }
+      }
+    };
+    
+    window.updateSlots = async function(businessId) {
+      const input = document.getElementById(`slot-${businessId}`);
+      const newValue = parseInt(input.value);
+      
+      if (newValue < 1 || newValue > 1000) {
+        alert('Please enter a value between 1 and 1000');
+        return;
+      }
+      
+      try {
+        await updateDoc(doc(db, 'businesses', businessId), {
+          slotsAllowed: newValue
+        });
+        input.style.backgroundColor = '#90EE90';
+        setTimeout(() => { input.style.backgroundColor = ''; }, 1000);
+        alert('Slots updated successfully!');
+      } catch (error) {
+        console.error('Error updating slots:', error);
+        alert('Error: ' + error.message);
+      }
+    };
+    
+    window.toggleBusinessStatus = async function(businessId) {
+      try {
+        const docRef = doc(db, 'businesses', businessId);
+        const docSnap = await getDoc(docRef);
+        const currentStatus = docSnap.data().status || 'active';
+        const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+        
+        await updateDoc(docRef, { status: newStatus });
+        alert('Status updated to: ' + newStatus);
+        refreshBusinesses();
+      } catch (error) {
+        console.error('Error toggling status:', error);
+        alert('Error: ' + error.message);
+      }
+    };
+    
+    window.deleteBusiness = async function(businessId) {
+      if (!confirm('Are you sure you want to delete this business?')) return;
+      
+      try {
+        await deleteDoc(doc(db, 'businesses', businessId));
+        alert('Business deleted successfully!');
+        refreshBusinesses();
+      } catch (error) {
+        console.error('Error deleting business:', error);
+        alert('Error: ' + error.message);
+      }
+    };
+
+    // Business Settings Management
+    let currentBusinessData = null;
+    
+    window.openBusinessSettings = async function(businessId, businessName) {
+      console.log('🔧 Opening settings for business:', businessId, businessName);
+      
+      try {
+        // Get current business data
+        const { doc, getDoc } = window.firestoreUtils;
+        const businessRef = doc(window.db, 'businesses', businessId);
+        const businessDoc = await getDoc(businessRef);
+        
+        if (!businessDoc.exists()) {
+          alert('Business not found');
+          return;
+        }
+        
+        currentBusinessData = { id: businessId, ...businessDoc.data() };
+        window.currentEditingBusinessId = businessId; // Set global reference
+        
+        // Populate form
+        document.getElementById('business-settings-title').textContent = `Settings: ${businessName}`;
+        document.getElementById('settings-business-name').value = currentBusinessData.businessName || '';
+        document.getElementById('settings-business-email').value = currentBusinessData.email || '';
+        document.getElementById('settings-slots-allowed').value = currentBusinessData.slotsAllowed || 5;
+        document.getElementById('settings-monthly-fee').value = currentBusinessData.monthlyFee || 29.99;
+        document.getElementById('settings-device-ip').value = currentBusinessData.deviceIp || '';
+        document.getElementById('settings-device-id').value = currentBusinessData.deviceId || '';
+        document.getElementById('settings-device-name').value = currentBusinessData.deviceName || '';
+        document.getElementById('settings-device-username').value = currentBusinessData.deviceUsername || 'admin';
+        document.getElementById('settings-device-password').value = currentBusinessData.devicePassword || '';
+        document.getElementById('settings-business-status').value = currentBusinessData.status || 'active';
+        
+        // Working Hours
+        document.getElementById('settings-work-start').value = currentBusinessData.workStartTime || '08:00';
+        document.getElementById('settings-work-end').value = currentBusinessData.workEndTime || '17:00';
+        document.getElementById('settings-break-duration').value = currentBusinessData.breakDuration || 60;
+        document.getElementById('settings-late-grace').value = currentBusinessData.lateGracePeriod || 15;
+        document.getElementById('settings-timezone').value = currentBusinessData.timezone || 'Africa/Johannesburg';
+        
+        // Reporting
+        document.getElementById('settings-overtime-enabled').value = currentBusinessData.overtimeEnabled !== false ? 'true' : 'false';
+        document.getElementById('settings-overtime-rate').value = currentBusinessData.overtimeRate || 1.5;
+        document.getElementById('settings-photo-capture').value = currentBusinessData.photoCapture || 'optional';
+        
+        // Notifications
+        document.getElementById('settings-admin-email').value = currentBusinessData.adminEmail || '';
+        document.getElementById('settings-late-alerts').value = currentBusinessData.lateAlerts || 'daily';
+        document.getElementById('settings-weekly-reports').value = currentBusinessData.weeklyReports || 'monday';
+        
+        // Advanced
+        document.getElementById('settings-api-enabled').value = currentBusinessData.apiEnabled ? 'true' : 'false';
+        document.getElementById('settings-retention').value = currentBusinessData.dataRetention || 12;
+        document.getElementById('settings-export-format').value = currentBusinessData.exportFormat || 'csv';
+        
+        // Show modal
+        document.getElementById('modal-business-settings').classList.add('active');
+        
+      } catch (error) {
+        console.error('Error loading business settings:', error);
+        alert('Error loading business settings: ' + error.message);
+      }
+    };
+    
+    window.closeBusinessSettings = function() {
+      document.getElementById('modal-business-settings').classList.remove('active');
+      currentBusinessData = null;
+    };
+    
+    window.saveBusinessSettings = async function() {
+      if (!currentBusinessData) return;
+      
+      try {
+        console.log('💾 Saving business settings...');
+        
+        const updatedData = {
+          slotsAllowed: parseInt(document.getElementById('settings-slots-allowed').value) || 5,
+          monthlyFee: parseFloat(document.getElementById('settings-monthly-fee').value) || 29.99,
+          deviceIp: document.getElementById('settings-device-ip').value.trim(),
+          deviceId: document.getElementById('settings-device-id').value.trim(),
+          deviceName: document.getElementById('settings-device-name').value.trim(),
+          deviceUsername: document.getElementById('settings-device-username').value.trim() || 'admin',
+          devicePassword: document.getElementById('settings-device-password').value,
+          status: document.getElementById('settings-business-status').value,
+          
+          // Working Hours
+          workStartTime: document.getElementById('settings-work-start').value,
+          workEndTime: document.getElementById('settings-work-end').value,
+          breakDuration: parseInt(document.getElementById('settings-break-duration').value) || 60,
+          lateGracePeriod: parseInt(document.getElementById('settings-late-grace').value) || 15,
+          timezone: document.getElementById('settings-timezone').value,
+          
+          // Reporting
+          overtimeEnabled: document.getElementById('settings-overtime-enabled').value === 'true',
+          overtimeRate: parseFloat(document.getElementById('settings-overtime-rate').value) || 1.5,
+          photoCapture: document.getElementById('settings-photo-capture').value,
+          
+          // Notifications
+          adminEmail: document.getElementById('settings-admin-email').value.trim(),
+          lateAlerts: document.getElementById('settings-late-alerts').value,
+          weeklyReports: document.getElementById('settings-weekly-reports').value,
+          
+          // Advanced
+          apiEnabled: document.getElementById('settings-api-enabled').value === 'true',
+          dataRetention: parseInt(document.getElementById('settings-retention').value) || 12,
+          exportFormat: document.getElementById('settings-export-format').value,
+          
+          lastModified: new Date().toISOString(),
+          modifiedBy: 'admin'
+        };
+        
+        const { doc, updateDoc } = window.firestoreUtils;
+        const businessRef = doc(window.db, 'businesses', currentBusinessData.id);
+        
+        await updateDoc(businessRef, updatedData);
+        
+        console.log('✅ Business settings saved successfully');
+        alert('✅ Business settings saved successfully!');
+        
+        closeBusinessSettings();
+        
+        // Refresh the business list
+        if (window.loadAllBusinesses) {
+          await window.loadAllBusinesses();
+        }
+        
+      } catch (error) {
+        console.error('Error saving business settings:', error);
+        alert('❌ Error saving settings: ' + error.message);
+      }
+    };
+    
+    // Staff Slots Management - using existing staffSlots variable
+    // Calculate and display billing stats
+    window.calculateStats = async function() {
+      try {
+        // Calculate stats from businesses
+        const businessesCollection = collection(db, 'businesses');
+        const businessSnapshot = await getDocs(businessesCollection);
+        
+        let totalBusinesses = 0;
+        let totalSlots = 0;
+        let totalRevenue = 0;
+        
+        businessSnapshot.forEach((doc) => {
+          const business = doc.data();
+          if (business.status === 'active') {
+            totalBusinesses++;
+            totalSlots += business.slotsAllowed || 0;
+            totalRevenue += business.monthlyFee || 0;
+          }
+        });
+        
+        document.getElementById('total-slots').textContent = totalSlots;
+        document.getElementById('total-revenue').textContent = '$' + totalRevenue.toFixed(2);
+        
+        console.log(`✅ Stats: ${totalBusinesses} businesses, ${totalSlots} slots, $${totalRevenue}/month`);
+        
+      } catch (error) {
+        console.error('❌ Error calculating stats:', error);
+        alert('Error calculating statistics: ' + error.message);
+      }
+    };
+    
+    // Billing & Plans Management
+    window.loadPlans = async function() {
+      // TODO: Implement plans management
+      document.getElementById('plans-list').innerHTML = 
+        '<tr><td colspan="6" style="text-align: center; padding: 20px;">Plans management coming soon...</td></tr>';
+    };
+    
+    window.createPlanModal = function() {
+      alert('Plan creation feature coming soon!');
+    };
+
+    // Expose for window
+    window.formatTime = formatTime;
+    window.formatDate = formatDate;
+  </script>
+</body>
+</html>

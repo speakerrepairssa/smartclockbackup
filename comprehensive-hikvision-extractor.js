@@ -269,9 +269,16 @@ class ComprehensiveHikvisionExtractor {
    * 🏢 ISAPI STANDARD EVENTS
    */
   async tryISAPIEvents(dateRange) {
+    // ✅ CORRECT Hikvision API format with AcsEventCond parameters
+    const startTime = dateRange?.start || '2020-01-01T00:00:00';
+    const endTime = dateRange?.end || '2026-12-31T23:59:59';
+    
     const endpoints = [
-      '/ISAPI/AccessControl/AcsEvent',
+      // CORRECT format with AcsEventCond prefix
+      `/ISAPI/AccessControl/AcsEvent?format=json&AcsEventCond.searchID=1&AcsEventCond.searchResultPosition=0&AcsEventCond.maxResults=100&AcsEventCond.major=5&AcsEventCond.minor=75&AcsEventCond.startTime=${startTime}&AcsEventCond.endTime=${endTime}`,
+      // Fallback: simple format (works on some devices)
       '/ISAPI/AccessControl/AcsEvent?format=json',
+      '/ISAPI/AccessControl/AcsEvent',
       '/ISAPI/System/Log/Search',
       '/ISAPI/ContentMgmt/search',
       '/ISAPI/AccessControl/UserInfo/Search',

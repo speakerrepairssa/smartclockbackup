@@ -186,6 +186,28 @@ class HikvisionDeviceSync {
       }
     });
 
+    // Monthly sync endpoint - syncs specific month of events
+    this.app.get('/device/sync-month', async (req, res) => {
+      try {
+        const { ip, username = 'admin', password, month, year } = req.query;
+        
+        if (!ip || !password) {
+          return res.status(400).json({ 
+            error: 'Missing required parameters',
+            usage: 'GET /device/sync-month?ip=192.168.7.2&password=pass&month=1&year=2026',
+            example: 'curl "http://localhost:3002/device/sync-month?ip=192.168.7.2&username=admin&password=Azam198419880001&month=1&year=2026"'
+          });
+        }
+
+        console.log(`📅 MONTHLY SYNC from: ${ip} for ${year}-${month}`);
+        const result = await this.extractAllDeviceData(ip, username, password, { month, year });
+        res.json(result);
+      } catch (error) {
+        console.error('❌ Monthly sync error:', error.message);
+        res.status(500).json({ error: error.message, ip });
+      }
+    });
+
     // Direct device data extraction endpoint
     this.app.get('/device/extract', async (req, res) => {
       try {
@@ -898,147 +920,125 @@ class HikvisionDeviceSync {
     
     return 'ACCESS_EVENT';
   }
-  async extractAllDeviceData(ip, username, password) {
-    console.log(`🔍 Starting comprehensive device data extraction for ${ip}`);
+  /**
+   * Extract all device data using the WORKING API (JSON POST with Digest Auth)
+   * Supports monthly batch syncing for efficient data retrieval
+   */
+  async extractAllDeviceData(ip, username, password, options = {}) {
+    console.log(`🔍 Starting device event extraction for ${ip}`);
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
     
-    const httpsAgent = new (require('https')).Agent({
-      rejectUnauthorized: false
-    });
-    
-    const auth = Buffer.from(`${username}:${password}`).toString('base64');
-    const config = {
-      httpsAgent,
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, application/xml, text/xml, text/plain'
-      },
-      timeout: 15000
-    };
+    const {
+      month = null,  // Specific month to sync (YYYY-MM format)
+      year = null,
+      maxEvents = 1000
+    } = options;
 
     const results = {
       ip,
       timestamp: new Date().toISOString(),
-      extraction_attempts: [],
+      method: 'JSON_POST_DIGEST_AUTH',
       total_events_found: 0,
-      events: []
+      events: [],
+      pagination: {
+        total_matches: 0,
+        pages_fetched: 0,
+        status: 'starting'
+      }
     };
 
-    // Comprehensive list of data extraction endpoints to try
-    const extractionEndpoints = [
-      // Standard ISAPI endpoints
-      { name: 'Access Control Events', url: `https://${ip}/ISAPI/AccessControl/AcsEvent?format=json&startTime=20200101T000000Z&endTime=20260201T235959Z` },
-      { name: 'Event Search', url: `https://${ip}/ISAPI/ContentMgmt/search` },
-      { name: 'System Events', url: `https://${ip}/ISAPI/Event/events` },
-      { name: 'Notification Events', url: `https://${ip}/ISAPI/Event/notification/events` },
-      { name: 'ACS Events', url: `https://${ip}/ISAPI/AccessControl/events` },
-      { name: 'Card Holder Events', url: `https://${ip}/ISAPI/AccessControl/CardHolder/events` },
-      { name: 'Person Events', url: `https://${ip}/ISAPI/Intelligent/FDLib/FDSearch` },
-      
-      // Alternative formats
-      { name: 'Access Events XML', url: `https://${ip}/ISAPI/AccessControl/AcsEvent?format=xml&maxResults=2905` },
-      { name: 'System Log', url: `https://${ip}/ISAPI/System/Log/search` },
-      { name: 'Device Log', url: `https://${ip}/ISAPI/System/deviceLog` },
-      
-      // HTTP fallbacks
-      { name: 'HTTP Access Events', url: `http://${ip}/ISAPI/AccessControl/AcsEvent?format=json` },
-      { name: 'HTTP Event Search', url: `http://${ip}/ISAPI/ContentMgmt/search` },
-      { name: 'HTTP System Events', url: `http://${ip}/ISAPI/Event/events` },
-      
-      // Alternative paths
-      { name: 'Legacy Events', url: `https://${ip}/SDK/events` },
-      { name: 'API Events', url: `https://${ip}/api/v1/events` },
-      { name: 'Data Export', url: `https://${ip}/export/events` },
-      
-      // Database/storage direct access attempts
-      { name: 'Database Events', url: `https://${ip}/db/events` },
-      { name: 'Storage Events', url: `https://${ip}/storage/events` },
-      { name: 'Archive Events', url: `https://${ip}/archive/events` }
-    ];
+    try {
+      const url = `http://${ip}/ISAPI/AccessControl/AcsEvent?format=json`;
+      let searchResultPosition = 0;
+      const maxResults = 100; // Max per page
+      let hasMore = true;
 
-    console.log(`📊 Attempting ${extractionEndpoints.length} different extraction methods...`);
+      console.log(`📥 Using WORKING API: JSON POST with Digest Auth`);
+      if (month) {
+        console.log(`📅 Syncing month: ${month || `${year}-${String(month).padStart(2, '0')}`}`);
+      }
 
-    for (const endpoint of extractionEndpoints) {
-      try {
-        console.log(`🔍 Trying: ${endpoint.name} - ${endpoint.url}`);
-        
-        const startTime = Date.now();
-        const response = await axios.get(endpoint.url, config);
-        const duration = Date.now() - startTime;
-        
-        const attempt = {
-          endpoint: endpoint.name,
-          url: endpoint.url,
-          status: response.status,
-          duration_ms: duration,
-          content_type: response.headers['content-type'],
-          data_size: JSON.stringify(response.data).length
+      while (hasMore && results.total_events_found < maxEvents) {
+        const requestBody = {
+          AcsEventCond: {
+            searchID: "1",
+            searchResultPosition: searchResultPosition,
+            maxResults: maxResults,
+            major: 5,  // Access Control events
+            minor: 0   // All event types
+          }
         };
 
-        if (response.status === 200 && response.data) {
-          attempt.success = true;
+        // Use curl with digest auth (works reliably)
+        const curlCmd = `curl -s --digest -u ${username}:${password} \\
+          -X POST \\
+          -H "Content-Type: application/json" \\
+          -d '${JSON.stringify(requestBody)}' \\
+          "${url}"`;
+
+        console.log(`📥 Fetching events ${searchResultPosition}...`);
+        
+        const { stdout } = await execAsync(curlCmd);
+        const data = JSON.parse(stdout);
+
+        if (data.AcsEvent) {
+          const pageEvents = data.AcsEvent.InfoList || [];
+          results.pagination.total_matches = data.AcsEvent.totalMatches;
+          results.pagination.pages_fetched++;
           
-          // Try to parse and extract events from response
-          const parsedEvents = await this.parseDeviceResponse(response.data, endpoint.name);
-          
-          if (parsedEvents && parsedEvents.length > 0) {
-            attempt.events_found = parsedEvents.length;
-            results.events.push(...parsedEvents);
-            results.total_events_found += parsedEvents.length;
-            
-            console.log(`✅ SUCCESS! Found ${parsedEvents.length} events from ${endpoint.name}`);
-          } else {
-            attempt.events_found = 0;
-            console.log(`⚠️  Response received but no events parsed from ${endpoint.name}`);
+          console.log(`  ✅ Received ${pageEvents.length} events (Total on device: ${data.AcsEvent.totalMatches})`);
+
+          // Filter by month if specified
+          let filteredEvents = pageEvents;
+          if (month || year) {
+            filteredEvents = pageEvents.filter(event => {
+              if (!event.time || event.time.startsWith('1970')) return false;
+              const eventDate = new Date(event.time);
+              const eventYear = eventDate.getFullYear();
+              const eventMonth = eventDate.getMonth() + 1;
+              
+              if (year && month) {
+                return eventYear === parseInt(year) && eventMonth === parseInt(month);
+              } else if (year) {
+                return eventYear === parseInt(year);
+              }
+              return true;
+            });
+            console.log(`  📅 Filtered to ${filteredEvents.length} events for ${month || year}`);
           }
+
+          results.events.push(...filteredEvents);
+          results.total_events_found += filteredEvents.length;
           
-          // Store sample of response for debugging
-          attempt.sample_response = typeof response.data === 'string' ? 
-            response.data.substring(0, 500) : 
-            JSON.stringify(response.data).substring(0, 500);
-            
+          searchResultPosition += pageEvents.length;
+          hasMore = data.AcsEvent.responseStatusStrg === 'MORE' && pageEvents.length > 0;
+
+          // Add small delay between requests
+          if (hasMore) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        } else if (data.statusCode) {
+          // Error response
+          console.error(`❌ API Error: ${data.statusString}`);
+          results.error = data.statusString;
+          hasMore = false;
         } else {
-          attempt.success = false;
-          attempt.error = `HTTP ${response.status}`;
+          hasMore = false;
         }
-        
-        results.extraction_attempts.push(attempt);
-        
-      } catch (error) {
-        console.log(`❌ ${endpoint.name} failed: ${error.message}`);
-        results.extraction_attempts.push({
-          endpoint: endpoint.name,
-          url: endpoint.url,
-          success: false,
-          error: error.message,
-          status: error.response?.status || 'Network Error'
-        });
       }
+
+      results.pagination.status = 'completed';
+      console.log(`✅ Extraction complete: ${results.total_events_found} events extracted`);
+
+    } catch (error) {
+      console.error(`❌ Extraction failed: ${error.message}`);
+      results.error = error.message;
+      results.pagination.status = 'failed';
     }
 
-    // If no real events found, indicate we need sample data
-    if (results.total_events_found === 0) {
-      console.log(`⚠️  No events extracted from device. All ISAPI endpoints failed.`);
-      console.log(`📊 Device likely has limited API support or requires specific configuration.`);
-      
-      results.recommendation = {
-        message: "No events could be extracted directly from the device",
-        reasons: [
-          "Device may have limited ISAPI support",
-          "Events may be stored in proprietary format",
-          "Additional authentication or configuration may be required",
-          "Device firmware may not support remote event access"
-        ],
-        next_steps: [
-          "Check device web interface for event export options",
-          "Verify ISAPI is enabled in device settings",
-          "Consider setting up HTTP notifications for new events",
-          "Use sample data as placeholder until real events can be accessed"
-        ]
-      };
-    }
-
-    console.log(`📋 Extraction Complete: ${results.total_events_found} total events found from ${results.extraction_attempts.length} attempts`);
+    console.log(`📋 Extraction Complete: ${results.total_events_found} total events found (${results.pagination.pages_fetched} pages)`);
     
     return results;
   }
