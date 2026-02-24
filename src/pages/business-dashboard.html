@@ -3494,6 +3494,18 @@
             </div>
           </div>
           
+          <!-- Quick Test Button -->
+          <div class="sync-card" style="margin-top: 2rem; background: linear-gradient(135deg, #20bf6b 0%, #26d0ce 100%); color: white;">
+            <h3 style="color: white;">⚡ Quick Test</h3>
+            <p style="opacity: 0.9; margin-bottom: 1rem;">Test if sync service is reachable and device is responding</p>
+            <button onclick="fetchTodaysEvents()" style="background: white; color: #20bf6b; padding: 1rem 2rem; font-size: 1.1rem; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+              🔍 Fetch Today's Events
+            </button>
+            <div id="testResults" style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 8px; display: none;">
+              <pre id="testResultsContent" style="color: white; white-space: pre-wrap; margin: 0;"></pre>
+            </div>
+          </div>
+          
           <!-- Monthly Device Sync Card -->
           <div class="sync-card" style="margin-top: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <h3 style="color: white;">📅 Monthly Hikvision Device Sync</h3>
@@ -10043,12 +10055,16 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
      */
     async function syncMonthlyDeviceEvents() {
       // ⚙️ SYNC SERVICE CONFIGURATION
-      // Change this to your VPS IP if deployed remotely
-      // Local: http://localhost:3002
-      // VPS: http://YOUR_VPS_IP:3002
-      const SYNC_SERVICE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      // Detect protocol and hostname
+      const isSecure = window.location.protocol === 'https:';
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      // For HTTPS sites, we need an HTTPS sync service (or use localhost for testing)
+      const SYNC_SERVICE_URL = isLocal
         ? 'http://localhost:3002'
-        : 'http://69.62.109.168:3002'; // Your VPS
+        : isSecure
+        ? 'https://69.62.109.168:3002' // TODO: Set up SSL on VPS
+        : 'http://69.62.109.168:3002';
       
       // Try to get device config from selected device first
       const deviceSelect = document.getElementById('syncDeviceSelect');
@@ -10250,8 +10266,13 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
      */
     async function recoverOfflineEvents() {
       // ⚙️ SYNC SERVICE CONFIGURATION
-      const SYNC_SERVICE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      const isSecure = window.location.protocol === 'https:';
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      const SYNC_SERVICE_URL = isLocal
         ? 'http://localhost:3002'
+        : isSecure
+        ? 'https://69.62.109.168:3002'
         : 'http://69.62.109.168:3002';
       
       const deviceSelect = document.getElementById('syncDeviceSelect');
@@ -10790,11 +10811,105 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     }
 
     // Add sync functions to global scope
+    /**
+     * 🧪 FETCH TODAY'S EVENTS - Quick Test Function
+     */
+    async function fetchTodaysEvents() {
+      const resultsDiv = document.getElementById('testResults');
+      const resultsContent = document.getElementById('testResultsContent');
+      
+      try {
+        resultsDiv.style.display = 'block';
+        resultsContent.textContent = '⏳ Testing connection...\n';
+        
+        // Get sync service URL
+        const isSecure = window.location.protocol === 'https:';
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const SYNC_SERVICE_URL = isLocal ? 'http://localhost:3002' : (isSecure ? 'https://69.62.109.168:3002' : 'http://69.62.109.168:3002');
+        
+        resultsContent.textContent += `🔗 Service URL: ${SYNC_SERVICE_URL}\n`;
+        
+        // Get device config
+        const deviceSelect = document.getElementById('syncDeviceSelect');
+        const selectedDeviceId = deviceSelect?.value;
+        
+        let deviceIp = '192.168.7.2';
+        let deviceUsername = 'admin';
+        let devicePassword = 'Azam198419880001';
+        
+        if (selectedDeviceId) {
+          const deviceRef = doc(db, "businesses", businessId, "devices", selectedDeviceId);
+          const deviceSnap = await getDoc(deviceRef);
+          if (deviceSnap.exists()) {
+            const config = deviceSnap.data();
+            if (config.ip) deviceIp = config.ip;
+            if (config.username) deviceUsername = config.username;
+            if (config.password) devicePassword = config.password;
+          }
+        }
+        
+        resultsContent.textContent += `📱 Device: ${deviceIp}\n`;
+        resultsContent.textContent += `👤 Username: ${deviceUsername}\n`;
+        resultsContent.textContent += `🔒 Protocol: ${window.location.protocol}\n\n`;
+        
+        // Get today's date
+        const today = new Date();
+        const month = today.getMonth() + 1;
+        const year = today.getFullYear();
+        
+        resultsContent.textContent += `📥 Fetching ${month}/${year} events...\n`;
+        
+        const url = `${SYNC_SERVICE_URL}/device/sync-month?ip=${encodeURIComponent(deviceIp)}&username=${encodeURIComponent(deviceUsername)}&password=${encodeURIComponent(devicePassword)}&month=${month}&year=${year}`;
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          resultsContent.textContent += `\n✅ SUCCESS!\n`;
+          resultsContent.textContent += `📊 Total Events: ${data.events?.length || 0}\n`;
+          
+          // Filter today's events
+          const todayStr = today.toISOString().split('T')[0];
+          const todaysEvents = data.events?.filter(e => e.time?.startsWith(todayStr)) || [];
+          
+          resultsContent.textContent += `📅 Today's Events: ${todaysEvents.length}\n\n`;
+          
+          if (todaysEvents.length > 0) {
+            resultsContent.textContent += `Recent events:\n`;
+            todaysEvents.slice(-5).forEach(event => {
+              resultsContent.textContent += `  • ${event.time} - Employee ${event.employeeNo}\n`;
+            });
+          } else {
+            resultsContent.textContent += `ℹ️ No events found for today`;
+          }
+        } else {
+          throw new Error(data.message || 'Unknown error');
+        }
+        
+      } catch (error) {
+        console.error('❌ Test failed:', error);
+        resultsContent.textContent += `\n❌ ERROR:\n${error.message}\n\n`;
+        
+        if (error.message.includes('Failed to fetch')) {
+          resultsContent.textContent += `⚠️ Possible issues:\n`;
+          resultsContent.textContent += `  - Sync service not running\n`;
+          resultsContent.textContent += `  - HTTPS/HTTP mixed content (try localhost)\n`;
+          resultsContent.textContent += `  - Firewall blocking connection\n`;
+        }
+      }
+    }
+    
     window.loadDeviceCollections = loadDeviceCollections;
     window.triggerManualSync = triggerManualSync;
     window.syncMonthlyDeviceEvents = syncMonthlyDeviceEvents;
     window.recoverOfflineEvents = recoverOfflineEvents;
     window.viewDeviceEvents = viewDeviceEvents;
+    window.fetchTodaysEvents = fetchTodaysEvents;
     window.compareEvents = compareEvents;
     window.initDeviceSync = initDeviceSync;
     window.importTestEvents = importTestEvents;
