@@ -8436,7 +8436,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         const requiredHours = 176;
         
         Object.entries(employeeData).forEach(([empId, data], index) => {
-          let totalPay, potentialIncome, effectiveHours;
+          let totalPay, potentialIncome, effectiveHours, displayRate;
           
           if (data.paymentType === 'daily' && data.dailyRate > 0) {
             // Daily-paid employee: each day with in/out = full day pay (8 hours equivalent)
@@ -8447,11 +8447,15 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
             // Required days = 176 hours / 8 = 22 days
             const requiredDays = Math.ceil(requiredHours / 8);
             potentialIncome = requiredDays * data.dailyRate;
+            
+            // Display rate as hourly equivalent (daily rate ÷ 8)
+            displayRate = data.dailyRate / 8;
           } else {
             // Hourly-paid employee: pay based on actual hours
             effectiveHours = data.totalHours;
             totalPay = data.totalHours * data.payRate;
             potentialIncome = requiredHours * data.payRate;
+            displayRate = data.payRate;
           }
           
           const hoursShort = Math.max(0, requiredHours - effectiveHours);
@@ -8476,7 +8480,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
             paymentType: data.paymentType || 'hourly',
             pastDueHours: 0,
             hoursShort: hoursShort,
-            payRate: data.paymentType === 'daily' ? data.dailyRate : data.payRate,
+            payRate: displayRate, // Show hourly equivalent for daily-paid employees
             currentIncomeDue: totalPay,
             potentialIncome: potentialIncome,
             status: status,
@@ -8534,7 +8538,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Current Hours</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Past Due Hours</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Hours Short</th>
-                <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Pay Rate</th>
+                <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Hourly Rate</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Current Income Due</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Potential Income (100%)</th>
                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; font-size: 0.8rem;">Status</th>
@@ -12433,7 +12437,10 @@ Click "Test Connection" after starting the service.`);
             name: staff.employeeName || empId,
             totalHours: 0,
             attendanceDays: 0,
+            daysWithInOut: 0,
             payRate: staff.payRate || staff.hourlyRate || NaN,
+            dailyRate: staff.dailyRate || 0,
+            paymentType: staff.paymentType || 'hourly',
             slot: staff.slot || 1
           };
         });
@@ -12455,6 +12462,8 @@ Click "Test Connection" after starting the service.`);
             // Calculate hours (8 hours per day for now)
             employeeData[empId].totalHours += 8;
             employeeData[empId].attendanceDays += 1;
+            // For this simplified version, treat each attendance event as a complete day
+            employeeData[empId].daysWithInOut += 1;
           }
         });
         
@@ -12463,9 +12472,29 @@ Click "Test Connection" after starting the service.`);
         const requiredHours = 176;
         
         Object.entries(employeeData).forEach(([empId, data], index) => {
-          const hoursShort = Math.max(0, requiredHours - data.totalHours);
-          const totalPay = data.totalHours * data.payRate;
-          const potentialIncome = requiredHours * data.payRate;
+          let totalPay, potentialIncome, effectiveHours, displayRate;
+          
+          if (data.paymentType === 'daily' && data.dailyRate > 0) {
+            // Daily-paid employee: each day = full day pay (8 hours equivalent)
+            const dailyHoursEquivalent = data.daysWithInOut * 8;
+            effectiveHours = dailyHoursEquivalent;
+            totalPay = data.daysWithInOut * data.dailyRate;
+            
+            // Required days = 176 hours / 8 = 22 days
+            const requiredDays = Math.ceil(requiredHours / 8);
+            potentialIncome = requiredDays * data.dailyRate;
+            
+            // Display rate as hourly equivalent (daily rate ÷ 8)
+            displayRate = data.dailyRate / 8;
+          } else {
+            // Hourly-paid employee: pay based on actual hours
+            effectiveHours = data.totalHours;
+            totalPay = data.totalHours * data.payRate;
+            potentialIncome = requiredHours * data.payRate;
+            displayRate = data.payRate;
+          }
+          
+          const hoursShort = Math.max(0, requiredHours - effectiveHours);
 
           let status = 'On Track';
           let statusColor = '#28a745';
@@ -12481,10 +12510,13 @@ Click "Test Connection" after starting the service.`);
             index: data.slot || (index + 1),
             name: data.name,
             requiredHours: requiredHours,
-            currentHours: data.totalHours,
+            currentHours: effectiveHours,
+            actualHours: data.totalHours,
+            daysWorked: data.paymentType === 'daily' ? data.daysWithInOut : data.attendanceDays,
+            paymentType: data.paymentType || 'hourly',
             pastDueHours: 0,
             hoursShort: hoursShort,
-            payRate: data.payRate,
+            payRate: displayRate, // Show hourly equivalent for daily-paid
             currentIncomeDue: totalPay,
             potentialIncome: potentialIncome,
             status: status,
@@ -12521,7 +12553,7 @@ Click "Test Connection" after starting the service.`);
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Current Hours</th>
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Past Due Hours</th>
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Hours Short</th>
-                <th style="padding: 1rem; text-align: center; font-weight: 600;">Pay Rate</th>
+                <th style="padding: 1rem; text-align: center; font-weight: 600;">Hourly Rate</th>
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Current Income Due</th>
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Potential Income (100%)</th>
                 <th style="padding: 1rem; text-align: center; font-weight: 600;">Status</th>
