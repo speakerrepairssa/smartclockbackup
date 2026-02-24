@@ -5711,6 +5711,12 @@
                     <span class="detail-value">${employee.position || 'Not set'}</span>
                   </div>
                   <div class="employee-detail-row">
+                    <span class="detail-label">Payment Type:</span>
+                    <span class="detail-value" style="font-weight: 600; color: ${employee.paymentType === 'daily' ? '#667eea' : '#28a745'};">
+                      ${employee.paymentType === 'daily' ? '💰 Daily Basic (R' + (employee.dailyRate || 0).toFixed(2) + '/day)' : '⏱️ Hourly (R' + (employee.hourlyRate || employee.payRate || 0).toFixed(2) + '/hr)'}
+                    </span>
+                  </div>
+                  <div class="employee-detail-row">
                     <span class="detail-label">Last Clock:</span>
                     <span class="detail-value">${lastTime}</span>
                   </div>
@@ -6236,9 +6242,27 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
                   <input type="date" name="hireDate" value="${emp.hireDate || ''}">
                 </div>
                 
-                <div class="form-group">
-                  <label>Hourly Rate (ZAR)</label>
-                  <input type="number" name="hourlyRate" value="${emp.hourlyRate || ''}" step="0.01" placeholder="0.00">
+                <div class="form-group" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea;">
+                  <h4 style="margin: 0 0 1rem 0; color: #667eea; font-size: 1rem;">💰 Payment Structure</h4>
+                  
+                  <label>Payment Type*</label>
+                  <select id="paymentType" name="paymentType" onchange="togglePaymentFields()" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; margin-bottom: 1rem;">
+                    <option value="hourly" ${(emp.paymentType || 'hourly') === 'hourly' ? 'selected' : ''}>Hourly Rate</option>
+                    <option value="daily" ${emp.paymentType === 'daily' ? 'selected' : ''}>Daily Basic Income</option>
+                  </select>
+                  <small style="color: #666; display: block; margin-bottom: 1rem;">Choose how this employee is paid</small>
+                  
+                  <div id="hourlyRateField" style="${emp.paymentType === 'daily' ? 'display: none;' : ''}">
+                    <label>Hourly Rate (ZAR)</label>
+                    <input type="number" name="hourlyRate" value="${emp.hourlyRate || ''}" step="0.01" placeholder="0.00" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+                    <small style="color: #666; display: block; margin-top: 0.25rem;">Paid per hour worked</small>
+                  </div>
+                  
+                  <div id="dailyRateField" style="${emp.paymentType === 'daily' ? '' : 'display: none;'}">
+                    <label>Daily Rate (ZAR)</label>
+                    <input type="number" name="dailyRate" value="${emp.dailyRate || ''}" step="0.01" placeholder="0.00" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+                    <small style="color: #666; display: block; margin-top: 0.25rem;">Fixed pay per day worked (any in/out = full day pay equivalent to 8 hours)</small>
+                  </div>
                 </div>
 
                 <div class="form-group">
@@ -6274,6 +6298,21 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         alert('Error: ' + error.message);
       }
     }
+
+    // Toggle payment type fields
+    window.togglePaymentFields = function() {
+      const paymentType = document.getElementById('paymentType')?.value;
+      const hourlyField = document.getElementById('hourlyRateField');
+      const dailyField = document.getElementById('dailyRateField');
+      
+      if (paymentType === 'hourly') {
+        if (hourlyField) hourlyField.style.display = '';
+        if (dailyField) dailyField.style.display = 'none';
+      } else {
+        if (hourlyField) hourlyField.style.display = 'none';
+        if (dailyField) dailyField.style.display = '';
+      }
+    };
 
     // Load available shifts into employee edit modal
     async function loadShiftsForEmployee(selectedShiftId) {
@@ -6329,6 +6368,8 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         // Get shift info
         const shiftId = formData.get('shiftId') || '';
 
+        const paymentType = formData.get('paymentType') || 'hourly';
+        
         const employeeData = {
           employeeName: formData.get('employeeName'),
           username: formData.get('username'), // Add username for portal login
@@ -6339,7 +6380,9 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           idNumber: formData.get('idNumber'),
           address: formData.get('address'),
           hireDate: formData.get('hireDate'),
+          paymentType: paymentType,
           hourlyRate: parseFloat(formData.get('hourlyRate')) || 0,
+          dailyRate: parseFloat(formData.get('dailyRate')) || 0,
           notes: formData.get('notes'),
           updatedAt: new Date().toISOString()
         };
@@ -8316,7 +8359,10 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
               name: staff.employeeName || empId,
               totalHours: 0,
               attendanceDays: 0,
+              daysWithInOut: 0, // Track days with complete in/out for daily pay
               payRate: staff.payRate || staff.hourlyRate || NaN,
+              dailyRate: staff.dailyRate || 0,
+              paymentType: staff.paymentType || 'hourly',
               slot: staff.slot || 1
             };
           }
@@ -8362,6 +8408,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
             dateEvents.sort((a, b) => a.time - b.time);
             let dailyHours = 0;
             let clockInTime = null;
+            let hasCompleteInOut = false;
             
             for (const evt of dateEvents) {
               if (evt.status === 'in' && !clockInTime) {
@@ -8369,12 +8416,18 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
               } else if (evt.status === 'out' && clockInTime) {
                 const hoursWorked = (evt.time - clockInTime) / (1000 * 60 * 60);
                 dailyHours += Math.max(0, hoursWorked);
+                hasCompleteInOut = true; // Mark that we have at least one complete in/out pair
                 clockInTime = null;
               }
             }
             
             employeeData[empId].totalHours += Math.round(dailyHours * 100) / 100;
             employeeData[empId].attendanceDays += 1;
+            
+            // Track days with complete in/out for daily-paid employees
+            if (hasCompleteInOut) {
+              employeeData[empId].daysWithInOut += 1;
+            }
           }
         });
         
@@ -8383,9 +8436,25 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         const requiredHours = 176;
         
         Object.entries(employeeData).forEach(([empId, data], index) => {
-          const hoursShort = Math.max(0, requiredHours - data.totalHours);
-          const totalPay = data.totalHours * data.payRate;
-          const potentialIncome = requiredHours * data.payRate;
+          let totalPay, potentialIncome, effectiveHours;
+          
+          if (data.paymentType === 'daily' && data.dailyRate > 0) {
+            // Daily-paid employee: each day with in/out = full day pay (8 hours equivalent)
+            const dailyHoursEquivalent = data.daysWithInOut * 8; // Count each day as 8 hours
+            effectiveHours = dailyHoursEquivalent;
+            totalPay = data.daysWithInOut * data.dailyRate;
+            
+            // Required days = 176 hours / 8 = 22 days
+            const requiredDays = Math.ceil(requiredHours / 8);
+            potentialIncome = requiredDays * data.dailyRate;
+          } else {
+            // Hourly-paid employee: pay based on actual hours
+            effectiveHours = data.totalHours;
+            totalPay = data.totalHours * data.payRate;
+            potentialIncome = requiredHours * data.payRate;
+          }
+          
+          const hoursShort = Math.max(0, requiredHours - effectiveHours);
 
           let status = 'On Track';
           let statusColor = '#28a745';
@@ -8401,10 +8470,13 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
             index: data.slot || (index + 1),
             name: data.name,
             requiredHours: requiredHours,
-            currentHours: data.totalHours,
+            currentHours: effectiveHours, // Use effective hours (8 per day for daily-paid)
+            actualHours: data.totalHours, // Store actual hours for reference
+            daysWorked: data.paymentType === 'daily' ? data.daysWithInOut : data.attendanceDays,
+            paymentType: data.paymentType || 'hourly',
             pastDueHours: 0,
             hoursShort: hoursShort,
-            payRate: data.payRate,
+            payRate: data.paymentType === 'daily' ? data.dailyRate : data.payRate,
             currentIncomeDue: totalPay,
             potentialIncome: potentialIncome,
             status: status,
