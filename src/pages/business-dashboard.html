@@ -10055,16 +10055,14 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
      */
     async function syncMonthlyDeviceEvents() {
       // ⚙️ SYNC SERVICE CONFIGURATION
-      //  Detect protocol and hostname
-      const isSecure = window.location.protocol === 'https:';
+      // Detect protocol and hostname
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
-      // For HTTPS sites, use Firebase Cloud Function (automatically HTTPS)
+      // Use localhost for local dev, VPS for production
+      // Note: VPS uses HTTP, so dashboard must be accessed via HTTP (not HTTPS) to avoid mixed content error
       const SYNC_SERVICE_URL = isLocal
         ? 'http://localhost:3002'
-        : isSecure
-        ? 'https://us-central1-aiclock-82608.cloudfunctions.net/syncDevice'
-        : 'http://69.62.109.168:3002';
+        : 'http://69.62.109.168:3002'; // VPS sync service
       
       // Try to get device config from selected device first
       const deviceSelect = document.getElementById('syncDeviceSelect');
@@ -10266,14 +10264,11 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
      */
     async function recoverOfflineEvents() {
       // ⚙️ SYNC SERVICE CONFIGURATION
-      const isSecure = window.location.protocol === 'https:';
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
       const SYNC_SERVICE_URL = isLocal
         ? 'http://localhost:3002'
-        : isSecure
-        ? 'https://us-central1-aiclock-82608.cloudfunctions.net/syncDevice'
-        : 'http://69.62.109.168:3002';
+        : 'http://69.62.109.168:3002'; // VPS sync service
       
       const deviceSelect = document.getElementById('syncDeviceSelect');
       const selectedDeviceId = deviceSelect.value;
@@ -10823,9 +10818,8 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         resultsContent.textContent = '⏳ Testing connection...\n';
         
         // Get sync service URL
-        const isSecure = window.location.protocol === 'https:';
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const SYNC_SERVICE_URL = isLocal ? 'http://localhost:3002' : (isSecure ? 'https://us-central1-aiclock-82608.cloudfunctions.net/syncDevice' : 'http://69.62.109.168:3002');
+        const SYNC_SERVICE_URL = isLocal ? 'http://localhost:3002' : 'http://69.62.109.168:3002';
         
         resultsContent.textContent += `🔗 Service URL: ${SYNC_SERVICE_URL}\n`;
         
