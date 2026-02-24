@@ -5737,6 +5737,25 @@
                     </div>
                   </div>
                   
+                  <!-- Slot Management Section -->
+                  <div class="slot-management-section" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                      <button class="btn-toggle-active" 
+                              onclick="toggleSlotActive('${employee.id}', ${i}, ${employee.active !== false})" 
+                              style="flex: 1; min-width: 140px; padding: 0.5rem; background: ${employee.active !== false ? '#ffc107' : '#28a745'}; color: ${employee.active !== false ? '#000' : '#fff'}; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                        ${employee.active !== false ? '⏸️ Deactivate' : '▶️ Activate'}
+                      </button>
+                      <button class="btn-reset-slot" 
+                              onclick="resetSlotToFactory('${employee.id}', ${i}, '${employee.employeeName}')"
+                              style="flex: 1; min-width: 140px; padding: 0.5rem; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                        🔄 Reset to Factory
+                      </button>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #666; margin-top: 0.5rem; text-align: center;">
+                      ${employee.active !== false ? 'Active slots appear in assessments' : 'Inactive slots hidden from assessments'}
+                    </div>
+                  </div>
+                  
                   ${!employee.hasEverClockedIn ? `
                     <button class="btn-setup" onclick="initializeEmployeeSlot('${employee.id}', '${employee.employeeName}', ${i})" 
                             style="background: #17a2b8; color: white; width: 100%; margin-top: 0.5rem;">
@@ -6790,6 +6809,99 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         console.error('Debug error:', error);
       }
     };
+
+    // ========== SLOT MANAGEMENT FUNCTIONS ==========
+
+    /**
+     * Toggle slot active/inactive status
+     * Inactive slots are hidden from assessments and reports
+     */
+    window.toggleSlotActive = async function(employeeId, slotNumber, currentActive) {
+      try {
+        const newStatus = !currentActive;
+        const statusText = newStatus ? 'activated' : 'deactivated';
+        
+        if (!confirm(`Are you sure you want to ${statusText === 'activated' ? 'activate' : 'deactivate'} Slot ${slotNumber}?\n\n${newStatus ? 'The slot will appear in assessments and reports.' : 'The slot will be hidden from assessments and reports until reactivated.'}`)) {
+          return;
+        }
+
+        // Update employee active status
+        const staffRef = doc(db, "businesses", businessId, "staff", employeeId);
+        await updateDoc(staffRef, {
+          active: newStatus,
+          lastModified: new Date().toISOString()
+        });
+
+        console.log(`✅ Slot ${slotNumber} ${statusText}`);
+        alert(`Slot ${slotNumber} has been ${statusText}.`);
+        
+        // Reload employees to show updated status
+        await loadEmployees();
+
+      } catch (error) {
+        console.error('Error toggling slot status:', error);
+        alert('Error toggling slot status: ' + error.message);
+      }
+    };
+
+    /**
+     * Reset slot to factory defaults
+     * This will clear all employee data and restore the slot to empty state
+     */
+    window.resetSlotToFactory = async function(employeeId, slotNumber, employeeName) {
+      try {
+        // Double confirmation for destructive action
+        if (!confirm(`⚠️ RESET SLOT ${slotNumber} TO FACTORY?\n\nEmployee: ${employeeName}\n\nThis will:\n• Delete all employee data\n• Clear biometric records\n• Remove attendance history\n• Reset the slot to empty state\n\nThis action CANNOT be undone!\n\nAre you absolutely sure?`)) {
+          return;
+        }
+
+        // Second confirmation
+        const confirmText = prompt(`To confirm, type the slot number (${slotNumber}) to proceed with factory reset:`);
+        if (confirmText !== slotNumber.toString()) {
+          alert('Factory reset cancelled. Slot number did not match.');
+          return;
+        }
+
+        console.log(`🔄 Starting factory reset for Slot ${slotNumber}...`);
+
+        // Delete employee from staff collection
+        const staffRef = doc(db, "businesses", businessId, "staff", employeeId);
+        await deleteDoc(staffRef);
+        console.log(`✅ Deleted staff document: ${employeeId}`);
+
+        // Delete employee status
+        const statusRef = doc(db, "businesses", businessId, "status", employeeId);
+        try {
+          await deleteDoc(statusRef);
+          console.log(`✅ Deleted status document: ${employeeId}`);
+        } catch (e) {
+          console.log('No status document found (OK)');
+        }
+
+        // Delete employee credentials
+        const credsRef = doc(db, "businesses", businessId, "employee_credentials", employeeId);
+        try {
+          await deleteDoc(credsRef);
+          console.log(`✅ Deleted credentials document: ${employeeId}`);
+        } catch (e) {
+          console.log('No credentials document found (OK)');
+        }
+
+        // Note: We don't delete attendance_events as they are historical records
+        // They can be archived or ignored since they reference a deleted employee
+
+        alert(`✅ Slot ${slotNumber} has been reset to factory defaults.\n\nThe slot is now available for a new employee.`);
+        
+        // Reload employees to show updated grid
+        await loadEmployees();
+
+      } catch (error) {
+        console.error('Error resetting slot to factory:', error);
+        alert('Error resetting slot: ' + error.message);
+      }
+    };
+
+    // ========== END SLOT MANAGEMENT FUNCTIONS ==========
 
     // Make functions globally available
     window.editEmployee = editEmployee;
@@ -8193,19 +8305,24 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         // No hardcoded pay rates - get from staff data
         
         // Initialize employee data from staff collection
+        // Filter out inactive employees (active === false)
         staffSnap.forEach(doc => {
           const staff = doc.data();
           const empId = doc.id;
-          employeeData[empId] = {
-            name: staff.employeeName || empId,
-            totalHours: 0,
-            attendanceDays: 0,
-            payRate: staff.payRate || staff.hourlyRate || NaN,
-            slot: staff.slot || 1
-          };
+          
+          // Only include active employees (active !== false for backward compatibility)
+          if (staff.active !== false) {
+            employeeData[empId] = {
+              name: staff.employeeName || empId,
+              totalHours: 0,
+              attendanceDays: 0,
+              payRate: staff.payRate || staff.hourlyRate || NaN,
+              slot: staff.slot || 1
+            };
+          }
         });
         
-        console.log('👥 Staff data loaded:', Object.keys(employeeData).length, 'employees');
+        console.log('👥 Staff data loaded:', Object.keys(employeeData).length, 'active employees');
         
         // Get attendance events for the month
         const attendanceRef = collection(db, "businesses", businessId, "attendance_events");
