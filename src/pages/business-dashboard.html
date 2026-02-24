@@ -3494,6 +3494,61 @@
             </div>
           </div>
           
+          <!-- Monthly Device Sync Card -->
+          <div class="sync-card" style="margin-top: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <h3 style="color: white;">📅 Monthly Hikvision Device Sync</h3>
+            <p style="opacity: 0.9; margin-bottom: 1.5rem;">Extract historical events from Hikvision device for a specific month</p>
+            <div class="sync-controls" style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 8px;">
+              <div class="form-group">
+                <label style="color: white; font-weight: 600;">Device IP Address:</label>
+                <input type="text" id="monthlyDeviceIP" value="192.168.7.2" style="background: white; color: #333;">
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                  <label style="color: white; font-weight: 600;">Month:</label>
+                  <select id="monthlyMonth" style="background: white; color: #333;">
+                    <option value="1">January</option>
+                    <option value="2" selected>February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label style="color: white; font-weight: 600;">Year:</label>
+                  <input type="number" id="monthlyYear" value="2026" min="2020" max="2030" style="background: white; color: #333;">
+                </div>
+                <div class="form-group">
+                  <label style="color: white; font-weight: 600;">Username:</label>
+                  <input type="text" id="monthlyUsername" value="admin" style="background: white; color: #333;">
+                </div>
+              </div>
+              <div class="form-group">
+                <label style="color: white; font-weight: 600;">Password:</label>
+                <input type="password" id="monthlyPassword" value="Azam198419880001" style="background: white; color: #333;">
+              </div>
+              <div style="margin-top: 1.5rem;">
+                <button class="btn-primary" onclick="syncMonthlyDeviceEvents()" style="background: white; color: #667eea; font-weight: 600; width: 100%; padding: 1rem;">
+                  📥 Sync Monthly Events
+                </button>
+              </div>
+              <div id="monthlySyncStatus" style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 8px; display: none;">
+                <div style="text-align: center;">
+                  <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏳</div>
+                  <div id="monthlySyncStatusText">Preparing sync...</div>
+                  <div id="monthlySyncProgress" style="margin-top: 0.5rem; font-size: 0.875rem; opacity: 0.9;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <!-- Event Comparison Table -->
           <div class="events-comparison">
             <h3>📊 Event Comparison</h3>
@@ -9954,7 +10009,174 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     }
 
     /**
-     * 🚨 RECOVER OFFLINE EVENTS
+     * � SYNC MONTHLY DEVICE EVENTS
+     * Extract historical events from Hikvision device for a specific month
+     */
+    async function syncMonthlyDeviceEvents() {
+      const ip = document.getElementById('monthlyDeviceIP').value;
+      const month = document.getElementById('monthlyMonth').value;
+      const year = document.getElementById('monthlyYear').value;
+      const username = document.getElementById('monthlyUsername').value;
+      const password = document.getElementById('monthlyPassword').value;
+      const statusDiv = document.getElementById('monthlySyncStatus');
+      const statusText = document.getElementById('monthlySyncStatusText');
+      const progressText = document.getElementById('monthlySyncProgress');
+      
+      if (!ip || !password) {
+        alert('⚠️ Please provide device IP and password');
+        return;
+      }
+      
+      const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+      
+      if (!confirm(`📅 Sync ${monthNames[month]} ${year} Events?\n\nThis will:\n1. Extract all events from device for ${monthNames[month]} ${year}\n2. Match employees by ID\n3. Create attendance records\n\nDevice: ${ip}\n\nContinue?`)) {
+        return;
+      }
+      
+      try {
+        statusDiv.style.display = 'block';
+        statusText.textContent = 'Connecting to Hikvision sync service...';
+        progressText.textContent = '';
+        
+        // Step 1: Extract events from device
+        console.log('📥 Fetching events from sync service...');
+        statusText.textContent = 'Extracting events from device...';
+        progressText.textContent = 'Using Hikvision API with monthly filter';
+        
+        const syncServiceUrl = `http://localhost:3002/device/sync-month?ip=${encodeURIComponent(ip)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&month=${month}&year=${year}`;
+        
+        const response = await fetch(syncServiceUrl);
+        if (!response.ok) {
+          throw new Error(`Service returned ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('📊 Sync result:', data);
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        const events = data.events || [];
+        statusText.textContent = `Found ${events.length} events for ${monthNames[month]} ${year}`;
+        progressText.textContent = 'Processing employee matches...';
+        
+        // Step 2: Get all employees for this business
+        console.log('👥 Loading employees...');
+        const employeesRef = collection(db, "businesses", businessId, "employees");
+        const employeesSnap = await getDocs(employeesRef);
+        
+        const employeeMap = {};
+        employeesSnap.forEach(doc => {
+          const emp = doc.data();
+          // Map by device employee ID (if exists)
+          if (emp.deviceEmployeeId) {
+            employeeMap[emp.deviceEmployeeId] = { id: doc.id, ...emp };
+          }
+          // Also map by employee number if it matches
+          if (emp.employeeNumber) {
+            employeeMap[emp.employeeNumber] = { id: doc.id, ...emp };
+          }
+        });
+        
+        console.log('📋 Employee map:', employeeMap);
+        
+        // Step 3: Process events and create attendance records
+        let matched = 0;
+        let unmatched = 0;
+        let created = 0;
+        let errors = 0;
+        
+        statusText.textContent = 'Creating attendance records...';
+        progressText.textContent = `Processing ${events.length} events...`;
+        
+        for (const event of events) {
+          try {
+            // Skip invalid events
+            if (!event.time || event.time.startsWith('1970')) {
+              continue;
+            }
+            
+            // Find employee by ID
+            const employeeNoString = event.employeeNoString?.toString();
+            if (!employeeNoString) {
+              unmatched++;
+              continue;
+            }
+            
+            const employee = employeeMap[employeeNoString];
+            if (!employee) {
+              console.warn(`⚠️ No employee found for device ID: ${employeeNoString}`);
+              unmatched++;
+              continue;
+            }
+            
+            matched++;
+            
+            // Create attendance event
+            const eventDate = new Date(event.time);
+            const dateStr = eventDate.toISOString().split('T')[0];
+            
+            const attendanceData = {
+              employeeId: employee.id,
+              employeeName: employee.name || event.name,
+              businessId: businessId,
+              timestamp: Timestamp.fromDate(eventDate),
+              date: dateStr,
+              eventType: event.minor === 75 ? 'access_granted' : (event.minor === 76 ? 'access_denied' : 'unknown'),
+              source: 'hikvision_device',
+              deviceId: ip,
+              deviceSerialNo: event.serialNo,
+              rawEvent: event,
+              syncedAt: Timestamp.now(),
+              month: parseInt(month),
+              year: parseInt(year)
+            };
+            
+            // Add to attendance_events collection
+            const eventsRef = collection(db, "businesses", businessId, "attendance_events");
+            await addDoc(eventsRef, attendanceData);
+            created++;
+            
+            if (created % 10 === 0) {
+              progressText.textContent = `Created ${created} records...`;
+            }
+            
+          } catch (err) {
+            console.error('Error processing event:', err, event);
+            errors++;
+          }
+        }
+        
+        statusDiv.style.display = 'none';
+        
+        const summary = `✅ Monthly Sync Complete!\n\n` +
+                       `📅 Period: ${monthNames[month]} ${year}\n` +
+                       `📊 Total Events: ${events.length}\n` +
+                       `✅ Matched Employees: ${matched}\n` +
+                       `❓ Unmatched: ${unmatched}\n` +
+                       `📝 Records Created: ${created}\n` +
+                       `❌ Errors: ${errors}\n\n` +
+                       (unmatched > 0 ? `⚠️ Some events could not be matched to employees. Make sure employees have their device IDs configured.` : '');
+        
+        alert(summary);
+        console.log('✅ Monthly sync complete:', { events: events.length, matched, unmatched, created, errors });
+        
+        // Refresh the view
+        if (typeof loadDeviceCollections === 'function') {
+          await loadDeviceCollections();
+        }
+        
+      } catch (error) {
+        console.error('❌ Monthly sync error:', error);
+        statusDiv.style.display = 'none';
+        alert('❌ Sync failed: ' + error.message + '\n\nMake sure:\n1. Hikvision sync service is running (port 3002)\n2. Device IP and credentials are correct\n3. Device is accessible on the network');
+      }
+    }
+
+    /**
+     * �🚨 RECOVER OFFLINE EVENTS
      * Check device collections and heal missing events to attendance_events
      */
     async function recoverOfflineEvents() {
@@ -10494,6 +10716,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     // Add sync functions to global scope
     window.loadDeviceCollections = loadDeviceCollections;
     window.triggerManualSync = triggerManualSync;
+    window.syncMonthlyDeviceEvents = syncMonthlyDeviceEvents;
     window.viewDeviceEvents = viewDeviceEvents;
     window.compareEvents = compareEvents;
     window.initDeviceSync = initDeviceSync;
