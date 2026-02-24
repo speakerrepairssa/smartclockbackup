@@ -10204,19 +10204,31 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         console.log('🚨 Starting offline event recovery...');
         
         // Step 1: Get device configuration
+        // Get device credentials - try from Firebase, fallback to Monthly Sync inputs
+        let deviceIp = document.getElementById('monthlyDeviceIP')?.value || '192.168.7.2';
+        let deviceUsername = document.getElementById('monthlyUsername')?.value || 'admin';
+        let devicePassword = document.getElementById('monthlyPassword')?.value;
+        
+        // Try to get from Firebase device config first
         const deviceRef = doc(db, "businesses", businessId, "devices", selectedDeviceId);
         const deviceSnap = await getDoc(deviceRef);
         
-        if (!deviceSnap.exists()) {
-          throw new Error('Device not found');
+        if (deviceSnap.exists()) {
+          const deviceConfig = deviceSnap.data();
+          console.log('📱 Device config from Firebase:', deviceConfig);
+          
+          // Use Firebase config if available
+          if (deviceConfig.ip) deviceIp = deviceConfig.ip;
+          if (deviceConfig.username) deviceUsername = deviceConfig.username;
+          if (deviceConfig.password) devicePassword = deviceConfig.password;
         }
         
-        const deviceConfig = deviceSnap.data();
-        console.log('📱 Device config:', deviceConfig);
-        
-        if (!deviceConfig.ip || !deviceConfig.username || !deviceConfig.password) {
-          throw new Error('Device credentials missing. Please configure device IP, username, and password in the Devices section.');
+        // Validate we have credentials
+        if (!deviceIp || !devicePassword) {
+          throw new Error('Device credentials missing.\n\nPlease either:\n1. Configure device in Devices section, OR\n2. Fill in the Monthly Sync section fields above');
         }
+        
+        console.log(`📱 Using device: ${deviceIp}, username: ${deviceUsername}`);
         
         // Step 2: Load employee mapping (check both employees and staff)
         console.log('👥 Loading employee mapping...');
@@ -10277,7 +10289,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         // Step 3: Pull today's events from device via sync service
         console.log('📥 Pulling today\'s events from device...');
         
-        const syncServiceUrl = `http://localhost:3002/device/sync-month?ip=${encodeURIComponent(deviceConfig.ip)}&username=${encodeURIComponent(deviceConfig.username)}&password=${encodeURIComponent(deviceConfig.password)}&month=${today.getMonth() + 1}&year=${today.getFullYear()}`;
+        const syncServiceUrl = `http://localhost:3002/device/sync-month?ip=${encodeURIComponent(deviceIp)}&username=${encodeURIComponent(deviceUsername)}&password=${encodeURIComponent(devicePassword)}&month=${today.getMonth() + 1}&year=${today.getFullYear()}`;
         
         console.log('🔗 Calling sync service...');
         const response = await fetch(syncServiceUrl);
