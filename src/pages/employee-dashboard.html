@@ -23,18 +23,61 @@
       min-height: 100vh;
     }
 
+    /* Mobile Menu Toggle Button */
+    .mobile-menu-toggle {
+      display: none;
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 1000;
+      background: #48bb78;
+      color: white;
+      border: none;
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .mobile-menu-toggle:active {
+      transform: scale(0.95);
+    }
+
+    /* Sidebar Overlay */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 998;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sidebar-overlay.active {
+      display: block;
+      opacity: 1;
+    }
+
     /* Sidebar */
     .sidebar {
-      width: 220px;
+      width: 260px;
       background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
       color: white;
       padding: 2rem 1rem;
       position: fixed;
       height: 100vh;
       overflow-y: auto;
-      z-index: 10;
+      z-index: 999;
       display: flex;
       flex-direction: column;
+      transition: transform 0.3s ease;
     }
 
     .sidebar-header {
@@ -56,6 +99,7 @@
     .employee-info h3 {
       font-size: 1.1rem;
       margin-bottom: 0.5rem;
+      word-break: break-word;
     }
 
     .employee-info p {
@@ -70,21 +114,24 @@
     }
 
     .sidebar-menu li {
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
     }
 
     .sidebar-menu button {
       width: 100%;
-      padding: 0.75rem;
+      padding: 0.875rem 1rem;
       background: rgba(255, 255, 255, 0.1);
       border: none;
       color: white;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       text-align: left;
       transition: all 0.3s ease;
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 500;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
     }
 
     .sidebar-menu button:hover {
@@ -94,7 +141,7 @@
 
     .sidebar-menu button.active {
       background: rgba(255, 255, 255, 0.3);
-      border-left: 3px solid white;
+      border-left: 4px solid white;
     }
 
     .sidebar-footer {
@@ -107,14 +154,16 @@
 
     .logout-btn {
       width: 100%;
-      padding: 0.75rem;
-      background: rgba(255, 67, 67, 0.8);
+      padding: 0.875rem;
+      background: rgba(255, 67, 67, 0.9);
       color: white;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
       transition: all 0.3s ease;
+      font-size: 1rem;
+      min-height: 48px;
     }
 
     .logout-btn:hover {
@@ -123,7 +172,7 @@
 
     /* Main Content */
     .main-content {
-      margin-left: 220px;
+      margin-left: 260px;
       flex: 1;
       padding: 2rem;
       position: relative;
@@ -142,11 +191,13 @@
       font-size: 1.8rem;
       color: #48bb78;
       margin-bottom: 0.25rem;
+      line-height: 1.3;
     }
 
     .employee-header p {
       color: #666;
       font-size: 0.95rem;
+      line-height: 1.5;
     }
 
     .view-section {
@@ -289,13 +340,18 @@
 
     /* Button Styles */
     .btn {
-      padding: 0.75rem 1.5rem;
+      padding: 0.875rem 1.5rem;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 1rem;
       transition: all 0.2s;
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
 
     .btn-primary {
@@ -316,20 +372,236 @@
       background: #d0d0d0;
     }
 
-    /* Responsive */
+    /* Responsive Design */
     @media (max-width: 768px) {
+      /* Show mobile menu button */
+      .mobile-menu-toggle {
+        display: block;
+      }
+
+      /* Hide sidebar by default, show when active */
       .sidebar {
+        transform: translateX(-100%);
+        width: 280px;
+      }
+
+      .sidebar.active {
+        transform: translateX(0);
+      }
+
+      /* Remove left margin from main content */
+      .main-content {
+        margin-left: 0;
+        padding: 1rem;
+        padding-top: 5rem;
+      }
+
+      /* Adjust header for mobile */
+      .employee-header {
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .employee-header h1 {
+        font-size: 1.5rem;
+      }
+
+      .employee-header p {
+        font-size: 0.875rem;
+      }
+
+      /* Single column stats on mobile */
+      .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      /* Improve stat card sizing */
+      .stat-card {
+        padding: 1.25rem;
+      }
+
+      .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+      }
+
+      .stat-info h3 {
+        font-size: 0.75rem;
+      }
+
+      .stat-info p {
+        font-size: 1.5rem;
+      }
+
+      /* Section titles */
+      .section-title {
+        font-size: 1.25rem;
+      }
+
+      .section-description {
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+      }
+
+      /* Make tables horizontally scrollable */
+      .timecard-table {
+        padding: 1rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .timecard-table table {
+        min-width: 600px;
+      }
+
+      .timecard-table th,
+      .timecard-table td {
+        padding: 0.625rem 0.75rem;
+        font-size: 0.875rem;
+      }
+
+      /* Timecard controls - stack vertically */
+      .timecard-controls > div:first-child {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .timecard-controls > div:first-child > div {
         width: 100%;
-        height: auto;
-        position: relative;
+      }
+
+      .timecard-controls button {
+        width: 100%;
+      }
+
+      /* Leave types - single column */
+      .leave-types {
+        grid-template-columns: 1fr;
+      }
+
+      /* Leave balance card */
+      .leave-balance {
+        padding: 1.25rem;
+      }
+
+      .leave-type-card {
+        padding: 1.25rem;
+      }
+
+      /* Application cards - single column */
+      .view-section#applyForView > div:first-of-type {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Application form */
+      #applicationFormContainer {
+        padding: 1.25rem;
+      }
+
+      /* Improve touch targets */
+      input[type="month"],
+      input[type="text"],
+      input[type="email"],
+      input[type="date"],
+      textarea,
+      select {
+        min-height: 48px;
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        padding: 0.75rem;
+      }
+
+      /* Button sizing */
+      button {
+        min-height: 48px;
+        font-size: 1rem;
+      }
+
+      /* Monthly hours grid */
+      #employeeMonthlyHoursGrid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Assessment controls */
+      .assessment-controls {
+        flex-direction: column;
+        padding: 1rem;
+      }
+
+      .assessment-controls > div {
+        width: 100%;
+      }
+
+      .assessment-controls button {
+        width: 100%;
+      }
+    }
+
+    /* Smaller phones */
+    @media (max-width: 480px) {
+      .main-content {
+        padding: 0.75rem;
+        padding-top: 4.5rem;
+      }
+
+      .employee-header h1 {
+        font-size: 1.25rem;
+      }
+
+      .section-title {
+        font-size: 1.125rem;
+      }
+
+      .stat-info p {
+        font-size: 1.25rem;
+      }
+
+      .btn {
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+      }
+    }
+
+    /* Tablet landscape */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .sidebar {
+        width: 220px;
       }
 
       .main-content {
-        margin-left: 0;
+        margin-left: 220px;
       }
 
       .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Additional mobile improvements for content boxes */
+    @media (max-width: 768px) {
+      [style*="padding: 2rem"] {
+        padding: 1.25rem !important;
+      }
+
+      [style*="padding: 1.5rem"] {
+        padding: 1rem !important;
+      }
+
+      [style*="gap: 1.5rem"] {
+        gap: 1rem !important;
+      }
+
+      [style*="minmax(300px"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      [style*="font-size: 3rem"] {
+        font-size: 2.5rem !important;
+      }
+
+      [style*="font-size: 1.5rem"][style*="margin: 0"] {
+        font-size: 1.25rem !important;
       }
     }
 
@@ -367,9 +639,17 @@
   </style>
 </head>
 <body>
+  <!-- Mobile Menu Toggle Button -->
+  <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleMobileMenu()">
+    ☰
+  </button>
+
+  <!-- Sidebar Overlay (for mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileMenu()"></div>
+
   <div class="employee-wrapper">
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="employeeSidebar">
       <div class="sidebar-header">👤 My Portal</div>
       
       <div class="employee-info" id="employeeInfoCard">
@@ -626,6 +906,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, getDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getStorage } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyDUYfiPoK69W8VWk3eHMQPpuvZPzB00qCA",
@@ -639,9 +920,11 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const storage = getStorage(app);
 
     window.db = db;
     window.auth = auth;
+    window.storage = storage;
 
     let employeeId = null;
     let businessId = null;
@@ -659,11 +942,107 @@
       document.getElementById(section + 'View').classList.add('active');
       document.querySelector(`[data-section="${section}"]`).classList.add('active');
       
+      // Close mobile menu after selection
+      closeMobileMenu();
+      
       // Load data for specific sections
       if (section === 'applyFor') {
         loadApplicationsHistory();
       }
     };
+
+    // Mobile Menu Functions
+    window.toggleMobileMenu = function() {
+      const sidebar = document.getElementById('employeeSidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      const menuBtn = document.getElementById('mobileMenuToggle');
+      
+      if (sidebar.classList.contains('active')) {
+        closeMobileMenu();
+      } else {
+        sidebar.classList.add('active');
+        overlay.classList.add('active');
+        menuBtn.innerHTML = '✕';
+        document.body.style.overflow = 'hidden'; // Prevent background scroll
+      }
+    };
+
+    window.closeMobileMenu = function() {
+      const sidebar = document.getElementById('employeeSidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      const menuBtn = document.getElementById('mobileMenuToggle');
+      
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+      menuBtn.innerHTML = '☰';
+      document.body.style.overflow = ''; // Restore scroll
+    };
+
+    // Upload documents function
+    window.uploadDocuments = async function(applicationId) {
+      try {
+        const fileInput = document.getElementById(`docUpload_${applicationId}`);
+        const files = fileInput.files;
+        
+        if (!files || files.length === 0) {
+          alert('Please select at least one file to upload');
+          return;
+        }
+        
+        // Show loading state
+        const button = event.target;
+        button.disabled = true;
+        button.innerHTML = '⏳ Uploading...';
+        
+        const { ref: storageRef, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+        const { doc: firestoreDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        // Upload all files
+        const uploadedDocs = [];
+        for (const file of files) {
+          const filePath = `businesses/${businessId}/applications/${applicationId}/${Date.now()}_${file.name}`;
+          const fileRef = storageRef(storage, filePath);
+          
+          await uploadBytes(fileRef, file);
+          const url = await getDownloadURL(fileRef);
+          
+          uploadedDocs.push({
+            name: file.name,
+            url: url,
+            uploadedAt: new Date().toISOString()
+          });
+        }
+        
+        // Update application with documents and reset to pending
+        const appRef = firestoreDoc(db, 'businesses', businessId, 'applications', applicationId);
+        await updateDoc(appRef, {
+          documents: uploadedDocs,
+          status: 'pending',
+          documentsUploadedAt: serverTimestamp()
+        });
+        
+        alert('Documents uploaded successfully! Your application has been resubmitted.');
+        
+        // Reload applications
+        await loadApplicationsHistory();
+        
+      } catch (error) {
+        console.error('Error uploading documents:', error);
+        alert('Error uploading documents: ' + error.message);
+        // Reset button
+        if (event && event.target) {
+          event.target.disabled = false;
+          event.target.innerHTML = '📤 Upload & Resubmit';
+        }
+      }
+    };
+
+    // Close menu when clicking outside or pressing ESC
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeMobileMenu();
+      }
+    });
 
     // Check authentication on load
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1619,44 +1998,70 @@
     window.submitApplication = async function(event, type) {
       event.preventDefault();
       
+      const submitBtn = event.target.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+      }
+      
       try {
         const formData = new FormData(event.target);
         const data = Object.fromEntries(formData.entries());
         
+        // Validate required data
+        if (!employeeId || !businessId) {
+          throw new Error('Session data missing. Please log in again.');
+        }
+        
         // Add metadata
         data.employeeId = employeeId;
-        data.employeeName = employeeData.employeeName;
-        data.employeeSlot = employeeData.slot;
+        data.employeeName = employeeData?.employeeName || sessionStorage.getItem('employeeName') || 'Unknown';
+        data.employeeSlot = employeeData?.slot || employeeId;
         data.businessId = businessId;
         data.type = type;
         data.status = 'pending';
-        data.submittedDate = new Date().toISOString();
+        data.submittedAt = new Date().toISOString();
+        data.timestamp = Date.now(); // For sorting
         
         console.log('Submitting application:', data);
         
         // Save to Firestore
-        const { addDoc, collection: firestoreCollection } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        await addDoc(firestoreCollection(db, 'businesses', businessId, 'applications'), data);
+        const { addDoc, collection: firestoreCollection, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const docRef = await addDoc(firestoreCollection(db, 'businesses', businessId, 'applications'), {
+          ...data,
+          createdAt: serverTimestamp()
+        });
+        
+        console.log('Application submitted with ID:', docRef.id);
         
         alert('✅ Application submitted successfully! Management will review your request.');
         hideApplicationForm();
         
         // Reload applications
-        loadApplicationsHistory();
+        await loadApplicationsHistory();
         
       } catch (error) {
         console.error('Error submitting application:', error);
         alert('❌ Failed to submit application: ' + error.message);
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '📤 Submit Application';
+        }
       }
     };
 
     async function loadApplicationsHistory() {
       try {
-        const { collection: firestoreCollection, query, where, getDocs, orderBy } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        console.log('Loading applications for:', { businessId, employeeId });
+        
+        const { collection: firestoreCollection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
         const applicationsRef = firestoreCollection(db, 'businesses', businessId, 'applications');
-        const q = query(applicationsRef, where('employeeId', '==', employeeId), orderBy('submittedDate', 'desc'));
+        const q = query(applicationsRef, where('employeeId', '==', employeeId));
         const snapshot = await getDocs(q);
+        
+        console.log('Found applications:', snapshot.size);
         
         const container = document.getElementById('applicationsHistory');
         
@@ -1665,37 +2070,92 @@
           return;
         }
         
-        const applications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Get applications and sort by timestamp in JS
+        const applications = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         
         container.innerHTML = applications.map(app => {
-          const date = new Date(app.submittedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+          const date = new Date(app.submittedAt || app.submittedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
           const statusColors = {
             'pending': '#ffa500',
+            'documents_requested': '#0d6efd',
             'approved': '#28a745',
             'rejected': '#dc3545'
           };
           const statusColor = statusColors[app.status] || '#999';
           
+          let typeLabel = app.type.toUpperCase().replace(/([A-Z])/g, ' $1').trim();
+          
+          // Document upload section for documents_requested status
+          let documentSection = '';
+          if (app.status === 'documents_requested') {
+            documentSection = `
+              <div style="margin-top: 1rem; padding: 1rem; background: #e7f1ff; border-left: 4px solid #0d6efd; border-radius: 4px;">
+                <strong style="color: #084298;">📎 Documents Required</strong>
+                <p style="margin: 0.5rem 0; color: #084298; font-size: 0.9rem;">
+                  ${app.documentRequest || 'Please upload the requested documents.'}
+                </p>
+                <div style="margin-top: 1rem;">
+                  <input type="file" id="docUpload_${app.id}" multiple accept="image/*,.pdf,.doc,.docx" 
+                         style="display: block; margin-bottom: 0.5rem; padding: 0.5rem; background: white; border: 1px solid #0d6efd; border-radius: 4px; width: 100%;">
+                  <button onclick="uploadDocuments('${app.id}')" 
+                          style="width: 100%; padding: 0.75rem; background: #0d6efd; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    📤 Upload & Resubmit
+                  </button>
+                </div>
+              </div>
+            `;
+          }
+          
+          // Show uploaded documents
+          let uploadedDocsHtml = '';
+          if (app.documents && app.documents.length > 0) {
+            uploadedDocsHtml = `
+              <div style="margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+                <strong style="color: #495057; font-size: 0.85rem;">📎 Uploaded Documents:</strong>
+                <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                  ${app.documents.map((doc, idx) => `
+                    <a href="${doc.url}" target="_blank" 
+                       style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: white; border: 1px solid #dee2e6; border-radius: 4px; text-decoration: none; color: #667eea; font-size: 0.85rem;">
+                      📄 ${doc.name || `Document ${idx + 1}`}
+                    </a>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }
+          
           return `
             <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; background: #f9f9f9;">
-              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
                 <div>
-                  <strong style="color: #667eea; font-size: 1.1rem;">${app.type.toUpperCase()}</strong>
-                  <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">${date}</div>
+                  <strong style="color: #667eea; font-size: 1.1rem;">${typeLabel}</strong>
+                  <div style="font-size: 0.85rem; color: #666; margin-top: 0.25rem;">${date}</div>
                 </div>
-                <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">${app.status.toUpperCase()}</span>
+                <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; white-space: nowrap;">
+                  ${app.status === 'documents_requested' ? 'DOCS NEEDED' : app.status.toUpperCase()}
+                </span>
               </div>
               <div style="font-size: 0.9rem; color: #495057;">
-                ${app.reason ? `<p><strong>Reason:</strong> ${app.reason}</p>` : ''}
-                ${app.amount ? `<p><strong>Amount:</strong> R${app.amount}</p>` : ''}
-                ${app.startDate ? `<p><strong>Dates:</strong> ${app.startDate} to ${app.endDate}</p>` : ''}
+                ${app.reason ? `<p style="margin: 0.5rem 0;"><strong>Reason:</strong> ${app.reason}</p>` : ''}
+                ${app.amount ? `<p style="margin: 0.5rem 0;"><strong>Amount:</strong> R${app.amount}</p>` : ''}
+                ${app.startDate ? `<p style="margin: 0.5rem 0;"><strong>Dates:</strong> ${app.startDate} to ${app.endDate || app.startDate}</p>` : ''}
+                ${app.days ? `<p style="margin: 0.5rem 0;"><strong>Duration:</strong> ${app.days} day(s)</p>` : ''}
+                ${app.leaveType ? `<p style="margin: 0.5rem 0;"><strong>Leave Type:</strong> ${app.leaveType === 'paid_leave' ? 'Paid Leave' : app.leaveType === 'paid_sick' ? 'Paid Sick Leave' : 'Unpaid Leave'}</p>` : ''}
               </div>
+              ${uploadedDocsHtml}
+              ${documentSection}
             </div>
           `;
         }).join('');
         
       } catch (error) {
         console.error('Error loading applications:', error);
+        const container = document.getElementById('applicationsHistory');
+        if (container) {
+          container.innerHTML = `<p style="color: #dc3545; text-align: center; padding: 2rem;">Error loading applications: ${error.message}</p>`;
+        }
       }
     }
 

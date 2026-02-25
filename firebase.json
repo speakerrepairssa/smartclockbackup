@@ -70,5 +70,8 @@
   "dataconnect": {
     "source": "dataconnect",
     "serviceId": "device-events"
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

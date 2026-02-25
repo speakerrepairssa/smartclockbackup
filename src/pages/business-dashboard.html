@@ -4372,6 +4372,7 @@
     window.getDoc = getDoc;
 
     let businessId = null;
+    let userEmail = null;
     let pollingInterval = null;
     let statusUnsubscribe = null;
     let eventListenersSetup = false; // Prevent duplicate event listener setup
@@ -4473,6 +4474,9 @@
         window.businessId = businessId; // Expose to global scope for modules
         console.log('Business ID:', businessId);
         
+        // Get user email for action tracking
+        userEmail = sessionStorage.getItem("userEmail") || sessionStorage.getItem("businessId");
+        
         // Load module permissions and hide disabled modules
         await loadModulePermissions(businessId);
         
@@ -4483,7 +4487,6 @@
         }
         
         const businessName = sessionStorage.getItem("businessName");
-        const userEmail = sessionStorage.getItem("userEmail") || sessionStorage.getItem("businessId");
         
         console.log('Business Name:', businessName);
         console.log('User Email:', userEmail);
@@ -5410,18 +5413,23 @@
           q = query(q, where('type', '==', filterType));
         }
         
-        // Order by submitted date (newest first)
-        q = query(q, orderBy('submittedDate', 'desc'));
-        
+        // Don't use orderBy to avoid index requirement - we'll sort in JS instead
         const applicationsSnap = await getDocs(q);
         
-        // Filter by employee if selected (done client-side as compound queries need indexes)
+        // Filter by employee if selected and sort by timestamp
         let applications = [];
         applicationsSnap.forEach(doc => {
           const app = { id: doc.id, ...doc.data() };
           if (filterEmployee === 'all' || app.employeeId === filterEmployee) {
             applications.push(app);
           }
+        });
+        
+        // Sort by timestamp in JavaScript (newest first)
+        applications.sort((a, b) => {
+          const timeA = a.timestamp || new Date(a.submittedAt || a.submittedDate || 0).getTime();
+          const timeB = b.timestamp || new Date(b.submittedAt || b.submittedDate || 0).getTime();
+          return timeB - timeA;
         });
         
         // Load employee dropdown if not loaded yet
@@ -5455,6 +5463,7 @@
         document.getElementById('applicationsContainer').innerHTML = `
           <div style="text-align: center; padding: 2rem; color: #dc3545;">
             <p>Error loading applications: ${error.message}</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem;">${error.stack}</p>
           </div>
         `;
       }
@@ -5483,6 +5492,7 @@
     function renderApplicationCard(app) {
       const statusColors = {
         pending: { bg: '#fff3cd', border: '#ffc107', text: '#856404' },
+        documents_requested: { bg: '#e7f1ff', border: '#0d6efd', text: '#084298' },
         approved: { bg: '#d4edda', border: '#28a745', text: '#155724' },
         rejected: { bg: '#f8d7da', border: '#dc3545', text: '#721c24' }
       };
@@ -5506,7 +5516,8 @@
       const emoji = typeEmojis[app.type] || '📋';
       const label = typeLabels[app.type] || 'Application';
       
-      const date = new Date(app.submittedDate);
+      const submittedDate = app.submittedAt || app.submittedDate || app.createdAt;
+      const date = submittedDate ? new Date(submittedDate) : new Date();
       const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
       
       // Build details HTML based on type
@@ -5552,15 +5563,48 @@
       
       // Action buttons for pending applications
       let actionsHtml = '';
-      if (status === 'pending') {
+      
+      // Show uploaded documents if any
+      let documentsHtml = '';
+      if (app.documents && app.documents.length > 0) {
+        documentsHtml = `
+          <div style="margin: 1rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+            <strong style="color: #495057; font-size: 0.9rem;">📎 Uploaded Documents:</strong>
+            <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              ${app.documents.map((doc, idx) => `
+                <a href="${doc.url}" target="_blank" 
+                   style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: white; border: 1px solid #dee2e6; border-radius: 6px; text-decoration: none; color: #667eea;">
+                  📄 ${doc.name || `Document ${idx + 1}`}
+                  <span style="font-size: 0.75rem; color: #6c757d;">(${doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'N/A'})</span>
+                </a>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      
+      if (status === 'pending' || status === 'documents_requested') {
+        const hasDocuments = app.documents && app.documents.length > 0;
         actionsHtml = `
-          <div style="display: flex; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
-            <button onclick="approveApplication('${app.id}')" 
-                    style="flex: 1; padding: 0.75rem; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
-              ✓ Approve
+          ${status === 'documents_requested' ? `
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin: 1rem 0; border-radius: 4px;">
+              <strong style="color: #856404;">⏳ Waiting for Documents</strong>
+              <p style="margin: 0.5rem 0 0 0; color: #856404; font-size: 0.9rem;">
+                ${app.documentRequest || 'Additional documents have been requested from the employee.'}
+              </p>
+            </div>
+          ` : ''}
+          <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+            <button onclick="approveApplication('${app.id}', '${app.type}')" 
+                    style="flex: 1; min-width: 120px; padding: 0.75rem; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+              ${hasDocuments ? '✓ Approve with Docs' : '✓ Approve'}
+            </button>
+            <button onclick="requestDocuments('${app.id}')" 
+                    style="flex: 1; min-width: 120px; padding: 0.75rem; background: #ffc107; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+              📎 Request Docs
             </button>
             <button onclick="rejectApplication('${app.id}')" 
-                    style="flex: 1; padding: 0.75rem; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                    style="flex: 1; min-width: 120px; padding: 0.75rem; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
               ✗ Reject
             </button>
           </div>
@@ -5574,6 +5618,7 @@
             <div><strong>${status === 'approved' ? 'Approved' : 'Rejected'} by:</strong> ${actionBy}</div>
             <div><strong>Date:</strong> ${actionDate}</div>
             ${app.rejectionReason ? `<div style="margin-top: 0.5rem;"><strong>Reason:</strong> ${app.rejectionReason}</div>` : ''}
+            ${status === 'approved' && app.leaveType ? `<div style="margin-top: 0.5rem;"><strong>Leave Type:</strong> ${app.leaveType}</div>` : ''}
           </div>
         `;
       }
@@ -5589,7 +5634,7 @@
               </div>
             </div>
             <div style="background: ${colors.bg}; color: ${colors.text}; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; border: 2px solid ${colors.border};">
-              ${status}
+              ${status === 'documents_requested' ? 'DOCS NEEDED' : status}
             </div>
           </div>
           
@@ -5598,30 +5643,138 @@
           </div>
           
           ${detailsHtml}
+          ${documentsHtml}
           ${actionsHtml}
         </div>
       `;
     }
     
-    async function approveApplication(applicationId) {
+    async function approveApplication(applicationId, applicationType) {
       if (!confirm('Are you sure you want to approve this application?')) {
         return;
       }
       
       try {
+        // Get application details first
         const appRef = doc(db, "businesses", businessId, "applications", applicationId);
+        const appSnap = await getDoc(appRef);
+        
+        if (!appSnap.exists()) {
+          throw new Error('Application not found');
+        }
+        
+        const appData = appSnap.data();
+        
+        // Determine leave type for timecard
+        let leaveType = 'unpaid';
+        if (appData.type === 'leave' || appData.type === 'sickleave') {
+          const leaveTypeOptions = {
+            'Annual Leave': 'paid_leave',
+            'Vacation': 'paid_leave',
+            'Sick Leave': 'paid_sick',
+            'Medical Leave': 'paid_sick',
+            'Unpaid Leave': 'unpaid'
+          };
+          
+          // Prompt for leave type
+          const selectedType = prompt(
+            'Select leave type:\n' +
+            '1 - Paid Leave (Annual/Vacation)\n' +
+            '2 - Paid Sick Leave\n' +
+            '3 - Unpaid Leave\n\n' +
+            'Enter number (1-3):'
+          );
+          
+          if (selectedType === null) return; // Cancelled
+          
+          switch(selectedType) {
+            case '1': leaveType = 'paid_leave'; break;
+            case '2': leaveType = 'paid_sick'; break;
+            case '3': leaveType = 'unpaid'; break;
+            default: leaveType = 'unpaid';
+          }
+        }
+        
+        // Update application status
         await updateDoc(appRef, {
           status: 'approved',
           actionDate: new Date().toISOString(),
-          actionBy: auth.currentUser?.email || 'admin'
+          actionBy: userEmail || 'admin',
+          timestamp: Date.now(),
+          leaveType: leaveType
         });
         
-        alert('Application approved successfully!');
+        // If it's a leave request, update the timecard
+        if ((appData.type === 'leave' || appData.type === 'sickleave') && appData.startDate && appData.endDate) {
+          await updateTimecardForLeave(appData.employeeId, appData.startDate, appData.endDate, leaveType, appData.reason);
+        }
+        
+        alert('✅ Application approved successfully!' + 
+              (leaveType !== 'unpaid' ? `\n📅 Timecard updated with ${leaveType.replace('_', ' ')}` : ''));
         await loadApplications();
         
       } catch (error) {
         console.error('Error approving application:', error);
-        alert('Error approving application: ' + error.message);
+        alert('❌ Error approving application: ' + error.message);
+      }
+    }
+    
+    async function updateTimecardForLeave(employeeId, startDateStr, endDateStr, leaveType, reason) {
+      try {
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(endDateStr);
+        
+        // Loop through each day in the range
+        for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+          const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+          const monthKey = dateKey.substring(0, 7); // YYYY-MM
+          
+          // Create attendance event for this day
+          const attendanceRef = collection(db, "businesses", businessId, "attendance_events");
+          await addDoc(attendanceRef, {
+            employeeId: employeeId,
+            date: dateKey,
+            month: monthKey,
+            type: leaveType,
+            leaveType: leaveType,
+            reason: reason || 'Approved leave',
+            status: 'approved',
+            isLeave: true,
+            timestamp: date.getTime(),
+            createdAt: new Date().toISOString()
+          });
+        }
+        
+        console.log('Timecard updated for leave period:', startDateStr, 'to', endDateStr);
+      } catch (error) {
+        console.error('Error updating timecard:', error);
+        throw error;
+      }
+    }
+    
+    async function requestDocuments(applicationId) {
+      const message = prompt('What documents do you need from the employee?\n(e.g., "Please upload medical certificate" or "Please provide proof of address")');
+      
+      if (message === null || message.trim() === '') {
+        return; // Cancelled or empty
+      }
+      
+      try {
+        const appRef = doc(db, "businesses", businessId, "applications", applicationId);
+        await updateDoc(appRef, {
+          status: 'documents_requested',
+          documentRequest: message.trim(),
+          documentRequestedAt: new Date().toISOString(),
+          documentRequestedBy: userEmail || 'admin',
+          timestamp: Date.now()
+        });
+        
+        alert('✅ Document request sent to employee!');
+        await loadApplications();
+        
+      } catch (error) {
+        console.error('Error requesting documents:', error);
+        alert('❌ Error requesting documents: ' + error.message);
       }
     }
     
@@ -5636,7 +5789,8 @@
         const updateData = {
           status: 'rejected',
           actionDate: new Date().toISOString(),
-          actionBy: auth.currentUser?.email || 'admin'
+          actionBy: userEmail || 'admin',
+          timestamp: Date.now()
         };
         
         if (reason && reason.trim()) {
@@ -5650,9 +5804,14 @@
         
       } catch (error) {
         console.error('Error rejecting application:', error);
-        alert('Error rejecting application: ' + error.message);
+        alert('❌ Error rejecting application: ' + error.message);
       }
     }
+    
+    // Make functions globally accessible for onclick handlers
+    window.approveApplication = approveApplication;
+    window.rejectApplication = rejectApplication;
+    window.requestDocuments = requestDocuments;
     
     // ========== END APPLICATIONS MODULE ==========
 

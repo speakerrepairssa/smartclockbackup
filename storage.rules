@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for SmartClock AI
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check file size (10MB limit)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Helper function to check file type (images and documents only)
+    function isValidFileType() {
+      return request.resource.contentType.matches('image/.*') ||
+             request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+    
+    // Business application documents
+    match /businesses/{businessId}/applications/{applicationId}/{fileName} {
+      // Allow uploads for authenticated users who belong to the business
+      allow write: if isAuthenticated() && 
+                      isValidSize() && 
+                      isValidFileType();
+      
+      // Allow read for authenticated users who belong to the business
+      allow read: if isAuthenticated();
+    }
+    
+    // Employee profile images
+    match /businesses/{businessId}/employees/{employeeId}/profile/{fileName} {
+      allow write: if isAuthenticated() && 
+                      isValidSize() && 
+                      request.resource.contentType.matches('image/.*');
+      allow read: if isAuthenticated();
+    }
+    
+    // Default deny all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
