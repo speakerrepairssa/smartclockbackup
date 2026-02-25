@@ -980,6 +980,7 @@
 
     // Upload documents function
     window.uploadDocuments = async function(applicationId) {
+      const button = event.target;
       try {
         const fileInput = document.getElementById(`docUpload_${applicationId}`);
         const files = fileInput.files;
@@ -989,21 +990,35 @@
           return;
         }
         
+        // Check if storage is initialized
+        if (!window.storage) {
+          alert('⚠️ Firebase Storage is not enabled.\n\nPlease enable Storage in Firebase Console:\nhttps://console.firebase.google.com/project/aiclock-82608/storage');
+          return;
+        }
+        
         // Show loading state
-        const button = event.target;
         button.disabled = true;
         button.innerHTML = '⏳ Uploading...';
         
         const { ref: storageRef, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
         const { doc: firestoreDoc, updateDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
         
-        // Upload all files
+        // Upload all files with timeout
         const uploadedDocs = [];
-        for (const file of files) {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          button.innerHTML = `⏳ Uploading ${i + 1}/${files.length}...`;
+          
           const filePath = `businesses/${businessId}/applications/${applicationId}/${Date.now()}_${file.name}`;
           const fileRef = storageRef(storage, filePath);
           
-          await uploadBytes(fileRef, file);
+          // Add timeout to prevent hanging
+          const uploadPromise = uploadBytes(fileRef, file);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Upload timeout - Firebase Storage may not be enabled')), 10000)
+          );
+          
+          await Promise.race([uploadPromise, timeoutPromise]);
           const url = await getDownloadURL(fileRef);
           
           uploadedDocs.push({
@@ -1014,6 +1029,7 @@
         }
         
         // Update application with documents and reset to pending
+        button.innerHTML = '⏳ Saving...';
         const appRef = firestoreDoc(db, 'businesses', businessId, 'applications', applicationId);
         await updateDoc(appRef, {
           documents: uploadedDocs,
@@ -1021,19 +1037,24 @@
           documentsUploadedAt: serverTimestamp()
         });
         
-        alert('Documents uploaded successfully! Your application has been resubmitted.');
+        alert('✅ Documents uploaded successfully! Your application has been resubmitted.');
         
         // Reload applications
         await loadApplicationsHistory();
         
       } catch (error) {
         console.error('Error uploading documents:', error);
-        alert('Error uploading documents: ' + error.message);
-        // Reset button
-        if (event && event.target) {
-          event.target.disabled = false;
-          event.target.innerHTML = '📤 Upload & Resubmit';
+        const errorMsg = error.message || String(error);
+        
+        if (errorMsg.includes('storage') || errorMsg.includes('bucket')) {
+          alert('⚠️ Firebase Storage Error\n\nStorage may not be enabled. Please enable it:\nhttps://console.firebase.google.com/project/aiclock-82608/storage\n\nTechnical error: ' + errorMsg);
+        } else {
+          alert('❌ Error uploading documents: ' + errorMsg);
         }
+        
+        // Reset button
+        button.disabled = false;
+        button.innerHTML = '📤 Upload & Resubmit';
       }
     };
 
