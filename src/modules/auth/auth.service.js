@@ -218,8 +218,8 @@ class AuthService {
    */
   async registerBusiness(businessData) {
     try {
-      const { businessName, email, password, deviceId } = businessData;
-      console.log("Starting business registration:", { businessName, email });
+      const { businessName, email, contactNumber, address, password, deviceId } = businessData;
+      console.log("Starting business registration:", { businessName, email, contactNumber, address });
 
       // Check if business already exists
       const businessesRef = collection(db, "businesses");
@@ -234,28 +234,51 @@ class AuthService {
       const businessId = `biz_${businessName.toLowerCase().replace(/\s+/g, '_')}`;
       console.log("Generated business ID:", businessId);
 
+      // Default modules access for new registrations
+      const defaultModulesAccess = {
+        dashboard: true,
+        employees: true,
+        monitor: true,
+        assessment: true,
+        shifts: true,
+        timecards: true,
+        punches: true,
+        whatsapp: true,
+        // Disabled by default
+        reports: false,
+        payroll: false,
+        settings: false,
+        devices: false,
+        credentials: false,
+        locationTracking: false
+      };
+
       // Create business document
       const businessRef = doc(db, "businesses", businessId);
       await setDoc(businessRef, {
         businessName,
         email,
+        contactNumber,
+        address,
         password, // In production, hash this
         deviceId: deviceId || "",
-        plan: "Professional",
-        slotsAllowed: 20,
-        maxEmployees: 20,
-        monthlyFee: 29.99,
+        plan: "Free Trial",
+        slotsAllowed: 10,
+        maxEmployees: 10,
+        monthlyFee: 0,
+        trialEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
         status: "active",
         approved: true,
         apiEnabled: true,
         breakDuration: 60,
+        modulesAccess: defaultModulesAccess,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
-      console.log("Business document created");
+      console.log("Business document created with 10 employee slots and default module access");
 
       // Initialize business slots
-      await this.initializeBusinessSlots(businessId, 20);
+      await this.initializeBusinessSlots(businessId, 10);
       console.log("Business slots initialized");
 
       return businessId;

@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Allow: /pages/admin-register.html
+Allow: /pages/login.html
+Allow: /pages/employee-login.html
+
+Disallow: /modules/
+Disallow: /config/
+
+Sitemap: https://aiclock-82608.web.app/sitemap.xml

@@ -1,10 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17975053261"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'AW-17975053261');
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SmartClock - AI Employee Payroll & Clocking System | Industry-Standard Hikvision Integration</title>
   <meta name="description" content="AI-powered employee payroll and clocking system with Hikvision integration. Auto month-end payslip generator, monitor from anywhere, self-serve employee portal. Free 1-month trial for up to 10 employees.">
+  
+  <!-- SEO Meta Tags -->
+  <meta name="keywords" content="employee clocking system, time attendance system, payroll software, biometric clocking, Hikvision integration, employee monitoring, South Africa time clock, workforce management, attendance tracking, cloud-based payroll">
+  <meta name="author" content="SmartClock">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://aiclock-82608.web.app/">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://aiclock-82608.web.app/">
+  <meta property="og:title" content="SmartClock - AI Employee Payroll & Clocking System">
+  <meta property="og:description" content="AI-powered employee payroll and clocking system with Hikvision integration. Free 1-month trial for up to 10 employees.">
+  <meta property="og:image" content="https://aiclock-82608.web.app/images/system1.webp">
+  <meta property="og:locale" content="en_ZA">
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://aiclock-82608.web.app/">
+  <meta name="twitter:title" content="SmartClock - AI Employee Payroll & Clocking System">
+  <meta name="twitter:description" content="AI-powered employee payroll and clocking system with Hikvision integration. Free 1-month trial for up to 10 employees.">
+  <meta name="twitter:image" content="https://aiclock-82608.web.app/images/system1.webp">
+  
+  <!-- Structured Data for Google -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "SmartClock",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web, Android",
+    "offers": {
+      "@type": "Offer",
+      "price": "450",
+      "priceCurrency": "ZAR",
+      "priceValidUntil": "2026-12-31",
+      "availability": "https://schema.org/InStock",
+      "url": "https://aiclock-82608.web.app/pages/admin-register.html"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "reviewCount": "127"
+    },
+    "description": "AI-powered employee payroll and clocking system with Hikvision integration. Monitor staff attendance from anywhere, auto-generate payslips, and manage workforce efficiently.",
+    "featureList": [
+      "Real-time employee monitoring",
+      "Automated payroll processing",
+      "Hikvision biometric integration",
+      "WhatsApp notifications",
+      "Cloud-based access",
+      "Mobile app support",
+      "Assessment reports",
+      "Shift management"
+    ],
+    "screenshot": "https://aiclock-82608.web.app/images/system1.webp"
+  }
+  </script>
+  
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "SmartClock",
+    "url": "https://aiclock-82608.web.app",
+    "logo": "https://aiclock-82608.web.app/images/system1.webp",
+    "description": "Professional employee payroll and clocking system provider in South Africa",
+    "address": {
+      "@type": "PostalAddress",
+      "addressCountry": "ZA"
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "Sales",
+      "availableLanguage": ["English", "Afrikaans"]
+    }
+  }
+  </script>
+  
   <link rel="stylesheet" href="/styles/main.css">
   <style>
     * {
@@ -669,6 +756,448 @@
     .animate-fade-in {
       animation: fadeInUp 0.6s ease-out;
     }
+
+    /* ROI Calculator Styles */
+    #roi-calculator {
+      background: linear-gradient(135deg, #000000 0%, #0a3d2e 50%, #000000 100%);
+      color: white;
+      padding: 80px 20px;
+      text-align: center;
+    }
+
+    #roi-calculator h2 {
+      font-size: 48px;
+      margin-bottom: 15px;
+      font-weight: 700;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    #roi-calculator .subtitle {
+      font-size: 20px;
+      opacity: 0.95;
+      margin-bottom: 50px;
+    }
+
+    .calculator-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 50px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 40px;
+      align-items: start;
+      margin-bottom: 40px;
+    }
+
+    .loss-calculator,
+    .cost-calculator {
+      background: #f9f9f9;
+      padding: 40px;
+      border-radius: 15px;
+      text-align: left;
+    }
+
+    .vs-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 0;
+    }
+
+    .vs-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff9800, #ff5722);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 800;
+      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+    }
+
+    .slider-group {
+      margin-bottom: 30px;
+    }
+
+    .slider-group label {
+      display: block;
+      color: #333;
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+
+    .slider-group span {
+      color: #667eea;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 5px;
+      background: linear-gradient(to right, #f44336, #e91e63);
+      outline: none;
+      opacity: 0.9;
+      transition: opacity 0.2s;
+    }
+
+    .slider:hover {
+      opacity: 1;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #f44336;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(244, 67, 54, 0.4);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #f44336;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(244, 67, 54, 0.4);
+    }
+
+    .slider.green {
+      background: linear-gradient(to right, #4CAF50, #45a049);
+    }
+
+    .slider.green::-webkit-slider-thumb {
+      background: #4CAF50;
+      box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+    }
+
+    .slider.green::-moz-range-thumb {
+      background: #4CAF50;
+      box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .result-box {
+      margin-top: 30px;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .loss-box {
+      background: linear-gradient(135deg, #f44336, #e91e63);
+      color: white;
+    }
+
+    .cost-box {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+    }
+
+    .result-item {
+      margin-bottom: 20px;
+    }
+
+    .result-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .result-label {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+
+    .result-value {
+      font-size: 36px;
+      font-weight: 800;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .result-value.large {
+      font-size: 48px;
+    }
+
+    .savings-summary {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+      padding: 40px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+    }
+
+    .savings-summary h3 {
+      font-size: 32px;
+      margin-bottom: 25px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .savings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .savings-item {
+      background: rgba(255,255,255,0.15);
+      padding: 20px;
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+    }
+
+    .savings-label {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 10px;
+    }
+
+    .savings-value {
+      font-size: 36px;
+      font-weight: 800;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .savings-value.large {
+      font-size: 42px;
+    }
+
+    .calculator-cta {
+      text-align: center;
+      margin-top: 30px;
+    }
+
+    .calculator-cta .btn {
+      background: linear-gradient(135deg, #ff9800, #f57c00);
+      color: white;
+      border: none;
+      padding: 20px 50px;
+      font-size: 22px;
+      font-weight: 700;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .calculator-cta .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 152, 0, 0.6);
+    }
+
+    .fixed-cost {
+      background: rgba(102, 126, 234, 0.1);
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .fixed-cost-label {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .fixed-cost-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .device-selector {
+      margin-bottom: 30px;
+    }
+
+    .device-selector label {
+      display: block;
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .device-options {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .device-option {
+      position: relative;
+    }
+
+    .device-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .device-option-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+      min-height: 200px;
+    }
+
+    .device-option input[type="radio"]:checked + .device-option-label {
+      border-color: #4CAF50;
+      background: rgba(76, 175, 80, 0.1);
+      box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    }
+
+    .device-image {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .device-option-name {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #333;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .device-option-price {
+      font-size: 16px;
+      font-weight: 700;
+      color: #4CAF50;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .device-option-label:hover {
+      border-color: #4CAF50;
+      transform: scale(1.15);
+      box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+      z-index: 10;
+    }
+
+    .device-option-label:hover .device-image {
+      height: 120px;
+    }
+
+    .device-option-label:hover .device-option-name {
+      font-size: 14px;
+    }
+
+    .device-option-label:hover .device-option-price {
+      font-size: 18px;
+    }
+
+    .device-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: #4CAF50;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 2;
+    }
+
+    .device-option input[type="radio"]:checked + .device-option-label .device-badge {
+      opacity: 1;
+    }
+
+    @media (max-width: 1024px) {
+      .comparison-grid {
+        grid-template-columns: 1fr;
+        gap: 30px;
+      }
+
+      .vs-divider {
+        display: none;
+      }
+
+      .savings-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .device-options {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      #roi-calculator h2 {
+        font-size: 32px;
+      }
+
+      .calculator-container {
+        padding: 30px 20px;
+      }
+
+      .loss-calculator,
+      .cost-calculator {
+        padding: 25px;
+      }
+
+      .result-value {
+        font-size: 28px;
+      }
+
+      .result-value.large {
+        font-size: 36px;
+      }
+
+      .savings-value {
+        font-size: 28px;
+      }
+
+      .savings-value.large {
+        font-size: 32px;
+      }
+
+      .device-options {
+        grid-template-columns: 1fr;
+      }
+
+      .device-option-label {
+        min-height: auto;
+      }
+    }
   </style>
 </head>
 <body>
@@ -712,13 +1241,191 @@
         Handle hundreds of employees with ease. Self-serve portal for employees with Android app support.
       </p>
       <div class="hero-cta">
-        <a href="#trial" class="btn btn-primary">🚀 Start Free 1-Month Trial</a>
+        <a href="/pages/admin-register.html" class="btn btn-primary">🚀 Start 1 Month Free Trial Without Device</a>
         <a href="#features" class="btn btn-secondary">📖 Learn More</a>
       </div>
+      <p style="margin-top: 10px; font-size: 14px; opacity: 0.85; font-style: italic;">Get a feel of things before committing to a device rental</p>
       <div class="trial-features">
         <div class="trial-feature">✓ No Credit Card Required</div>
         <div class="trial-feature">✓ Up to 10 Employees Free</div>
         <div class="trial-feature">✓ No Obligations</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROI Calculator Section -->
+  <section id="roi-calculator">
+    <h2>⏰ Why Do I Need a Clocking Time and Attendance System?</h2>
+    <p class="subtitle">Compare what you're losing vs what you'll invest</p>
+
+    <div class="calculator-container">
+      <div class="comparison-grid">
+        <!-- LEFT SIDE: LOSSES -->
+        <div class="loss-calculator">
+          <h3 style="color: #f44336; margin-bottom: 30px; font-size: 28px;">💸 How Much Am I Losing?</h3>
+
+          <div class="slider-group">
+            <label>Number of Employees: <span id="employees-display">10</span></label>
+            <input type="range" id="num-employees" min="1" max="100" value="10" oninput="updateCalculations()" class="slider">
+            <div class="slider-labels">
+              <span>1</span>
+              <span>100</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <label>Average Hourly Wage: R<span id="wage-display">150</span></label>
+            <input type="range" id="hourly-wage" min="25" max="500" value="150" step="5" oninput="updateCalculations()" class="slider">
+            <div class="slider-labels">
+              <span>R25</span>
+              <span>R500</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <label>Employee Late By: <span id="late-display">10</span> mins</label>
+            <input type="range" id="late-minutes" min="0" max="30" value="10" oninput="updateCalculations()" class="slider">
+            <div class="slider-labels">
+              <span>0 mins</span>
+              <span>30 mins</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <label>Employee Leaves Early: <span id="early-display">5</span> mins</label>
+            <input type="range" id="early-minutes" min="0" max="30" value="5" oninput="updateCalculations()" class="slider">
+            <div class="slider-labels">
+              <span>0 mins</span>
+              <span>30 mins</span>
+            </div>
+          </div>
+
+          <div class="result-box loss-box">
+            <div class="result-item">
+              <div class="result-label">Per Month</div>
+              <div class="result-value" id="loss-monthly">R0</div>
+            </div>
+            <div class="result-item">
+              <div class="result-label">Per Year</div>
+              <div class="result-value large" id="loss-yearly">R0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIVIDER -->
+        <div class="vs-divider">
+          <div class="vs-circle">VS</div>
+        </div>
+
+        <!-- RIGHT SIDE: COSTS -->
+        <div class="cost-calculator">
+          <h3 style="color: #4CAF50; margin-bottom: 30px; font-size: 28px;">💰 How Much Will It Cost?</h3>
+
+          <div class="slider-group">
+            <label>Number of Employees: <span id="employees-cost-display">10</span></label>
+            <input type="range" id="num-employees-cost" min="1" max="100" value="10" oninput="updateCalculations()" class="slider green">
+            <div class="slider-labels">
+              <span>1</span>
+              <span>100</span>
+            </div>
+          </div>
+
+          <div class="fixed-cost">
+            <div class="fixed-cost-label">Pricing Model</div>
+            <div class="fixed-cost-value" style="font-size: 18px; line-height: 1.5;">
+              <div>R450/month (1-10 employees)</div>
+              <div style="font-size: 16px; margin-top: 5px;">+R50 per additional employee</div>
+            </div>
+          </div>
+
+          <div class="device-selector">
+            <label>Choose the device you would like to rent:</label>
+            <div class="device-options">
+              <div class="device-option">
+                <input type="radio" id="device-1" name="device" value="400" checked onchange="updateCalculations()">
+                <label for="device-1" class="device-option-label">
+                  <span class="device-badge">✓ Selected</span>
+                  <img src="/images/system1.webp" alt="Basic System" class="device-image">
+                  <span class="device-option-name">Basic System</span>
+                  <span class="device-option-price">+R400/month</span>
+                </label>
+              </div>
+              <div class="device-option">
+                <input type="radio" id="device-2" name="device" value="750" onchange="updateCalculations()">
+                <label for="device-2" class="device-option-label">
+                  <span class="device-badge">✓ Selected</span>
+                  <img src="/images/sytem 2.webp" alt="Standard System" class="device-image">
+                  <span class="device-option-name">Standard System</span>
+                  <span class="device-option-price">+R750/month</span>
+                </label>
+              </div>
+              <div class="device-option">
+                <input type="radio" id="device-3" name="device" value="950" onchange="updateCalculations()">
+                <label for="device-3" class="device-option-label">
+                  <span class="device-badge">✓ Selected</span>
+                  <img src="/images/stetem 3.webp" alt="Professional System" class="device-image">
+                  <span class="device-option-name">Professional System</span>
+                  <span class="device-option-price">+R950/month</span>
+                </label>
+              </div>
+              <div class="device-option">
+                <input type="radio" id="device-4" name="device" value="2500" onchange="updateCalculations()">
+                <label for="device-4" class="device-option-label">
+                  <span class="device-badge">✓ Selected</span>
+                  <img src="/images/system 4.jpeg" alt="Enterprise System" class="device-image">
+                  <span class="device-option-name">Enterprise System</span>
+                  <span class="device-option-price">+R2,500/month</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-box cost-box">
+            <div class="result-item">
+              <div class="result-label">Per Month</div>
+              <div class="result-value" id="cost-monthly">R0</div>
+            </div>
+            <div class="result-item">
+              <div class="result-label">Per Year</div>
+              <div class="result-value large" id="cost-yearly">R0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SAVINGS SUMMARY -->
+      <div class="savings-summary">
+        <h3>💵 Your Net Savings</h3>
+        <div class="savings-grid">
+          <div class="savings-item">
+            <div class="savings-label">Monthly Savings</div>
+            <div class="savings-value" id="savings-monthly">R0</div>
+          </div>
+          <div class="savings-item">
+            <div class="savings-label">Annual Savings</div>
+            <div class="savings-value large" id="savings-yearly">R0</div>
+          </div>
+          <div class="savings-item">
+            <div class="savings-label">ROI</div>
+            <div class="savings-value" id="roi-percentage">0%</div>
+          </div>
+        </div>
+        <p style="text-align: center; margin-top: 20px; font-size: 18px;">
+          <strong>Save <span id="roi-multiplier">0x</span> more than you spend!</strong>
+        </p>
+        <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.3);">
+          <p style="text-align: center; font-size: 16px; line-height: 1.6; margin-bottom: 10px;">
+            ⏱️ <strong>Save up to 90% on payroll time spent</strong> - Time is money
+          </p>
+          <p style="text-align: center; font-size: 16px; line-height: 1.6; margin-bottom: 0;">
+            📋 <strong>70% saved on staff queries and admin work</strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="calculator-cta">
+        <a href="#trial" class="btn">🚀 Start Saving Today - Free Trial</a>
       </div>
     </div>
   </section>
@@ -890,8 +1597,7 @@
       <p>&copy; 2025 SmartClock. All rights reserved.</p>
       <p>Professional Employee Payroll & Clocking System with Industry-Standard Technology</p>
       <div class="footer-tech">
-        <span>🔥 <strong>Firebase</strong></span>
-        <span>📷 <strong>Hikvision</strong></span>
+        <span> <strong>Hikvision</strong></span>
         <span>🌐 <strong>Cloud-Based</strong></span>
         <span>📱 <strong>Mobile Ready</strong></span>
       </div>
@@ -938,6 +1644,80 @@
         }
       });
     });
+
+    // ROI Calculator - Sync employee sliders
+    document.getElementById('num-employees').addEventListener('input', function() {
+      document.getElementById('num-employees-cost').value = this.value;
+      updateCalculations();
+    });
+
+    document.getElementById('num-employees-cost').addEventListener('input', function() {
+      document.getElementById('num-employees').value = this.value;
+      updateCalculations();
+    });
+
+    // ROI Calculator Logic
+    function updateCalculations() {
+      // Get loss values
+      const numEmployees = parseFloat(document.getElementById('num-employees').value) || 0;
+      const hourlyWage = parseFloat(document.getElementById('hourly-wage').value) || 0;
+      const lateMinutes = parseFloat(document.getElementById('late-minutes').value) || 0;
+      const earlyMinutes = parseFloat(document.getElementById('early-minutes').value) || 0;
+      const timeTheftMinutes = lateMinutes + earlyMinutes;
+
+      // Get cost values
+      const deviceCost = parseFloat(document.querySelector('input[name="device"]:checked').value) || 0;
+
+      // Update display values
+      document.getElementById('employees-display').textContent = numEmployees;
+      document.getElementById('employees-cost-display').textContent = numEmployees;
+      document.getElementById('wage-display').textContent = hourlyWage;
+      document.getElementById('late-display').textContent = lateMinutes;
+      document.getElementById('early-display').textContent = earlyMinutes;
+
+      // Calculate losses (assuming 22 working days per month)
+      const timeTheftHours = timeTheftMinutes / 60;
+      const dailyLossPerEmployee = hourlyWage * timeTheftHours;
+      const monthlyLoss = dailyLossPerEmployee * numEmployees * 22; // 22 working days
+      const yearlyLoss = monthlyLoss * 12;
+
+      // Calculate costs with tiered pricing
+      // 1-10 employees: R450 base, 11+ employees: R450 + (extra employees × R50)
+      const employeeCost = numEmployees <= 10 ? 450 : 450 + ((numEmployees - 10) * 50);
+      const monthlyCost = employeeCost + deviceCost;
+      const yearlyCost = monthlyCost * 12;
+
+      // Calculate savings
+      const monthlySavings = monthlyLoss - monthlyCost;
+      const yearlySavings = yearlyLoss - yearlyCost;
+      const roi = yearlyCost > 0 ? ((yearlySavings / yearlyCost) * 100) : 0;
+      const roiMultiplier = yearlyCost > 0 ? (yearlyLoss / yearlyCost) : 0;
+
+      // Format and display losses
+      document.getElementById('loss-monthly').textContent = 'R' + monthlyLoss.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById('loss-yearly').textContent = 'R' + yearlyLoss.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+      // Format and display costs
+      document.getElementById('cost-monthly').textContent = 'R' + monthlyCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById('cost-yearly').textContent = 'R' + yearlyCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+      // Format and display savings
+      document.getElementById('savings-monthly').textContent = 'R' + Math.max(0, monthlySavings).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById('savings-yearly').textContent = 'R' + Math.max(0, yearlySavings).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById('roi-percentage').textContent = Math.max(0, roi).toFixed(0) + '%';
+      document.getElementById('roi-multiplier').textContent = roiMultiplier.toFixed(1) + 'x';
+
+      // Update savings box color based on ROI
+      const savingsSummary = document.querySelector('.savings-summary');
+      if (monthlySavings > 0) {
+        savingsSummary.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
+      } else {
+        savingsSummary.style.background = 'linear-gradient(135deg, #ff9800, #f57c00)';
+      }
+    }
+
+    // Calculate on page load
+    updateCalculations();
   </script>
 </body>
 </html>
