@@ -2668,9 +2668,45 @@
           <!-- Main Grid -->
           <div class="payslips-grid">
             
-            <!-- Left Column: Company Information -->
+            <!-- Left Column: Template & Company Information -->
             <div class="payslip-card">
               
+              <!-- Template Management -->
+              <div class="design-editor-section">
+                <h2>📄 Payslip Template</h2>
+                
+                <div class="form-group">
+                  <label for="templateSelect">Select Template</label>
+                  <select id="templateSelect">
+                    <option value="">Create new template...</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="templateName">Template Name</label>
+                  <input type="text" id="templateName" placeholder="e.g., Standard Monthly Payslip">
+                </div>
+
+                <div class="template-actions" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+                  <button id="createDefaultTemplateBtn" class="btn-secondary" style="flex: 1;">
+                    ✨ Default
+                  </button>
+                  <button id="saveTemplateBtn" class="btn-primary" style="flex: 1;">
+                    💾 Save Template
+                  </button>
+                  <button id="deleteTemplateBtn" class="btn-danger" style="flex: 1;">
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
+
+              <!-- Template Editor Container -->
+              <div id="templateEditorContainer" style="margin-bottom: 2rem;">
+                <!-- Visual template editor will be injected here -->
+              </div>
+
+              <div class="section-divider"></div>
+
               <!-- Company Info -->
               <div class="design-editor-section">
                 <h2>🏢 Company Information</h2>
