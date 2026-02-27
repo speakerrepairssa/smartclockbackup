@@ -378,6 +378,154 @@
         </div>
       </div>
 
+      <!-- System Test Section -->
+      <div class="actions-bar" style="margin-top: 3rem;">
+        <h2>🧪 System Diagnostic Test</h2>
+        <span style="color: #6b7280; font-size: 0.9rem;">Step-by-step testing of webhook flow: Device → VPS → Firebase → Dashboard</span>
+      </div>
+
+      <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+          <div style="flex: 1;">
+            <label for="testDeviceSelector" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Select Device to Test:</label>
+            <select id="testDeviceSelector" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%;">
+              <option value="">-- Select a device --</option>
+            </select>
+          </div>
+          <div style="flex: 1;">
+            <label for="testBusinessSelector" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Expected Business:</label>
+            <select id="testBusinessSelector" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%;">
+              <option value="">-- Select expected business --</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="startSystemTestBtn" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem;">
+          🚀 Start System Test
+        </button>
+
+        <!-- Test Progress Steps -->
+        <div id="testProgressContainer" style="display: none; margin-top: 2rem;">
+          <div style="background: #f9fafb; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h3 style="margin: 0; font-size: 1rem; color: #1f2937;">Test Progress</h3>
+              <button id="cancelTestBtn" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.875rem;">✕ Cancel Test</button>
+            </div>
+            <div style="background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden;">
+              <div id="testProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.5s;"></div>
+            </div>
+          </div>
+
+          <!-- Step 1: Device Test -->
+          <div id="testStep1" class="test-step" style="margin-bottom: 1rem; padding: 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: white;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+              <div id="step1Status" style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">1</div>
+              <div style="flex: 1;">
+                <h4 style="margin: 0; font-size: 1rem;">📱 Step 1: Device Test</h4>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #6b7280;">Verify device sends webhook data</p>
+              </div>
+            </div>
+            <div id="step1Instructions" style="display: none; background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+              <p style="margin: 0; font-weight: 600;">👉 Action Required:</p>
+              <p style="margin: 0.5rem 0 0 0;">Please <strong>CLOCK IN or OUT</strong> on your device now. Waiting for webhook...</p>
+            </div>
+            <div id="step1Result" style="display: none;"></div>
+            <div id="step1Help" style="display: none; background: #fee2e2; border-left: 4px solid #dc2626; padding: 1rem; border-radius: 4px; margin-top: 1rem;">
+              <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #991b1b;">❌ Troubleshooting:</p>
+              <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.875rem; color: #7f1d1d;">
+                <li>Check device is powered on and connected to network</li>
+                <li>Verify webhook URL configured: <code>http://69.62.109.168:7660/{deviceId}-webhook</code></li>
+                <li>Test device network connectivity: <code>ping 69.62.109.168</code></li>
+                <li>Check device HTTP Listener settings in web interface</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Step 2: VPS Test -->
+          <div id="testStep2" class="test-step" style="margin-bottom: 1rem; padding: 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: white; opacity: 0.5;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+              <div id="step2Status" style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">2</div>
+              <div style="flex: 1;">
+                <h4 style="margin: 0; font-size: 1rem;">🖥️ Step 2: VPS Relay Test</h4>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #6b7280;">Verify VPS receives and forwards data</p>
+              </div>
+            </div>
+            <div id="step2Instructions" style="display: none; background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+              <p style="margin: 0; font-weight: 600;">👉 Action Required:</p>
+              <p style="margin: 0.5rem 0 0 0;">Please <strong>CLOCK IN or OUT</strong> again. Checking VPS relay...</p>
+            </div>
+            <div id="step2Result" style="display: none;"></div>
+            <div id="step2Help" style="display: none; background: #fee2e2; border-left: 4px solid #dc2626; padding: 1rem; border-radius: 4px; margin-top: 1rem;">
+              <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #991b1b;">❌ Troubleshooting:</p>
+              <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.875rem; color: #7f1d1d;">
+                <li>Check VPS status: <code>ssh root@69.62.109.168 'pm2 status'</code></li>
+                <li>Restart relay: <code>ssh root@69.62.109.168 'pm2 restart vps-relay'</code></li>
+                <li>Check logs: <code>ssh root@69.62.109.168 'pm2 logs vps-relay --lines 20'</code></li>
+                <li>Verify port 7660 is open and not blocked by firewall</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Step 3: Webhook Test -->
+          <div id="testStep3" class="test-step" style="margin-bottom: 1rem; padding: 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: white; opacity: 0.5;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+              <div id="step3Status" style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">3</div>
+              <div style="flex: 1;">
+                <h4 style="margin: 0; font-size: 1rem;">🔗 Step 3: Firebase Webhook Test</h4>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #6b7280;">Verify Firebase processes the webhook</p>
+              </div>
+            </div>
+            <div id="step3Instructions" style="display: none; background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+              <p style="margin: 0; font-weight: 600;">👉 Action Required:</p>
+              <p style="margin: 0.5rem 0 0 0;">Please <strong>CLOCK IN or OUT</strong> again. Checking Firebase function...</p>
+            </div>
+            <div id="step3Result" style="display: none;"></div>
+            <div id="step3Help" style="display: none; background: #fee2e2; border-left: 4px solid #dc2626; padding: 1rem; border-radius: 4px; margin-top: 1rem;">
+              <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #991b1b;">❌ Troubleshooting:</p>
+              <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.875rem; color: #7f1d1d;">
+                <li>Check Firebase function logs: <code>firebase functions:log --only attendanceWebhook</code></li>
+                <li>Verify device registered to business: Check /businesses/{businessId}/devices/{deviceId}</li>
+                <li>Test manual webhook: <code>curl -X POST [FIREBASE_URL] -d '{"deviceId":"..."}'</code></li>
+                <li>Check Firebase function is deployed and running</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Step 4: Dashboard Test -->
+          <div id="testStep4" class="test-step" style="margin-bottom: 1rem; padding: 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: white; opacity: 0.5;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+              <div id="step4Status" style="width: 40px; height: 40px; border-radius: 50%; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">4</div>
+              <div style="flex: 1;">
+                <h4 style="margin: 0; font-size: 1rem;">📲 Step 4: Dashboard Update Test</h4>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #6b7280;">Verify dashboard receives real-time updates</p>
+              </div>
+            </div>
+            <div id="step4Instructions" style="display: none; background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+              <p style="margin: 0; font-weight: 600;">👉 Action Required:</p>
+              <p style="margin: 0.5rem 0 0 0;">Please <strong>CLOCK IN or OUT</strong> one final time. Checking dashboard updates...</p>
+            </div>
+            <div id="step4Result" style="display: none;"></div>
+            <div id="step4Help" style="display: none; background: #fee2e2; border-left: 4px solid #dc2626; padding: 1rem; border-radius: 4px; margin-top: 1rem;">
+              <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #991b1b;">❌ Troubleshooting:</p>
+              <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.875rem; color: #7f1d1d;">
+                <li>Check Firestore real-time listeners are active</li>
+                <li>Verify attendance_events collection exists and has data</li>
+                <li>Check browser console for JavaScript errors</li>
+                <li>Refresh dashboard and check if status updates appear</li>
+                <li>Verify employee slot mapping is correct</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Test Complete Summary -->
+          <div id="testCompleteSummary" style="display: none; margin-top: 1.5rem; padding: 1.5rem; border-radius: 8px;">
+            <h3 style="margin: 0 0 1rem 0; font-size: 1.2rem;">✅ Test Complete</h3>
+            <div id="testSummaryContent"></div>
+            <button id="restartTestBtn" class="btn btn-primary" style="margin-top: 1rem; width: 100%;">🔄 Run Test Again</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Devices Section -->
       <div class="actions-bar" style="margin-top: 3rem;">
         <h2>🖥️ Active Devices</h2>

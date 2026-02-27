@@ -1876,6 +1876,84 @@ exports.registerDevice = onRequest(async (req, res) => {
 });
 
 /**
+ * 🔍 DIAGNOSTIC FUNCTION: Check System Health Status
+ * Tests each layer of the webhook flow: VPS → Firebase → Firestore
+ * URL: /checkSystemStatus?deviceId=fc4349999&businessId=biz_speaker_repairs
+ */
+exports.checkSystemStatus = onRequest(async (req, res) => {
+  try {
+    const { deviceId, businessId, checkType } = req.query;
+    const results = {
+      timestamp: new Date().toISOString(),
+      deviceId,
+      businessId,
+      checks: {}
+    };
+
+    // Check 1: VPS Relay Health (if VPS configured)
+    if (checkType === 'vps' || !checkType) {
+      try {
+        const vpsUrl = process.env.VPS_RELAY_URL || 'http://69.62.109.168:7660';
+        const vpsResponse = await fetch(`${vpsUrl}/health`);
+        results.checks.vps = {
+          status: vpsResponse.ok ? 'healthy' : 'degraded',
+          responseTime: vpsResponse.headers.get('x-response-time') || 'N/A'
+        };
+      } catch (error) {
+        results.checks.vps = {
+          status: 'down',
+          error: error.message
+        };
+      }
+    }
+
+    // Check 2: Device Registration
+    if (deviceId && (checkType === 'device' || !checkType)) {
+      const deviceRef = db.collection('devices').doc(deviceId.toLowerCase());
+      const deviceSnap = await deviceRef.get();
+      results.checks.device = {
+        registered: deviceSnap.exists,
+        linkedBusiness: deviceSnap.exists ? deviceSnap.data().businessId : null
+      };
+    }
+
+    // Check 3: Recent Webhook Events
+    if (businessId && (checkType === 'webhook' || !checkType)) {
+      const eventsRef = db.collection('businesses').doc(businessId).collection('attendance_events');
+      const recentEvents = await eventsRef
+        .orderBy('timestamp', 'desc')
+        .limit(5)
+        .get();
+      
+      results.checks.webhook = {
+        recentEventCount: recentEvents.size,
+        lastEventTime: recentEvents.empty ? null : recentEvents.docs[0].data().timestamp
+      };
+    }
+
+    // Check 4: Firestore Write Test
+    if (businessId && (checkType === 'firestore' || !checkType)) {
+      const testRef = db.collection('businesses').doc(businessId).collection('system_health').doc('test');
+      const testTime = new Date().toISOString();
+      await testRef.set({ testWrite: testTime }, { merge: true });
+      
+      const testSnap = await testRef.get();
+      results.checks.firestore = {
+        writeable: testSnap.exists && testSnap.data().testWrite === testTime,
+        testTime
+      };
+    }
+
+    logger.info("System status check completed", results);
+    res.json(results);
+
+  } catch (error) {
+    logger.error("Error checking system status", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * �📊 PAYROLL FUNCTION: Process Daily Attendance into Timesheets
  * Converts raw attendance events into structured daily timesheets
  * URL: /processDailyTimesheets?businessId=biz_srcomponents&date=2026-01-23
