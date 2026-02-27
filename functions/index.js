@@ -148,9 +148,36 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
       return;
     }
 
+    // 🔧 HANDLE NESTED DATA STRUCTURE from VPS relay
+    // VPS wraps the device data in a 'data' object
+    if (eventData.data && typeof eventData.data === 'object') {
+      logger.info("🔄 Extracting nested data from VPS relay format");
+      logger.info("📦 Data object keys:", Object.keys(eventData.data));
+      logger.info("📦 Data sample:", JSON.stringify(eventData.data).substring(0, 500));
+      
+      // Flatten the nested structure
+      eventData = {
+        ...eventData,
+        ...eventData.data,
+        deviceId: eventData.data.deviceID || eventData.deviceId,
+        AccessControllerEvent: eventData.data.AccessControllerEvent
+      };
+      logger.info("✅ Flattened data structure", { 
+        hasAccessControllerEvent: !!eventData.AccessControllerEvent,
+        deviceId: eventData.deviceId,
+        hasDeviceID: !!eventData.deviceID
+      });
+    }
+
     // Check if this is just a heartbeat/keepalive (no employee or AccessControllerEvent data)
     if (!eventData.employeeId && !eventData.verifyNo && !eventData.event_log && !eventData.AccessControllerEvent) {
-      logger.info("⏭️ Skipping heartbeat/keepalive message (no employee data)");
+      logger.info("⏭️ Skipping heartbeat/keepalive message (no employee data)", {
+        hasEmployeeId: !!eventData.employeeId,
+        hasVerifyNo: !!eventData.verifyNo,
+        hasEventLog: !!eventData.event_log,
+        hasAccessControllerEvent: !!eventData.AccessControllerEvent,
+        dataKeys: Object.keys(eventData)
+      });
       res.status(200).json({ success: true, message: 'Heartbeat received' });
       return;
     }
@@ -231,7 +258,23 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
       attendanceStatus 
     });
 
-    // 🔑 DEVICE INTERNAL ID TO EMPLOYEE MAPPING
+    // � NORMALIZE ATTENDANCE STATUS
+    // Device sends: "checkIn"/"checkOut" or "1"/"2"
+    // System expects: "in"/"out"
+    if (attendanceStatus) {
+      const statusStr = attendanceStatus.toString().toLowerCase();
+      if (statusStr === 'checkin' || statusStr === '1') {
+        attendanceStatus = 'in';
+      } else if (statusStr === 'checkout' || statusStr === '2') {
+        attendanceStatus = 'out';
+      }
+      logger.info("✅ Normalized attendance status", { 
+        original: eventData.attendanceStatus || eventData.data?.AccessControllerEvent?.attendanceStatus,
+        normalized: attendanceStatus 
+      });
+    }
+
+    // �🔑 DEVICE INTERNAL ID TO EMPLOYEE MAPPING
     // If we have a device internal ID, try to map it to an employee slot
     if (deviceInternalId && !employeeId && !verifyNo) {
       logger.info("🔍 Looking up employee mapping for device internal ID", { deviceInternalId });
@@ -1759,7 +1802,81 @@ exports.setDeviceMapping = onRequest(async (req, res) => {
 });
 
 /**
- * 📊 PAYROLL FUNCTION: Process Daily Attendance into Timesheets
+ * � ADMIN FUNCTION: Register Device to Business
+ * Registers a device in both global collection and business subcollection
+ * URL: /registerDevice?deviceId=fc4349999&businessId=biz_speaker_repairs
+ */
+exports.registerDevice = onRequest(async (req, res) => {
+  try {
+    const { deviceId, businessId } = req.query;
+    
+    if (!deviceId || !businessId) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: deviceId, businessId' 
+      });
+    }
+
+    logger.info("Registering device", { deviceId, businessId });
+
+    // 1. Register in global devices collection
+    const globalDeviceRef = db.collection('devices').doc(deviceId);
+    await globalDeviceRef.set({
+      deviceId: deviceId,
+      deviceName: `${businessId} - Hikvision Terminal`,
+      deviceType: 'hikvision',
+      serialNumber: deviceId.toUpperCase(),
+      ipAddress: '192.168.0.114',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      lastSeen: new Date().toISOString()
+    }, { merge: true });
+
+    // 2. Link device to business (devices subcollection)
+    const businessDeviceRef = db.collection('businesses')
+      .doc(businessId)
+      .collection('devices')
+      .doc(deviceId);
+    
+    await businessDeviceRef.set({
+      deviceId: deviceId,
+      deviceName: `${businessId} - Hikvision Terminal`,
+      deviceType: 'hikvision',
+      serialNumber: deviceId.toUpperCase(),
+      ipAddress: '192.168.0.114',
+      status: 'active',
+      isPlaceholder: false,
+      linkedAt: new Date().toISOString()
+    }, { merge: true });
+
+    // 3. Update business document
+    const businessRef = db.collection('businesses').doc(businessId);
+    await businessRef.update({
+      deviceId: deviceId,
+      deviceIp: '192.168.0.114',
+      lastDeviceUpdate: new Date().toISOString()
+    });
+
+    logger.info("Device registered successfully", { deviceId, businessId });
+
+    res.json({
+      success: true,
+      deviceId,
+      businessId,
+      message: 'Device registered successfully',
+      paths: {
+        global: globalDeviceRef.path,
+        business: businessDeviceRef.path
+      }
+    });
+
+  } catch (error) {
+    logger.error("Error registering device", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * �📊 PAYROLL FUNCTION: Process Daily Attendance into Timesheets
  * Converts raw attendance events into structured daily timesheets
  * URL: /processDailyTimesheets?businessId=biz_srcomponents&date=2026-01-23
  */
