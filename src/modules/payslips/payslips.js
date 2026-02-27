@@ -551,12 +551,17 @@ Best regards,
       // Set template name
       document.getElementById('templateName').value = template.name || '';
       
-      // Load the full template config into the editor
-      if (this.templateEditor) {
+      // Load the template config into the editor (not the generated content)
+      if (this.templateEditor && template.config) {
+        this.templateEditor.loadConfigIntoForm(template.config);
+        console.log('✅ Loaded template config into visual editor');
+      } else if (this.templateEditor) {
+        // Fallback for old templates without separate config
         this.templateEditor.loadConfigIntoForm(template);
+        console.log('✅ Loaded legacy template format');
       }
       
-      console.log('✅ Template loaded:', templateId);
+      console.log('✅ Template loaded:', templateId, { hasContent: !!template.content, hasConfig: !!template.config });
     } catch (error) {
       console.error("❌ Error loading template:", error);
       showNotification("Failed to load template", "error");
@@ -575,12 +580,20 @@ Best regards,
         return;
       }
       
-      // Get the complete template configuration from the editor
+      // Get the template configuration from the visual editor
       const templateConfig = this.templateEditor ? this.templateEditor.getConfig() : {};
+      
+      // Generate the HTML template with placeholders
+      const template = createPayslipTemplate(templateConfig);
+      const htmlContent = template.generateHTML(); // Generates HTML with {{placeholders}}
+      
+      console.log('💾 Saving template:', { name, contentLength: htmlContent?.length });
       
       const templateData = {
         name,
-        ...templateConfig, // Include all template editor config
+        subject: templateConfig.subject || 'Your Payslip',
+        content: htmlContent, // Save the HTML string with placeholders
+        config: templateConfig, // Also save config for future editing
         updatedAt: Timestamp.now()
       };
       
@@ -1168,21 +1181,16 @@ Best regards,
       templateData = this.currentTemplate.content || this.currentTemplate;
       templateId = this.currentTemplate.id;
       templateSubject = this.currentTemplate.subject || 'Your Payslip';
-    } else if (this.templateEditor) {
-      // Use visual editor configuration (no need to save first)
-      console.log('📝 Using visual template editor configuration');
-      const config = this.templateEditor.getConfig();
-      
-      // Generate HTML from visual editor config
-      const template = createPayslipTemplate(config);
-      templateData = template.generateHTML({});
-      templateId = 'unsaved-visual-template';
-      templateSubject = config.subject || 'Your Payslip';
-      
-      console.log('✅ Generated template from visual editor');
+      console.log('📝 Using saved template:', templateId);
     } else {
-      showNotification("Template editor not available. Please refresh the page.", "error");
-      return;
+      // No saved template - use simple default template with placeholders
+      console.log('📝 No saved template, using simple default text template');
+      templateData = this.getDefaultTemplate();
+      templateId = 'default-text-template';
+      templateSubject = 'Your Payslip for {{month}} {{year}}';
+      
+      console.log('✅ Using simple text template with placeholders');
+      showNotification("Using default template. For custom templates, click '✨ Default' to load the visual editor, customize it, then save before sending.", "info");
     }
     
     if (!confirm(`Send payslips to ${this.selectedEmployees.length} employee(s)?`)) {
