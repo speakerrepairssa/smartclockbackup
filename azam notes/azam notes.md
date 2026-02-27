@@ -196,3 +196,273 @@ ssh root@69.62.109.168 'pm2 logs vps-relay --lines 0'
 - Dashboard: Real-time updates confirmed
 
 ---
+
+## 🔄 COMPLETE SYSTEM RECOVERY PROCEDURE
+
+### When to Use This
+If the system breaks completely and you need to restore to this exact working state (Feb 27-28, 2026).
+
+### GitHub Backup Repositories
+**Two complete backups exist**:
+- **Primary**: https://github.com/speakerrepairssa/aiclock (commit: 2615e09e)
+- **Backup**: https://github.com/speakerrepairssa/smartclockbackup (commit: 2615e09e)
+
+Both contain identical code including:
+- Fixed VPS relay (`vps/hikvision-relay.js`)
+- Enhanced Firebase functions
+- System diagnostic test tool
+- All deployment and monitoring scripts
+
+---
+
+### 🎯 Step-by-Step Recovery Process
+
+#### Step 1: Clone Repository
+```bash
+# Clone from primary repo (or use smartclockbackup if primary unavailable)
+git clone https://github.com/speakerrepairssa/aiclock.git
+cd aiclock
+
+# Verify you have the working commit
+git log --oneline -5
+# Should see: 2615e09e Complete backup: All utility scripts...
+#             8c024f93 Add system diagnostic test tool...
+#             83f7adf3 Merge: VPS relay fix and working webhook system...
+
+# Switch to main branch (if not already)
+git checkout main
+```
+
+#### Step 2: Install Firebase Dependencies
+```bash
+cd functions
+npm install
+cd ..
+
+# Login to Firebase (if needed)
+firebase login
+
+# Verify project connection
+firebase use aiclock-82608
+```
+
+#### Step 3: Deploy Firebase Functions
+```bash
+# Deploy all functions (includes attendanceWebhook, registerDevice, checkSystemStatus)
+firebase deploy --only functions
+
+# Wait for deployment to complete (2-3 minutes)
+# Should see: ✔ functions[checkSystemStatus(us-central1)] Successful create operation
+#             ✔ functions[attendanceWebhook(us-central1)] Successful update operation
+#             ✔ functions[registerDevice(us-central1)] Successful update operation
+```
+
+#### Step 4: Deploy VPS Relay Service
+```bash
+# Upload relay code to VPS
+sshpass -p 'Azam198419880001#' scp -o StrictHostKeyChecking=no "vps/hikvision-relay.js" root@69.62.109.168:/root/
+
+# SSH into VPS and start service
+sshpass -p 'Azam198419880001#' ssh -o StrictHostKeyChecking=no root@69.62.109.168 << 'EOF'
+  cd /root
+  
+  # Stop any existing relay
+  pm2 stop vps-relay 2>/dev/null || true
+  pm2 delete vps-relay 2>/dev/null || true
+  
+  # Start new relay
+  pm2 start hikvision-relay.js --name vps-relay
+  
+  # Save PM2 process list
+  pm2 save
+  
+  # Show status
+  pm2 list
+  pm2 logs vps-relay --lines 10 --nostream
+EOF
+```
+
+**Expected Output**:
+```
+┌─────┬────────────────┬─────────┬─────────┬────────┬──────┐
+│ id  │ name           │ mode    │ ↺      │ status │ cpu  │
+├─────┼────────────────┼─────────┼─────────┼────────┼──────┤
+│ 0   │ vps-relay      │ fork    │ 0       │ online │ 0%   │
+└─────┴────────────────┴─────────┴─────────┴────────┴──────┘
+```
+
+#### Step 5: Verify Device Registration
+```bash
+# Check if device FC4349999 is registered to biz_speaker_repairs
+node << 'EOF'
+const admin = require('firebase-admin');
+admin.initializeApp();
+const db = admin.firestore();
+
+(async () => {
+  const deviceSnap = await db.collection('devices').doc('fc4349999').get();
+  if (deviceSnap.exists) {
+    console.log('✅ Device registered:', deviceSnap.data());
+  } else {
+    console.log('❌ Device NOT registered - run registration:');
+    console.log('curl "https://us-central1-aiclock-82608.cloudfunctions.net/registerDevice?deviceId=fc4349999&businessId=biz_speaker_repairs"');
+  }
+  process.exit(0);
+})();
+EOF
+```
+
+**If device not registered**, run:
+```bash
+curl "https://us-central1-aiclock-82608.cloudfunctions.net/registerDevice?deviceId=fc4349999&businessId=biz_speaker_repairs"
+```
+
+#### Step 6: Test Complete Webhook Flow
+
+**Option A: Use Admin Diagnostic Tool (Recommended)**
+1. Open admin dashboard: https://aiclock-82608.web.app/admin-dashboard.html
+2. Scroll to "System Diagnostic Test" section
+3. Select device: FC4349999
+4. Select business: Speaker Repairs
+5. Click "Start System Test"
+6. Follow instructions to clock in 4 times (tests each layer)
+7. Review test results - should show all 4 steps ✅
+
+**Option B: Manual Testing**
+```bash
+# 1. Monitor VPS logs in one terminal
+ssh root@69.62.109.168 'pm2 logs vps-relay --lines 0'
+
+# 2. Monitor Firebase logs in another terminal
+firebase functions:log --only attendanceWebhook
+
+# 3. Clock in on device (192.168.0.114)
+
+# 4. Verify data flow:
+# - VPS log should show: "📤 Forwarding to Firebase..."
+# - Firebase log should show: "Processing attendance webhook..."
+# - Dashboard should update in real-time (status badge changes)
+```
+
+#### Step 7: Deploy Admin Dashboard (if UI updated)
+```bash
+# Deploy hosting (includes updated admin dashboard with diagnostic tool)
+firebase deploy --only hosting
+
+# Access dashboard
+open https://aiclock-82608.web.app/admin-dashboard.html
+```
+
+---
+
+### 🚨 Quick Troubleshooting After Recovery
+
+**If nothing is working:**
+```bash
+# 1. Check VPS relay health
+curl http://69.62.109.168:7660/health
+# Should return: {"status":"healthy","relay":"vps-hikvision","port":7660}
+
+# 2. Check VPS is running
+ssh root@69.62.109.168 'pm2 list'
+# Should show vps-relay as "online"
+
+# 3. Test Firebase function directly
+curl -X POST "https://us-central1-aiclock-82608.cloudfunctions.net/debugWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{"test": true, "deviceId": "fc4349999"}'
+
+# 4. Check Firebase project
+firebase projects:list
+# Should show aiclock-82608 as active
+```
+
+**If VPS relay crashes:**
+```bash
+ssh root@69.62.109.168
+pm2 restart vps-relay
+pm2 logs vps-relay --lines 50
+```
+
+**If device not receiving events:**
+```bash
+# Re-configure Hikvision device webhook
+# Device Web Interface → Configuration → Network → Advanced Settings → HTTP Listening
+# URL: http://69.62.109.168:7660/admin-webhook
+```
+
+**If Firebase function errors:**
+```bash
+# Redeploy functions
+firebase deploy --only functions:attendanceWebhook,functions:registerDevice,functions:checkSystemStatus
+
+# Check logs immediately
+firebase functions:log --only attendanceWebhook --lines 50
+```
+
+---
+
+### 📋 Critical Files for Recovery
+
+**Files you MUST have for system to work**:
+1. ✅ `vps/hikvision-relay.js` (263 lines) - VPS relay service
+2. ✅ `functions/index.js` (6500+ lines) - Firebase functions with webhook handler
+3. ✅ `src/modules/admin/dashboard.js` - Admin dashboard with diagnostic tool
+4. ✅ `src/pages/admin-dashboard.html` - Admin UI with test interface
+5. ✅ `firebase.json` - Firebase configuration
+
+**All backed up in**:
+- https://github.com/speakerrepairssa/aiclock
+- https://github.com/speakerrepairssa/smartclockbackup
+
+---
+
+### 🎯 Success Verification Checklist
+
+After recovery, verify these are working:
+
+- [ ] VPS relay responding: `curl http://69.62.109.168:7660/health` returns JSON
+- [ ] PM2 shows online: `ssh root@69.62.109.168 'pm2 list'` shows vps-relay
+- [ ] Device registered: Check in Firestore `/devices/fc4349999` exists
+- [ ] Firebase functions deployed: `firebase functions:list` shows all functions
+- [ ] Clock in on device → dashboard updates within 5 seconds
+- [ ] Admin diagnostic tool loads: Open admin-dashboard.html, scroll to "System Diagnostic Test"
+- [ ] Diagnostic test passes all 4 steps when you clock in
+
+**If all checkboxes pass → System is fully operational ✅**
+
+---
+
+### 💾 Recovery Time Estimate
+- Clone repo: 1-2 minutes
+- Install dependencies: 2-3 minutes  
+- Deploy Firebase functions: 3-5 minutes
+- Deploy VPS relay: 1 minute
+- Verify and test: 2-3 minutes
+- **Total: ~10-15 minutes to full recovery**
+
+---
+
+### 📞 Emergency Quick Commands
+
+**Fastest recovery path** (if you have git credentials ready):
+```bash
+# 1. Clone and setup (3 mins)
+git clone https://github.com/speakerrepairssa/smartclockbackup.git aiclock
+cd aiclock
+cd functions && npm install && cd ..
+
+# 2. Deploy everything (4 mins)
+firebase use aiclock-82608
+firebase deploy --only functions,hosting
+
+# 3. Setup VPS (1 min)
+sshpass -p 'Azam198419880001#' scp vps/hikvision-relay.js root@69.62.109.168:/root/
+sshpass -p 'Azam198419880001#' ssh root@69.62.109.168 'pm2 restart vps-relay || pm2 start /root/hikvision-relay.js --name vps-relay'
+
+# 4. Test (30 secs)
+curl http://69.62.109.168:7660/health
+# Clock in on device → check dashboard updates
+```
+
+---
