@@ -15,7 +15,7 @@ import {
 import { db } from "../../config/firebase.js";
 import { showNotification } from "../shared/ui.js";
 import { TemplateEditor } from "./template-editor.js";
-import { DEFAULT_PAYSLIP_TEMPLATE } from "./default-template.js";
+import { DEFAULT_PAYSLIP_TEMPLATE, createPayslipTemplate } from "./default-template.js";
 import { VisualPayslipEditor } from "./visualEditor.js";
 
 /**
@@ -1151,8 +1151,30 @@ Best regards,
       return;
     }
     
-    if (!this.currentTemplate || !this.currentTemplate.content) {
-      showNotification("Please select or create a template first", "warning");
+    // Get template either from saved template or visual editor
+    let templateData;
+    let templateId;
+    let templateSubject;
+    
+    if (this.currentTemplate && (this.currentTemplate.content || this.currentTemplate.id)) {
+      // Use saved template
+      templateData = this.currentTemplate.content || this.currentTemplate;
+      templateId = this.currentTemplate.id;
+      templateSubject = this.currentTemplate.subject || 'Your Payslip';
+    } else if (this.templateEditor) {
+      // Use visual editor configuration (no need to save first)
+      console.log('📝 Using visual template editor configuration');
+      const config = this.templateEditor.getConfig();
+      
+      // Generate HTML from visual editor config
+      const template = createPayslipTemplate(config);
+      templateData = template.generateHTML({});
+      templateId = 'unsaved-visual-template';
+      templateSubject = config.subject || 'Your Payslip';
+      
+      console.log('✅ Generated template from visual editor');
+    } else {
+      showNotification("Template editor not available. Please refresh the page.", "error");
       return;
     }
     
@@ -1172,9 +1194,9 @@ Best regards,
         body: JSON.stringify({
           businessId: this.businessId,
           employeeIds: this.selectedEmployees,
-          templateId: this.currentTemplate.id,
-          template: this.currentTemplate.content,
-          subject: this.currentTemplate.subject || 'Your Payslip',
+          templateId: templateId,
+          template: templateData,
+          subject: templateSubject,
           deliveryMethods: {
             email: sendEmail,
             whatsapp: sendWhatsApp
@@ -1228,8 +1250,39 @@ Best regards,
       return;
     }
     
-    if (!this.currentTemplate || !this.currentTemplate.content) {
-      showNotification("Please select or create a template first", "warning");
+    // Get template - for scheduling we need to save it first
+    let templateId;
+    let templateSubject;
+    
+    if (this.currentTemplate && this.currentTemplate.id) {
+      // Use existing saved template
+      templateId = this.currentTemplate.id;
+      templateSubject = this.currentTemplate.subject || 'Your Payslip';
+    } else if (this.templateEditor) {
+      // Auto-save template from visual editor
+      console.log('📝 Auto-saving template for scheduling...');
+      const templateName = document.getElementById('templateName')?.value.trim() || `Payslip ${new Date().toLocaleDateString()}`;
+      
+      const config = this.templateEditor.getConfig();
+      const templateData = {
+        name: templateName,
+        ...config,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+      
+      const newTemplateRef = doc(collection(db, "businesses", this.businessId, "payslip_templates"));
+      await setDoc(newTemplateRef, templateData);
+      templateId = newTemplateRef.id;
+      templateSubject = config.subject || 'Your Payslip';
+      
+      this.currentTemplate = { id: templateId, ...templateData };
+      await this.loadTemplates();
+      document.getElementById('templateSelect').value = templateId;
+      
+      showNotification("Template saved for scheduling", "info");
+    } else {
+      showNotification("Template editor not available. Please refresh the page.", "error");
       return;
     }
     
@@ -1238,8 +1291,8 @@ Best regards,
       const scheduleData = {
         businessId: this.businessId,
         employeeIds: this.selectedEmployees,
-        templateId: this.currentTemplate.id,
-        subject: this.currentTemplate.subject,
+        templateId: templateId,
+        subject: templateSubject,
         deliveryMethods: {
           email: sendEmail,
           whatsapp: sendWhatsApp
