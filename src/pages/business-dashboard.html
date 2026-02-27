@@ -2702,7 +2702,91 @@
 
               <!-- Template Editor Container -->
               <div id="templateEditorContainer" style="margin-bottom: 2rem;">
-                <!-- Visual template editor will be injected here -->
+                <!-- Visual Template Editor -->
+                <div class="template-editor">
+                  
+                  <!-- Editor Tabs -->
+                  <div class="editor-tabs">
+                    <button class="editor-tab active" data-tab="design">🎨 Design</button>
+                    <button class="editor-tab" data-tab="content">📝 Content</button>
+                    <button class="editor-tab" data-tab="preview">👁️ Preview</button>
+                  </div>
+
+                  <!-- Design Tab -->
+                  <div class="editor-tab-content active" data-content="design">
+                    <div class="form-group">
+                      <label for="editorSubject">Email Subject</label>
+                      <input type="text" id="editorSubject" placeholder="Your Payslip for {{month}} {{year}}">
+                    </div>
+
+                    <div class="form-group">
+                      <label for="editorCompanyName">Company Name</label>
+                      <input type="text" id="editorCompanyName" placeholder="Your Company Name">
+                    </div>
+
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                      <div class="form-group">
+                        <label for="editorPrimaryColor">Primary Color</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                          <input type="color" id="editorPrimaryColor" value="#2563eb">
+                          <input type="text" id="editorPrimaryColorText" value="#2563eb" style="flex: 1;">
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="editorSecondaryColor">Secondary Color</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                          <input type="color" id="editorSecondaryColor" value="#64748b">
+                          <input type="text" id="editorSecondaryColorText" value="#64748b" style="flex: 1;">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label>
+                        <input type="checkbox" id="editorShowLogo" checked>
+                        Show Company Logo
+                      </label>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="editorHeaderMessage">Header Message</label>
+                      <textarea id="editorHeaderMessage" rows="2" placeholder="Thank you for your hard work"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="editorFooterMessage">Footer Message</label>
+                      <textarea id="editorFooterMessage" rows="2" placeholder="Contact HR for any queries"></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Content Tab -->
+                  <div class="editor-tab-content" data-content="content">
+                    <h3>Sections to Include</h3>
+                    <div class="form-group">
+                      <label><input type="checkbox" id="sectionEmployeeDetails" checked> Employee Details</label>
+                      <label><input type="checkbox" id="sectionPayPeriod" checked> Pay Period</label>
+                      <label><input type="checkbox" id="sectionEarnings" checked> Earnings Breakdown</label>
+                      <label><input type="checkbox" id="sectionDeductions" checked> Deductions</label>
+                      <label><input type="checkbox" id="sectionSummary" checked> Summary</label>
+                    </div>
+
+                    <h3>Deductions</h3>
+                    <div class="form-group">
+                      <label><input type="checkbox" id="deductionUIF" checked> UIF (1%)</label>
+                      <label><input type="checkbox" id="deductionPAYE" checked> PAYE (Income Tax)</label>
+                      <label><input type="checkbox" id="deductionPension"> Pension Fund</label>
+                      <label><input type="checkbox" id="deductionMedical"> Medical Aid</label>
+                    </div>
+                  </div>
+
+                  <!-- Preview Tab -->
+                  <div class="editor-tab-content" data-content="preview">
+                    <div class="preview-container">
+                      <iframe id="livePreviewFrame" style="width: 100%; height: 600px; border: 1px solid #e2e8f0; border-radius: 4px;"></iframe>
+                    </div>
+                  </div>
+
+                </div>
               </div>
 
               <div class="section-divider"></div>

@@ -581,13 +581,21 @@ Best regards,
       }
       
       // Get the template configuration from the visual editor
-      const templateConfig = this.templateEditor ? this.templateEditor.getConfig() : {};
+      if (!this.templateEditor) {
+        console.error('❌ Template editor not initialized');
+        showNotification("Template editor is not ready. Please refresh the page.", "error");
+        return;
+      }
+      
+      const templateConfig = this.templateEditor.getConfig();
+      console.log('💾 Template config from editor:', templateConfig);
       
       // Generate the HTML template with placeholders
       const template = createPayslipTemplate(templateConfig);
-      const htmlContent = template.generateHTML(); // Generates HTML with {{placeholders}}
+      console.log('💾 Created template object:', { hasGenerateHTML: !!template.generateHTML });
       
-      console.log('💾 Saving template:', { name, contentLength: htmlContent?.length });
+      const htmlContent = template.generateHTML(); // Generates HTML with {{placeholders}}
+      console.log('💾 Generated HTML content:', { length: htmlContent?.length, type: typeof htmlContent });
       
       const templateData = {
         name,
@@ -596,6 +604,13 @@ Best regards,
         config: templateConfig, // Also save config for future editing
         updatedAt: Timestamp.now()
       };
+      
+      console.log('💾 Saving template to Firestore:', { 
+        name, 
+        hasContent: !!templateData.content, 
+        hasConfig: !!templateData.config,
+        businessId: this.businessId 
+      });
       
       let templateId;
       
@@ -617,9 +632,12 @@ Best regards,
       await this.loadTemplates();
       document.getElementById('templateSelect').value = templateId;
       
+      console.log('✅ Template saved successfully:', templateId);
+      
     } catch (error) {
       console.error("❌ Error saving template:", error);
-      showNotification("Failed to save template", "error");
+      console.error("❌ Error stack:", error.stack);
+      showNotification(`Failed to save template: ${error.message}`, "error");
     }
   }
 
