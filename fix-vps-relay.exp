@@ -1,0 +1,133 @@
+#!/usr/bin/expect -f
+
+# Expect script to SSH and fix VPS relay service
+set timeout 20
+
+# SSH into VPS
+spawn ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@69.62.109.168
+
+# Handle password prompt
+expect "password:"
+send "Azam198419880001#\r"
+
+# Wait for shell prompt
+expect "# "
+
+# Check current status
+send "echo '=== CHECKING CURRENT STATUS ==='\r"
+expect "# "
+
+send "ps aux | grep -E '(pm2|node|relay)' | grep -v grep\r"
+expect "# "
+
+send "netstat -tlnp | grep 7660\r"
+expect "# "
+
+# Kill any processes on port 7660
+send "pkill -f ':7660'\r"
+expect "# "
+
+send "lsof -ti:7660 | xargs kill -9 2>/dev/null || true\r"
+expect "# "
+
+# Install/update Node.js and dependencies
+send "curl -fsSL https://deb.nodesource.com/setup_18.x | bash -\r"
+expect "# " timeout 60
+
+send "apt-get install -y nodejs\r"
+expect "# " timeout 60
+
+send "npm install -g pm2 axios express body-parser xml2js\r"
+expect "# " timeout 60
+
+# Create the relay service
+send "mkdir -p /root/relay && cd /root/relay\r"
+expect "# "
+
+# Create relay service file using heredoc
+send "cat > relay.js << 'RELAY_EOF'\r"
+expect "> "
+
+send "const express = require('express');\r"
+expect "> "
+
+send "const axios = require('axios');\r"
+expect "> "
+
+send "const app = express();\r"
+expect "> "
+
+send "const PORT = 7660;\r"
+expect "> "
+
+send "const FIREBASE = 'https://attendancewebhook-4q7htrps4q-uc.a.run.app';\r"
+expect "> "
+
+send "app.use(express.raw({type: '*/*', limit: '10mb'}));\r"
+expect "> "
+
+send "app.get('/health', (req, res) => res.json({status:'healthy', service:'VPS Relay', timestamp: new Date()}));\r"
+expect "> "
+
+send "app.post('/:deviceId-webhook', async (req, res) => {\r"
+expect "> "
+
+send "  try {\r"
+expect "> "
+
+send "    console.log('Forwarding webhook to Firebase...');\r"
+expect "> "
+
+send "    const response = await axios.post(FIREBASE, req.body, {headers: {'Content-Type': req.get('Content-Type')}});\r"
+expect "> "
+
+send "    res.status(200).json({success: true, forwarded: true});\r"
+expect "> "
+
+send "  } catch (error) {\r"
+expect "> "
+
+send "    console.error('Relay error:', error.message);\r"
+expect "> "
+
+send "    res.status(500).json({success: false, error: error.message});\r"
+expect "> "
+
+send "  }\r"
+expect "> "
+
+send "});\r"
+expect "> "
+
+send "app.listen(PORT, () => console.log('VPS Relay running on port', PORT));\r"
+expect "> "
+
+send "RELAY_EOF\r"
+expect "# "
+
+# Start with PM2
+send "pm2 delete relay 2>/dev/null || true\r"  
+expect "# "
+
+send "pm2 start relay.js --name relay\r"
+expect "# "
+
+send "pm2 save\r"
+expect "# "
+
+send "pm2 startup\r"
+expect "# "
+
+# Test the service
+send "sleep 3\r"
+expect "# "
+
+send "curl -s localhost:7660/health\r"
+expect "# "
+
+send "pm2 list\r"
+expect "# "
+
+# Exit
+send "exit\r"
+expect eof

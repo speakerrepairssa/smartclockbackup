@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visibility Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .test-section {
+            background: linear-gradient(45deg, #ff0000, #00ff00, #0000ff);
+            color: white;
+            padding: 50px;
+            text-align: center;
+            font-size: 24px;
+            border: 10px solid #ffff00;
+            margin: 20px 0;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Visibility Test Page</h1>
+    <p><strong>Test Time:</strong> <span id="current-time"></span></p>
+    
+    <div class="test-section">
+        🚨 ATTENTION: This is a test to check if you can see HTML changes!
+        <br>
+        If you can see this colorful, animated box, your browser is loading files correctly.
+    </div>
+
+    <div style="background: #ffeb3b; border: 3px solid #ff5722; padding: 20px; margin: 20px 0;">
+        <h2>📱 Device Management Test Section</h2>
+        <p>This box uses the SAME styling as the Device Management section in admin-dashboard.html</p>
+        <button style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 16px;">
+            🔄 Test Button
+        </button>
+    </div>
+
+    <script>
+        // Show current time
+        document.getElementById('current-time').textContent = new Date().toLocaleString();
+        
+        // Alert on page load
+        setTimeout(() => {
+            alert('🔍 VISIBILITY TEST: Can you see the colorful animated box above? This tests if your browser loads HTML changes correctly.');
+        }, 1000);
+        
+        console.log('🔧 Visibility test page loaded at:', new Date().toLocaleString());
+    </script>
+</body>
+</html>

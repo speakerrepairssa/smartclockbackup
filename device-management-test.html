@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Management Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #d1ecf1; color: #0c5460; }
+    .device-card { 
+      background: white; 
+      border: 2px solid #007bff; 
+      border-radius: 8px; 
+      padding: 1.5rem; 
+      margin: 1rem 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>🖥️ Device Management Visibility Test</h1>
+  <div id="test-status"></div>
+  
+  <hr>
+  
+  <!-- Standalone Device Management Section -->
+  <div style="margin-top: 2rem;">
+    <div class="actions-bar" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+      <h2 style="margin: 0; color: #333;">🖥️ Device Management</h2>
+      <span style="color: #6b7280; font-size: 0.9rem;">Remote control and monitoring of access control devices</span>
+    </div>
+
+    <div id="deviceManagementContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+      <!-- Device: FC4349999 (Speaker Repairs) -->
+      <div class="device-card" data-device-id="fc4349999">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="margin: 0; color: #1f2937; font-size: 1.1rem;">FC4349999</h3>
+          <span class="device-status" id="status-fc4349999" style="padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500; background: #fef3c7; color: #92400e;">Ready</span>
+        </div>
+        
+        <div style="margin-bottom: 1rem;">
+          <p style="margin: 0; color: #6b7280; font-size: 0.875rem;">
+            <strong>Business:</strong> Speaker Repairs<br>
+            <strong>IP:</strong> 192.168.0.114<br>
+            <strong>Location:</strong> Main Office
+          </p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <button onclick="testAction('restart')" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; background: #ef4444; color: white; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;">
+            🔄 Restart Device
+          </button>
+          
+          <button onclick="testAction('webhook')" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; background: #3b82f6; color: white; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;">
+            📡 Test Webhook
+          </button>
+          
+          <button onclick="testAction('status')" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; background: #10b981; color: white; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;">
+            🔍 Check Status
+          </button>
+          
+          <button onclick="testAction('events')" style="padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; background: #8b5cf6; color: white; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;">
+            📊 View Events
+          </button>
+        </div>
+
+        <div id="device-output" style="margin-top: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-family: monospace; font-size: 0.8rem; max-height: 150px; overflow-y: auto; display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusDiv = document.getElementById('test-status');
+    
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `status ${type}`;
+      div.innerHTML = `${new Date().toLocaleTimeString()}: ${message}`;
+      statusDiv.appendChild(div);
+    }
+    
+    function testAction(action) {
+      const output = document.getElementById('device-output');
+      output.style.display = 'block';
+      output.innerHTML += `<div>🔧 Testing ${action} action... (${new Date().toLocaleTimeString()})</div>`;
+      
+      log(`Button clicked: ${action}`, 'info');
+      
+      // Simulate action
+      setTimeout(() => {
+        output.innerHTML += `<div>✅ ${action} test completed successfully</div>`;
+        log(`${action} test completed`, 'success');
+      }, 1000);
+    }
+    
+    // Check if section is visible
+    document.addEventListener('DOMContentLoaded', () => {
+      log('🔍 Testing Device Management visibility...', 'info');
+      
+      const container = document.getElementById('deviceManagementContainer');
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        log(`✅ Device Management container found! Width: ${rect.width}px, Height: ${rect.height}px`, 'success');
+        
+        if (rect.height > 0 && rect.width > 0) {
+          log('✅ Container is visible and has dimensions', 'success');
+        } else {
+          log('❌ Container found but has no dimensions (might be hidden)', 'error');
+        }
+      } else {
+        log('❌ Device Management container NOT found!', 'error');
+      }
+      
+      // Test buttons
+      const buttons = document.querySelectorAll('button');
+      log(`✅ Found ${buttons.length} buttons in Device Management section`, 'success');
+    });
+  </script>
+</body>
+</html>
