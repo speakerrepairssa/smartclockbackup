@@ -156,7 +156,7 @@ const server = http.createServer((req, res) => {
         }
         
         // Prioritize deviceID from payload over URL
-        const actualDeviceId = eventPayload.deviceID || deviceId;
+        const actualDeviceId = (eventPayload.deviceID || deviceId)?.toUpperCase();
         console.log('Device IDs:', { fromURL: deviceId, fromPayload: eventPayload.deviceID, using: actualDeviceId });
         
         // Check if this is an attendance event (subEventType 75 or has employeeNoString)

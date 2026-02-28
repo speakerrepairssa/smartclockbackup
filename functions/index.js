@@ -540,7 +540,9 @@ function parseMultipartData(req) {
  */
 async function findBusinessByDeviceId(deviceId) {
   try {
-    logger.info("Searching for businesses with deviceId", { deviceId });
+    // Normalize deviceId to uppercase for consistent matching
+    const normalizedDeviceId = deviceId?.toUpperCase();
+    logger.info("Searching for businesses with deviceId", { originalDeviceId: deviceId, normalizedDeviceId });
 
     // Query all businesses to check their devices subcollection
     const businessesSnapshot = await db.collection('businesses').get();
@@ -551,7 +553,7 @@ async function findBusinessByDeviceId(deviceId) {
       const deviceDoc = await db.collection('businesses')
         .doc(doc.id)
         .collection('devices')
-        .doc(deviceId)
+        .doc(normalizedDeviceId)
         .get();
       
       if (deviceDoc.exists) {
@@ -559,18 +561,18 @@ async function findBusinessByDeviceId(deviceId) {
         logger.info("Found business for device in subcollection", { 
           businessId: doc.id, 
           businessName: businessData.businessName,
-          deviceId 
+          deviceId: normalizedDeviceId 
         });
         businessIds.push(doc.id);
       }
     }
 
     if (businessIds.length === 0) {
-      logger.warn("No business found for deviceId - device may need to be registered", { deviceId });
+      logger.warn("No business found for deviceId - device may need to be registered", { originalDeviceId: deviceId, normalizedDeviceId });
       return null;
     }
 
-    logger.info(`Found ${businessIds.length} business(es) with device ${deviceId}`, { businessIds });
+    logger.info(`Found ${businessIds.length} business(es) with device ${normalizedDeviceId}`, { businessIds });
     return businessIds;
 
   } catch (error) {
