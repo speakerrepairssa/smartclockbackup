@@ -1,0 +1,20 @@
+{
+  "name": "vps-relay",
+  "script": "/root/hikvision-relay.js",
+  "instances": 1,
+  "exec_mode": "fork",
+  "autorestart": true,
+  "watch": false,
+  "max_memory_restart": "200M",
+  "restart_delay": 5000,
+  "max_restarts": 3,
+  "min_uptime": "10s",
+  "error_file": "/root/.pm2/logs/vps-relay-error.log",
+  "out_file": "/root/.pm2/logs/vps-relay-out.log",
+  "log_date_format": "YYYY-MM-DD HH:mm:ss Z",
+  "merge_logs": true,
+  "kill_timeout": 5000,
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

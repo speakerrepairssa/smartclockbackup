@@ -15,7 +15,7 @@ import {
 import { db } from "../../config/firebase.js";
 import { showNotification } from "../shared/ui.js";
 import { TemplateEditor } from "./template-editor.js";
-import { DEFAULT_PAYSLIP_TEMPLATE } from "./default-template.js";
+import { DEFAULT_PAYSLIP_TEMPLATE, createPayslipTemplate } from "./default-template.js";
 import { VisualPayslipEditor } from "./visualEditor.js";
 
 /**
@@ -438,7 +438,7 @@ class PayslipsModule {
    * Create a default professional template with pre-filled values
    */
   async createDefaultTemplate() {
-    console.log('Creating default simple template...');
+    console.log('Loading default professional template into visual editor...');
     
     try {
       // Get business data to pre-fill company info
@@ -448,36 +448,43 @@ class PayslipsModule {
       
       console.log('📋 Business data:', businessData);
       
-      // Create a simple template document
-      const templateId = 'default_' + Date.now();
-      const templateRef = doc(db, "businesses", this.businessId, "payslip_templates", templateId);
-      
-      const simpleTemplate = {
-        id: templateId,
-        name: 'Default Payslip Template',
-        subject: 'Your Payslip',
-        content: this.getDefaultTemplate(),
-        companyName: businessData.businessName || 'Your Company',
-        companyAddress: '',
-        companyContact: '',
-        companyTaxNumber: '',
-        customMessage: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      await setDoc(templateRef, simpleTemplate);
-      
-      console.log('✅ Default template created in Firestore');
-      
-      // Reload templates to show the new one
-      await this.loadTemplates();
-      
-      showNotification("Default template created successfully!", "success");
+      // Load DEFAULT_PAYSLIP_TEMPLATE into the visual editor
+      if (this.templateEditor) {
+        const defaultConfig = {
+          ...DEFAULT_PAYSLIP_TEMPLATE,
+          companyName: businessData.businessName || 'Your Company Name',
+          companyEmail: businessData.email || '',
+          companyPhone: businessData.phone || ''
+        };
+        
+        // Load into visual editor
+        this.templateEditor.loadConfigIntoForm(defaultConfig);
+        
+        // Clear current template so it's treated as new
+        this.currentTemplate = null;
+        
+        // Set template name field
+        const templateName = document.getElementById('templateName');
+        if (templateName) {
+          templateName.value = 'Professional Payslip';
+        }
+        
+        // Clear template selector
+        const templateSelect = document.getElementById('templateSelect');
+        if (templateSelect) {
+          templateSelect.value = '';
+        }
+        
+        console.log('✅ Default professional template loaded into visual editor');
+        showNotification("Default professional template loaded! Customize and send, or save for later.", "success");
+      } else {
+        console.error('❌ Template editor not available');
+        showNotification("Template editor not loaded yet. Please wait a moment and try again.", "warning");
+      }
       
     } catch (error) {
-      console.error('❌ Error creating default template:', error);
-      showNotification("Error creating default template: " + error.message, "error");
+      console.error('❌ Error loading default template:', error);
+      showNotification("Error loading default template: " + error.message, "error");
     }
   }
 
@@ -544,12 +551,17 @@ Best regards,
       // Set template name
       document.getElementById('templateName').value = template.name || '';
       
-      // Load the full template config into the editor
-      if (this.templateEditor) {
+      // Load the template config into the editor (not the generated content)
+      if (this.templateEditor && template.config) {
+        this.templateEditor.loadConfigIntoForm(template.config);
+        console.log('✅ Loaded template config into visual editor');
+      } else if (this.templateEditor) {
+        // Fallback for old templates without separate config
         this.templateEditor.loadConfigIntoForm(template);
+        console.log('✅ Loaded legacy template format');
       }
       
-      console.log('✅ Template loaded:', templateId);
+      console.log('✅ Template loaded:', templateId, { hasContent: !!template.content, hasConfig: !!template.config });
     } catch (error) {
       console.error("❌ Error loading template:", error);
       showNotification("Failed to load template", "error");
@@ -568,14 +580,37 @@ Best regards,
         return;
       }
       
-      // Get the complete template configuration from the editor
-      const templateConfig = this.templateEditor ? this.templateEditor.getConfig() : {};
+      // Get the template configuration from the visual editor
+      if (!this.templateEditor) {
+        console.error('❌ Template editor not initialized');
+        showNotification("Template editor is not ready. Please refresh the page.", "error");
+        return;
+      }
+      
+      const templateConfig = this.templateEditor.getConfig();
+      console.log('💾 Template config from editor:', templateConfig);
+      
+      // Generate the HTML template with placeholders
+      const template = createPayslipTemplate(templateConfig);
+      console.log('💾 Created template object:', { hasGenerateHTML: !!template.generateHTML });
+      
+      const htmlContent = template.generateHTML(); // Generates HTML with {{placeholders}}
+      console.log('💾 Generated HTML content:', { length: htmlContent?.length, type: typeof htmlContent });
       
       const templateData = {
         name,
-        ...templateConfig, // Include all template editor config
+        subject: templateConfig.subject || 'Your Payslip',
+        content: htmlContent, // Save the HTML string with placeholders
+        config: templateConfig, // Also save config for future editing
         updatedAt: Timestamp.now()
       };
+      
+      console.log('💾 Saving template to Firestore:', { 
+        name, 
+        hasContent: !!templateData.content, 
+        hasConfig: !!templateData.config,
+        businessId: this.businessId 
+      });
       
       let templateId;
       
@@ -597,9 +632,12 @@ Best regards,
       await this.loadTemplates();
       document.getElementById('templateSelect').value = templateId;
       
+      console.log('✅ Template saved successfully:', templateId);
+      
     } catch (error) {
       console.error("❌ Error saving template:", error);
-      showNotification("Failed to save template", "error");
+      console.error("❌ Error stack:", error.stack);
+      showNotification(`Failed to save template: ${error.message}`, "error");
     }
   }
 
@@ -1151,9 +1189,26 @@ Best regards,
       return;
     }
     
-    if (!this.currentTemplate || !this.currentTemplate.content) {
-      showNotification("Please select or create a template first", "warning");
-      return;
+    // Get template either from saved template or visual editor
+    let templateData;
+    let templateId;
+    let templateSubject;
+    
+    if (this.currentTemplate && (this.currentTemplate.content || this.currentTemplate.id)) {
+      // Use saved template
+      templateData = this.currentTemplate.content || this.currentTemplate;
+      templateId = this.currentTemplate.id;
+      templateSubject = this.currentTemplate.subject || 'Your Payslip';
+      console.log('📝 Using saved template:', templateId);
+    } else {
+      // No saved template - use simple default template with placeholders
+      console.log('📝 No saved template, using simple default text template');
+      templateData = this.getDefaultTemplate();
+      templateId = 'default-text-template';
+      templateSubject = 'Your Payslip for {{month}} {{year}}';
+      
+      console.log('✅ Using simple text template with placeholders');
+      showNotification("Using default template. For custom templates, click '✨ Default' to load the visual editor, customize it, then save before sending.", "info");
     }
     
     if (!confirm(`Send payslips to ${this.selectedEmployees.length} employee(s)?`)) {
@@ -1163,26 +1218,47 @@ Best regards,
     try {
       showNotification(`Sending payslips to ${this.selectedEmployees.length} employees...`, "info");
       
+      // Prepare request payload
+      const payload = {
+        businessId: this.businessId,
+        employeeIds: this.selectedEmployees,
+        templateId: templateId,
+        template: templateData,
+        subject: templateSubject,
+        deliveryMethods: {
+          email: sendEmail,
+          whatsapp: sendWhatsApp
+        }
+      };
+      
+      console.log('📤 Sending payslips request:', {
+        businessId: this.businessId,
+        employeeCount: this.selectedEmployees.length,
+        templateId,
+        templateDataLength: templateData?.length,
+        deliveryMethods: { email: sendEmail, whatsapp: sendWhatsApp }
+      });
+      
       // Call Cloud Function to send payslips
       const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/sendPayslips', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          businessId: this.businessId,
-          employeeIds: this.selectedEmployees,
-          templateId: this.currentTemplate.id,
-          template: this.currentTemplate.content,
-          subject: this.currentTemplate.subject || 'Your Payslip',
-          deliveryMethods: {
-            email: sendEmail,
-            whatsapp: sendWhatsApp
-          }
-        })
+        body: JSON.stringify(payload)
       });
       
+      console.log('📥 Response status:', response.status, response.statusText);
+      
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Server error response:', errorText);
+        throw new Error(`Server returned ${response.status}: ${errorText}`);
+      }
+      
       const result = await response.json();
+      console.log('✅ Response data:', result);
       
       if (result.success) {
         showNotification(`Payslips sent successfully! ${result.sent} sent, ${result.failed} failed`, "success");
@@ -1192,7 +1268,7 @@ Best regards,
       
     } catch (error) {
       console.error("❌ Error sending payslips:", error);
-      showNotification("Failed to send payslips", "error");
+      showNotification(`Failed to send payslips: ${error.message}`, "error");
     }
   }
 
@@ -1228,8 +1304,39 @@ Best regards,
       return;
     }
     
-    if (!this.currentTemplate || !this.currentTemplate.content) {
-      showNotification("Please select or create a template first", "warning");
+    // Get template - for scheduling we need to save it first
+    let templateId;
+    let templateSubject;
+    
+    if (this.currentTemplate && this.currentTemplate.id) {
+      // Use existing saved template
+      templateId = this.currentTemplate.id;
+      templateSubject = this.currentTemplate.subject || 'Your Payslip';
+    } else if (this.templateEditor) {
+      // Auto-save template from visual editor
+      console.log('📝 Auto-saving template for scheduling...');
+      const templateName = document.getElementById('templateName')?.value.trim() || `Payslip ${new Date().toLocaleDateString()}`;
+      
+      const config = this.templateEditor.getConfig();
+      const templateData = {
+        name: templateName,
+        ...config,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      };
+      
+      const newTemplateRef = doc(collection(db, "businesses", this.businessId, "payslip_templates"));
+      await setDoc(newTemplateRef, templateData);
+      templateId = newTemplateRef.id;
+      templateSubject = config.subject || 'Your Payslip';
+      
+      this.currentTemplate = { id: templateId, ...templateData };
+      await this.loadTemplates();
+      document.getElementById('templateSelect').value = templateId;
+      
+      showNotification("Template saved for scheduling", "info");
+    } else {
+      showNotification("Template editor not available. Please refresh the page.", "error");
       return;
     }
     
@@ -1238,8 +1345,8 @@ Best regards,
       const scheduleData = {
         businessId: this.businessId,
         employeeIds: this.selectedEmployees,
-        templateId: this.currentTemplate.id,
-        subject: this.currentTemplate.subject,
+        templateId: templateId,
+        subject: templateSubject,
         deliveryMethods: {
           email: sendEmail,
           whatsapp: sendWhatsApp
