@@ -663,6 +663,7 @@
         <li><button class="menu-btn" data-module="monitor" onclick="switchModule('monitor')">🔴 Monitor Mode</button></li>
         <li><button class="menu-btn" data-module="assessment" onclick="switchModule('assessment')">📊 Assessment</button></li>
         <li><button class="menu-btn" data-module="payslips" onclick="switchModule('payslips')">💰 Payslips</button></li>
+        <li><button class="menu-btn" data-module="wage-calculator" onclick="switchModule('wage-calculator')">🧮 Wage Calculator</button></li>
         <li><button class="menu-btn" data-module="app-downloads" onclick="switchModule('app-downloads')">📱 App Downloads</button></li>
         <li><button class="menu-btn" data-module="employees" onclick="switchModule('employees')">👥 Employees</button></li>
         <li><button class="menu-btn" data-module="employee-stats" onclick="switchModule('employee-stats')">📈 Employee Stats</button></li>
@@ -677,6 +678,7 @@
         <li><button class="menu-btn" data-module="downloads" onclick="switchModule('downloads')">📥 Downloads</button></li>
         <li><a href="whatsapp-settings.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📱 WhatsApp</button></a></li>
         <li><a href="#" id="whatsappLogsLink" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📊 WhatsApp Logs</button></a></li>
+        <li><button class="menu-btn" data-module="business-tracker" onclick="switchModule('business-tracker')">📊 Business Tracker</button></li>
         <li><button class="menu-btn" data-module="settings" onclick="switchModule('settings')">⚙️ Settings</button></li>
       </ul>
       <div class="sidebar-footer">
@@ -2851,6 +2853,49 @@
                 </div>
               </div>
 
+              <!-- Email Server Configuration -->
+              <div class="payslip-card" style="margin-top: 2rem;">
+                <h2>📧 Email Server Setup</h2>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">Configure your SMTP server to send payslips via email</p>
+                
+                <div class="form-group">
+                  <label for="smtpHost">SMTP Host</label>
+                  <input type="text" id="smtpHost" placeholder="smtp.gmail.com">
+                  <small style="color: #666;">Your email provider's SMTP server address</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="smtpPort">SMTP Port</label>
+                  <input type="number" id="smtpPort" placeholder="587" value="587">
+                  <small style="color: #666;">Common ports: 587 (TLS), 465 (SSL), 25 (unsecured)</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="smtpUser">Email Address</label>
+                  <input type="email" id="smtpUser" placeholder="info@yourdomain.com">
+                  <small style="color: #666;">The email address that will send payslips</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="smtpPassword">Email Password / App Password</label>
+                  <input type="password" id="smtpPassword" placeholder="••••••••">
+                  <small style="color: #666;">For Gmail, use an App Password (not your regular password)</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="smtpFromName">From Name</label>
+                  <input type="text" id="smtpFromName" placeholder="Your Company Name">
+                  <small style="color: #666;">The name employees will see as the sender</small>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                  <button class="btn-success" id="saveSMTPBtn">💾 Save Email Settings</button>
+                  <button class="btn-secondary" id="testSMTPBtn">✉️ Send Test Email</button>
+                </div>
+
+                <div id="smtpStatus" style="margin-top: 1rem; padding: 1rem; border-radius: 4px; display: none;"></div>
+              </div>
+
               <!-- Delivery Options -->
               <div class="payslip-card" style="margin-top: 2rem;">
                 <h2>📬 Delivery Options</h2>
@@ -4295,6 +4340,96 @@
             
             <button type="button" class="btn-primary" onclick="saveApplicationSettings()" style="margin-top: 1rem;">💾 Save Application Settings</button>
           </div>
+
+          <!-- Business Tracker Settings -->
+          <div class="settings-card">
+            <h3>📊 Business Tracker Settings</h3>
+            <p style="color: #6c757d; margin-bottom: 1.25rem;">Configure monthly expenses and working days to power the Business Tracker module</p>
+
+            <div class="form-group">
+              <label>Monthly Working Days</label>
+              <input type="number" id="trackerWorkingDays" value="22" min="1" max="31" placeholder="22">
+              <small>Number of working days in a typical month for your business</small>
+            </div>
+
+            <div style="margin-top: 1.25rem;">
+              <label style="font-weight: 600; color: #495057; display: block; margin-bottom: 0.75rem;">💸 Monthly Expenses</label>
+              <div style="margin-bottom: 0.5rem; display: grid; grid-template-columns: 1fr 130px 36px; gap: 0.5rem; font-size: 0.8rem; color: #aaa; padding: 0 0.25rem;">
+                <span>Expense Name</span><span>Monthly Amount</span><span></span>
+              </div>
+              <div id="trackerExpensesList"></div>
+              <button type="button" onclick="addTrackerExpenseRow()" style="margin-top: 0.5rem; padding: 0.4rem 1rem; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem;">＋ Add Expense</button>
+            </div>
+
+            <div style="margin-top:1.25rem;">
+              <label style="font-weight:600;color:#495057;display:block;margin-bottom:0.4rem;">✨ Gemini AI API Key</label>
+              <input type="password" id="geminiApiKey" placeholder="Paste your Gemini API key here"
+                style="width:100%;padding:0.5rem 0.75rem;border:1px solid #dee2e6;border-radius:6px;font-size:0.875rem;box-sizing:border-box;">
+              <small style="color:#6c757d;">Get a free key at <strong>aistudio.google.com</strong> — used only for the AI Business Assistant</small>
+            </div>
+
+            <button type="button" onclick="saveTrackerSettings()" class="btn-primary" style="margin-top: 1.5rem; width: 100%;">💾 Save Tracker Settings</button>
+          </div>
+
+          <!-- Email Server Settings -->
+          <div class="settings-card">
+            <h3>📧 Email Account Setup</h3>
+            <p style="color:#6c757d;margin-bottom:1.5rem;">Fill in your email account details below. These settings are used for sending payslips, login credentials, and all system notifications.</p>
+
+            <!-- Clean form rows like Mac Mail dialog -->
+            <table style="width:100%;border-collapse:collapse;">
+              <tbody>
+                <tr>
+                  <td style="padding:0.55rem 0.75rem 0.55rem 0;width:160px;font-size:0.875rem;font-weight:600;color:#495057;white-space:nowrap;">Email Address</td>
+                  <td style="padding:0.4rem 0;"><input type="email" id="settingsSmtpUser" placeholder="info@srcomponents.co.za" style="width:100%;padding:0.45rem 0.65rem;border:1px solid #ced4da;border-radius:5px;font-size:0.875rem;"></td>
+                </tr>
+                <tr>
+                  <td style="padding:0.55rem 0.75rem 0.55rem 0;font-size:0.875rem;font-weight:600;color:#495057;">Password</td>
+                  <td style="padding:0.4rem 0;"><input type="password" id="settingsSmtpPassword" placeholder="••••••••" style="width:100%;padding:0.45rem 0.65rem;border:1px solid #ced4da;border-radius:5px;font-size:0.875rem;"></td>
+                </tr>
+                <tr>
+                  <td style="padding:0.55rem 0.75rem 0.55rem 0;font-size:0.875rem;font-weight:600;color:#495057;">Account Type</td>
+                  <td style="padding:0.4rem 0;">
+                    <select id="settingsImapProtocol" onchange="updateEmailPreview()" style="padding:0.45rem 0.65rem;border:1px solid #ced4da;border-radius:5px;font-size:0.875rem;">
+                      <option value="imap">IMAP</option>
+                      <option value="pop3">POP3</option>
+                    </select>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0.55rem 0.75rem 0.55rem 0;font-size:0.875rem;font-weight:600;color:#495057;">Incoming Mail Server</td>
+                  <td style="padding:0.4rem 0;"><input type="text" id="settingsImapHost" placeholder="mail.srcomponents.co.za" style="width:100%;padding:0.45rem 0.65rem;border:1px solid #ced4da;border-radius:5px;font-size:0.875rem;"></td>
+                </tr>
+                <tr>
+                  <td style="padding:0.55rem 0.75rem 0.55rem 0;font-size:0.875rem;font-weight:600;color:#495057;">Outgoing Mail Server</td>
+                  <td style="padding:0.4rem 0;"><input type="text" id="settingsSmtpHost" placeholder="mail.srcomponents.co.za" style="width:100%;padding:0.45rem 0.65rem;border:1px solid #ced4da;border-radius:5px;font-size:0.875rem;"></td>
+                </tr>
+                <tr>
+                  <td style="padding:0.55rem 0.75rem 0.55rem 0;font-size:0.875rem;font-weight:600;color:#495057;">From Name</td>
+                  <td style="padding:0.4rem 0;"><input type="text" id="settingsSmtpFromName" placeholder="SR Components" style="width:100%;padding:0.45rem 0.65rem;border:1px solid #ced4da;border-radius:5px;font-size:0.875rem;"></td>
+                </tr>
+                <tr>
+                  <td style="padding:0.55rem 0.75rem 0.55rem 0;font-size:0.875rem;font-weight:600;color:#495057;">SSL / TLS</td>
+                  <td style="padding:0.4rem 0;">
+                    <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.875rem;">
+                      <input type="checkbox" id="settingsSmtpSSL" onchange="updateEmailPreview()" checked style="width:16px;height:16px;cursor:pointer;">
+                      Use SSL/TLS (recommended &mdash; SMTP: 465, IMAP: 993, POP3: 995)
+                    </label>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Port info row -->
+            <div id="emailSettingsPreview" style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:0.6rem 0.85rem;margin-top:1rem;font-size:0.8rem;color:#495057;"></div>
+
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1.25rem;">
+              <button type="button" onclick="saveSmtpSettings()" class="btn-primary" style="flex:1;min-width:160px;">💾 Save Email Settings</button>
+              <button type="button" onclick="testSmtpSettings()" style="flex:1;min-width:160px;padding:0.55rem 1rem;background:#6c757d;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">✉️ Send Test Email</button>
+            </div>
+            <div id="smtpSettingsStatus" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;border-radius:8px;font-size:0.875rem;"></div>
+          </div>
+
         </div>
       </div>
 
@@ -4407,6 +4542,337 @@
           </div>
         </div>
       </div>
+
+      <!-- Wage Calculator View -->
+      <div class="view-section" id="wageCalculatorView">
+        <h2 class="section-title">🧮 Wage Calculator</h2>
+        <p class="section-description">Convert between monthly salary and hourly rates, and calculate overtime pay.</p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+
+          <!-- Monthly → Hourly Card -->
+          <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-top: 4px solid #667eea;">
+            <h3 style="margin: 0 0 1.25rem 0; color: #667eea; font-size: 1.05rem;">💼 Monthly Salary → Hourly Rate</h3>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+              <div>
+                <label style="font-size: 0.85rem; color: #555; font-weight: 600; display: block; margin-bottom: 0.4rem;">Monthly Salary (ZAR)</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                  <span style="position: absolute; left: 10px; font-weight: 700; color: #333;">R</span>
+                  <input type="number" id="wc_monthlySalary" placeholder="0.00" step="0.01"
+                    style="width: 100%; padding: 0.65rem 0.65rem 0.65rem 1.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box;"
+                    oninput="wcCalcHourly()">
+                </div>
+              </div>
+              <div>
+                <label style="font-size: 0.85rem; color: #555; font-weight: 600; display: block; margin-bottom: 0.4rem;">Hours Per Week</label>
+                <select id="wc_weeklyHours" style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;" oninput="wcCalcHourly()">
+                  <option value="40">40 hrs (Mon–Fri, 8h/day)</option>
+                  <option value="45">45 hrs (Mon–Fri, 9h/day)</option>
+                  <option value="48">48 hrs (Mon–Sat, 8h/day)</option>
+                  <option value="54">54 hrs (Mon–Sat, 9h/day)</option>
+                  <option value="custom">Custom...</option>
+                </select>
+                <input type="number" id="wc_customHours" placeholder="Enter hours per week" min="1" max="80"
+                  style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; margin-top: 0.5rem; display: none; box-sizing: border-box;"
+                  oninput="wcCalcHourly()">
+              </div>
+            </div>
+            <div id="wc_hourlyResults" style="display: none; margin-top: 1.25rem; background: #f0f4ff; border-radius: 8px; overflow: hidden;">
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #dde3f5; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Hourly Rate</span>
+                <strong style="color: #667eea;" id="wc_hourlyRate">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #dde3f5; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Daily Rate (8h)</span>
+                <strong id="wc_dailyRate">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #dde3f5; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Weekly Rate</span>
+                <strong id="wc_weeklyRate">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #dde3f5; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Overtime Rate (1.5×)</span>
+                <strong style="color: #e67e22;" id="wc_overtimeRate">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Double Time (2×)</span>
+                <strong style="color: #e74c3c;" id="wc_doubleRate">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hourly → Monthly Card -->
+          <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-top: 4px solid #28a745;">
+            <h3 style="margin: 0 0 1.25rem 0; color: #28a745; font-size: 1.05rem;">⏱️ Hourly Rate → Monthly Salary</h3>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+              <div>
+                <label style="font-size: 0.85rem; color: #555; font-weight: 600; display: block; margin-bottom: 0.4rem;">Hourly Rate (ZAR)</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                  <span style="position: absolute; left: 10px; font-weight: 700; color: #333;">R</span>
+                  <input type="number" id="wc_hourlyInput" placeholder="0.00" step="0.01"
+                    style="width: 100%; padding: 0.65rem 0.65rem 0.65rem 1.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box;"
+                    oninput="wcCalcMonthly()">
+                </div>
+              </div>
+              <div>
+                <label style="font-size: 0.85rem; color: #555; font-weight: 600; display: block; margin-bottom: 0.4rem;">Hours Per Week</label>
+                <select id="wc_weeklyHours2" style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;" oninput="wcCalcMonthly()">
+                  <option value="40">40 hrs (Mon–Fri, 8h/day)</option>
+                  <option value="45">45 hrs (Mon–Fri, 9h/day)</option>
+                  <option value="48">48 hrs (Mon–Sat, 8h/day)</option>
+                  <option value="54">54 hrs (Mon–Sat, 9h/day)</option>
+                  <option value="custom">Custom...</option>
+                </select>
+                <input type="number" id="wc_customHours2" placeholder="Enter hours per week" min="1" max="80"
+                  style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; margin-top: 0.5rem; display: none; box-sizing: border-box;"
+                  oninput="wcCalcMonthly()">
+              </div>
+            </div>
+            <div id="wc_monthlyResults" style="display: none; margin-top: 1.25rem; background: #f0fff4; border-radius: 8px; overflow: hidden;">
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #c3e6cb; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Monthly Salary</span>
+                <strong style="color: #28a745;" id="wc_monthlySalaryResult">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #c3e6cb; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Daily Rate (8h)</span>
+                <strong id="wc_dailyRate2">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #c3e6cb; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Weekly Rate</span>
+                <strong id="wc_weeklyRate2">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Annual Salary</span>
+                <strong style="color: #158f3a;" id="wc_annualSalary">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overtime Calculator Card -->
+          <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-top: 4px solid #e67e22;">
+            <h3 style="margin: 0 0 1.25rem 0; color: #e67e22; font-size: 1.05rem;">⚡ Overtime Pay Calculator</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+              <div>
+                <label style="font-size: 0.85rem; color: #555; font-weight: 600; display: block; margin-bottom: 0.4rem;">Base Hourly Rate (ZAR)</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                  <span style="position: absolute; left: 10px; font-weight: 700; color: #333;">R</span>
+                  <input type="number" id="wc_baseRate" placeholder="0.00" step="0.01"
+                    style="width: 100%; padding: 0.65rem 0.65rem 0.65rem 1.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box;"
+                    oninput="wcCalcOvertime()">
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                <div>
+                  <label style="font-size: 0.8rem; color: #555; font-weight: 600; display: block; margin-bottom: 0.3rem;">Regular Hrs</label>
+                  <input type="number" id="wc_regularHrs" placeholder="0" min="0" step="0.5"
+                    style="width: 100%; padding: 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
+                    oninput="wcCalcOvertime()">
+                </div>
+                <div>
+                  <label style="font-size: 0.8rem; color: #555; font-weight: 600; display: block; margin-bottom: 0.3rem;">OT Hrs (1.5×)</label>
+                  <input type="number" id="wc_otHrs" placeholder="0" min="0" step="0.5"
+                    style="width: 100%; padding: 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
+                    oninput="wcCalcOvertime()">
+                </div>
+                <div>
+                  <label style="font-size: 0.8rem; color: #555; font-weight: 600; display: block; margin-bottom: 0.3rem;">DT Hrs (2×)</label>
+                  <input type="number" id="wc_dtHrs" placeholder="0" min="0" step="0.5"
+                    style="width: 100%; padding: 0.6rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
+                    oninput="wcCalcOvertime()">
+                </div>
+              </div>
+            </div>
+            <div id="wc_overtimeResults" style="display: none; margin-top: 1.25rem; background: #fff8f0; border-radius: 8px; overflow: hidden;">
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #fde3c0; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Regular Pay</span>
+                <strong id="wc_regularPay">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #fde3c0; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Overtime Pay (1.5×)</span>
+                <strong style="color: #e67e22;" id="wc_overtimePay">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; border-bottom: 1px solid #fde3c0; display: flex; justify-content: space-between;">
+                <span style="color: #555; font-size: 0.9rem;">Double Time Pay (2×)</span>
+                <strong style="color: #e74c3c;" id="wc_doubleTimePay">—</strong>
+              </div>
+              <div style="padding: 0.75rem 1rem; background: #e67e22; display: flex; justify-content: space-between;">
+                <span style="color: white; font-weight: 700; font-size: 0.95rem;">Total Pay</span>
+                <strong style="color: white; font-size: 1.05rem;" id="wc_totalPay">—</strong>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Business Tracker View -->
+      <div class="view-section" id="businessTrackerView">
+        <h2 class="section-title">📊 Business Tracker</h2>
+        <p class="section-description">Real-time cash flow tracker — know exactly how much your bank account must hold at every point in the month</p>
+
+        <!-- Top bar: date info + refresh -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.75rem;flex-wrap:wrap;gap:0.75rem;">
+          <div style="color:#555;font-size:0.9rem;line-height:1.6;">
+            <span id="btTodayDate" style="font-weight:600;color:#333;"></span><br>
+            <span style="color:#888;">Working Day </span><strong id="btCurrentWorkingDay" style="color:#1e3c72;">—</strong><span style="color:#888;"> of </span><strong id="btTotalWorkingDays" style="color:#1e3c72;">—</strong>
+          </div>
+          <div style="display:flex;gap:0.65rem;">
+            <button onclick="openAIAssistant()" style="padding:0.5rem 1.25rem;background:linear-gradient(135deg,#6a11cb,#2575fc);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.875rem;font-weight:600;display:flex;align-items:center;gap:0.4rem;">✨ AI Assistant</button>
+            <button onclick="initBusinessTracker()" style="padding:0.5rem 1.25rem;background:#495057;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.875rem;font-weight:500;">🔄 Refresh</button>
+          </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1.25rem;margin-bottom:2rem;">
+          <div style="background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:white;padding:1.5rem;border-radius:14px;box-shadow:0 6px 20px rgba(30,60,114,0.25);">
+            <div style="font-size:0.75rem;opacity:0.8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem;">Monthly Total</div>
+            <div style="font-size:1.9rem;font-weight:700;letter-spacing:-0.5px;" id="btMonthlyTotal">—</div>
+            <div style="font-size:0.75rem;opacity:0.7;margin-top:0.4rem;">Total monthly expenses</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#c84b31 0%,#e8834b 100%);color:white;padding:1.5rem;border-radius:14px;box-shadow:0 6px 20px rgba(200,75,49,0.25);">
+            <div style="font-size:0.75rem;opacity:0.8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem;">Needed Right Now</div>
+            <div style="font-size:1.9rem;font-weight:700;letter-spacing:-0.5px;" id="btNeededToday">—</div>
+            <div style="font-size:0.75rem;opacity:0.7;margin-top:0.4rem;">Minimum bank balance today</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#1a7431 0%,#40b55a 100%);color:white;padding:1.5rem;border-radius:14px;box-shadow:0 6px 20px rgba(26,116,49,0.25);">
+            <div style="font-size:0.75rem;opacity:0.8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem;">Daily Rate</div>
+            <div style="font-size:1.9rem;font-weight:700;letter-spacing:-0.5px;" id="btDailyRate">—</div>
+            <div style="font-size:0.75rem;opacity:0.7;margin-top:0.4rem;">Cost per working day</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#5b21b6 0%,#8b5cf6 100%);color:white;padding:1.5rem;border-radius:14px;box-shadow:0 6px 20px rgba(91,33,182,0.25);">
+            <div style="font-size:0.75rem;opacity:0.8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem;">Still to Accrue</div>
+            <div style="font-size:1.9rem;font-weight:700;letter-spacing:-0.5px;" id="btRemaining">—</div>
+            <div style="font-size:0.75rem;opacity:0.7;margin-top:0.4rem;">Balance needed by month end</div>
+          </div>
+        </div>
+
+        <!-- Month Progress Bar -->
+        <div style="background:white;border-radius:14px;padding:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:1.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3 style="margin:0;font-size:1rem;color:#333;font-weight:600;">📅 Month Progress</h3>
+            <span style="font-size:0.85rem;color:#666;font-weight:500;" id="btProgressLabel">—</span>
+          </div>
+          <div style="background:#e9ecef;border-radius:100px;height:22px;position:relative;overflow:hidden;">
+            <div id="btProgressBar" style="height:100%;border-radius:100px;background:linear-gradient(90deg,#2a5298,#e8834b);transition:width 0.9s cubic-bezier(0.4,0,0.2,1);width:0%;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.75rem;color:#aaa;">
+            <span>Day 1</span>
+            <span id="btProgressEnd">Day 22</span>
+          </div>
+        </div>
+
+        <!-- Interactive Day Slider -->
+        <div style="background:white;border-radius:14px;padding:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:1.5rem;">
+          <h3 style="margin:0 0 1rem 0;font-size:1rem;color:#333;font-weight:600;">🎚️ Sliding Scale — How Much Do You Need On Any Day?</h3>
+          <div style="display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;">
+            <div style="flex:1;min-width:220px;">
+              <input type="range" id="btDaySlider" min="1" max="22" value="1" oninput="btSliderChange(this.value)"
+                style="width:100%;height:8px;accent-color:#2a5298;cursor:pointer;">
+              <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#bbb;margin-top:0.3rem;">
+                <span>Day 1</span>
+                <span id="btSliderMax">Day 22</span>
+              </div>
+            </div>
+            <div style="background:linear-gradient(135deg,#1e3c72,#c84b31);color:white;padding:1.1rem 1.5rem;border-radius:12px;text-align:center;min-width:175px;box-shadow:0 4px 15px rgba(30,60,114,0.3);">
+              <div style="font-size:0.75rem;opacity:0.85;margin-bottom:0.3rem;">On Working Day <span id="btSliderDayDisplay">1</span></div>
+              <div style="font-size:1.65rem;font-weight:700;" id="btSliderAmount">—</div>
+              <div style="font-size:0.7rem;opacity:0.75;margin-top:0.2rem;">needed in bank account</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline Chart -->
+        <div style="background:white;border-radius:14px;padding:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:1.5rem;">
+          <h3 style="margin:0 0 0.25rem 0;font-size:1rem;color:#333;font-weight:600;">📈 Monthly Cash Requirement Timeline</h3>
+          <p style="margin:0 0 1.25rem 0;font-size:0.85rem;color:#aaa;">Minimum bank balance required on each working day &nbsp;|&nbsp; 🔴 dot = Today</p>
+          <div style="position:relative;height:340px;">
+            <canvas id="btTimelineChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Expense Breakdown Table -->
+        <div style="background:white;border-radius:14px;padding:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.07);overflow-x:auto;">
+          <h3 style="margin:0 0 1rem 0;font-size:1rem;color:#333;font-weight:600;">💸 Expense Breakdown — Today's Allocation</h3>
+          <div id="btExpenseTable">
+            <div style="text-align:center;padding:2.5rem;color:#bbb;">
+              <div style="font-size:2.5rem;margin-bottom:0.75rem;">💡</div>
+              <p style="margin:0;font-size:0.95rem;">No expenses configured yet.</p>
+              <p style="margin:0.5rem 0 0 0;font-size:0.85rem;">Go to <strong>⚙️ Settings → Business Tracker Settings</strong> to add monthly expenses.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Daily Transactions Section -->
+        <div style="background:white;border-radius:14px;padding:1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-top:1.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
+            <h3 style="margin:0;font-size:1rem;color:#333;font-weight:600;">💳 Daily Transactions — Money In &amp; Out</h3>
+            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+              <div style="background:#e8f5e9;border-radius:10px;padding:0.5rem 1rem;text-align:center;">
+                <div style="font-size:0.7rem;color:#388e3c;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Total In</div>
+                <div style="font-size:1.15rem;font-weight:700;color:#1a7431;" id="btTotalIn">—</div>
+              </div>
+              <div style="background:#fce4ec;border-radius:10px;padding:0.5rem 1rem;text-align:center;">
+                <div style="font-size:0.7rem;color:#c62828;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Total Out</div>
+                <div style="font-size:1.15rem;font-weight:700;color:#c84b31;" id="btTotalOut">—</div>
+              </div>
+              <div style="background:#e8eaf6;border-radius:10px;padding:0.5rem 1rem;text-align:center;">
+                <div style="font-size:0.7rem;color:#3949ab;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Net Balance</div>
+                <div style="font-size:1.15rem;font-weight:700;color:#1e3c72;" id="btNetBalance">—</div>
+              </div>
+              <div style="background:#fff3e0;border-radius:10px;padding:0.5rem 1rem;text-align:center;">
+                <div style="font-size:0.7rem;color:#e65100;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">vs Required</div>
+                <div style="font-size:1.15rem;font-weight:700;" id="btVsRequired">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Transaction Form -->
+          <div style="background:#f8f9fa;border-radius:10px;padding:1.25rem;margin-bottom:1.25rem;">
+            <div style="display:grid;grid-template-columns:1fr 140px 120px 110px 110px auto;gap:0.65rem;align-items:end;">
+              <div>
+                <label style="font-size:0.78rem;color:#666;font-weight:600;display:block;margin-bottom:0.3rem;">Description</label>
+                <input type="text" id="btTxDesc" placeholder="e.g. Client payment, Supplier"
+                  style="width:100%;padding:0.5rem 0.75rem;border:1px solid #dee2e6;border-radius:7px;font-size:0.875rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:0.78rem;color:#666;font-weight:600;display:block;margin-bottom:0.3rem;">Amount</label>
+                <input type="number" id="btTxAmount" placeholder="0.00" min="0" step="0.01"
+                  style="width:100%;padding:0.5rem 0.75rem;border:1px solid #dee2e6;border-radius:7px;font-size:0.875rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:0.78rem;color:#666;font-weight:600;display:block;margin-bottom:0.3rem;">In / Out</label>
+                <select id="btTxDirection" style="width:100%;padding:0.5rem 0.5rem;border:1px solid #dee2e6;border-radius:7px;font-size:0.875rem;">
+                  <option value="in">🟢 Money In</option>
+                  <option value="out">🔴 Money Out</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:0.78rem;color:#666;font-weight:600;display:block;margin-bottom:0.3rem;">Method</label>
+                <select id="btTxMethod" style="width:100%;padding:0.5rem 0.5rem;border:1px solid #dee2e6;border-radius:7px;font-size:0.875rem;">
+                  <option value="cash">💵 Cash</option>
+                  <option value="card">💳 Card</option>
+                  <option value="eft">🏦 EFT</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:0.78rem;color:#666;font-weight:600;display:block;margin-bottom:0.3rem;">Date</label>
+                <input type="date" id="btTxDate"
+                  style="width:100%;padding:0.5rem 0.5rem;border:1px solid #dee2e6;border-radius:7px;font-size:0.875rem;box-sizing:border-box;">
+              </div>
+              <div>
+                <button onclick="btAddTransaction()"
+                  style="padding:0.5rem 1rem;background:linear-gradient(135deg,#1a7431,#40b55a);color:white;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:0.875rem;white-space:nowrap;height:36px;">＋ Add</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transactions List (grouped by date) -->
+          <div id="btTransactionsList">
+            <div style="text-align:center;padding:2rem;color:#bbb;font-size:0.9rem;">No transactions recorded yet for this month.</div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -4443,6 +4909,7 @@
         if (module === 'downloads') {
           viewId = 'dashboardView';
         }
+        if (module === 'business-tracker') viewId = 'businessTrackerView';
         
         const view = document.getElementById(viewId);
         if (view) {
@@ -5230,6 +5697,8 @@
         'sync': 'syncView',
         'backup-restore': 'backupRestoreView',
         'sql-integration': 'sqlIntegrationView',
+        'wage-calculator': 'wageCalculatorView',
+        'business-tracker': 'businessTrackerView',
         'settings': 'settingsView',
         'downloads': 'syncView'  // Use sync view for downloads until we have a dedicated view
       };
@@ -5472,9 +5941,23 @@
           return;
         }
         
+        if (module === 'wage-calculator') {
+          console.log('Loading wage calculator module...');
+          initWageCalculator();
+          return;
+        }
+
         if (module === 'employee-stats') {
           console.log('Loading employee stats module...');
           await loadEmployeeStatsData();
+          return;
+        }
+
+        if (module === 'business-tracker') {
+          console.log('Loading business tracker module...');
+          await initBusinessTracker();
+          // Trigger daily AI check-in once per day
+          if (typeof aiCheckDailyPopup === 'function') aiCheckDailyPopup();
           return;
         }
         
@@ -5502,6 +5985,111 @@
 
     // Update global reference to loadModuleData
     window.loadModuleData = loadModuleData;
+
+    // ========== WAGE CALCULATOR MODULE ==========
+
+    function initWageCalculator() {
+      // Wire up custom hours toggles
+      const sel1 = document.getElementById('wc_weeklyHours');
+      const sel2 = document.getElementById('wc_weeklyHours2');
+      if (sel1) sel1.addEventListener('change', function() {
+        document.getElementById('wc_customHours').style.display = this.value === 'custom' ? 'block' : 'none';
+        wcCalcHourly();
+      });
+      if (sel2) sel2.addEventListener('change', function() {
+        document.getElementById('wc_customHours2').style.display = this.value === 'custom' ? 'block' : 'none';
+        wcCalcMonthly();
+      });
+    }
+
+    function wcGetWeeklyHrs(selId, customId) {
+      const sel = document.getElementById(selId);
+      if (!sel) return 40;
+      if (sel.value === 'custom') {
+        return parseFloat(document.getElementById(customId)?.value) || 40;
+      }
+      return parseFloat(sel.value) || 40;
+    }
+
+    window.wcCalcHourly = function() {
+      const monthly = parseFloat(document.getElementById('wc_monthlySalary')?.value) || 0;
+      if (monthly <= 0) { document.getElementById('wc_hourlyResults').style.display = 'none'; return; }
+      const wkHrs = wcGetWeeklyHrs('wc_weeklyHours', 'wc_customHours');
+      const monthlyHrs = wkHrs * 4.33;
+      const hr = monthly / monthlyHrs;
+      document.getElementById('wc_hourlyRate').textContent    = `R${hr.toFixed(2)}/hr`;
+      document.getElementById('wc_dailyRate').textContent     = `R${(hr * 8).toFixed(2)}/day`;
+      document.getElementById('wc_weeklyRate').textContent    = `R${(hr * wkHrs).toFixed(2)}/week`;
+      document.getElementById('wc_overtimeRate').textContent  = `R${(hr * 1.5).toFixed(2)}/hr`;
+      document.getElementById('wc_doubleRate').textContent    = `R${(hr * 2).toFixed(2)}/hr`;
+      document.getElementById('wc_hourlyResults').style.display = 'block';
+    };
+
+    window.wcCalcMonthly = function() {
+      const hr = parseFloat(document.getElementById('wc_hourlyInput')?.value) || 0;
+      if (hr <= 0) { document.getElementById('wc_monthlyResults').style.display = 'none'; return; }
+      const wkHrs = wcGetWeeklyHrs('wc_weeklyHours2', 'wc_customHours2');
+      const monthly = hr * wkHrs * 4.33;
+      document.getElementById('wc_monthlySalaryResult').textContent = `R${monthly.toFixed(2)}/month`;
+      document.getElementById('wc_dailyRate2').textContent          = `R${(hr * 8).toFixed(2)}/day`;
+      document.getElementById('wc_weeklyRate2').textContent         = `R${(hr * wkHrs).toFixed(2)}/week`;
+      document.getElementById('wc_annualSalary').textContent        = `R${(monthly * 12).toFixed(2)}/year`;
+      document.getElementById('wc_monthlyResults').style.display = 'block';
+    };
+
+    window.wcCalcOvertime = function() {
+      const base = parseFloat(document.getElementById('wc_baseRate')?.value) || 0;
+      if (base <= 0) { document.getElementById('wc_overtimeResults').style.display = 'none'; return; }
+      const reg = parseFloat(document.getElementById('wc_regularHrs')?.value) || 0;
+      const ot  = parseFloat(document.getElementById('wc_otHrs')?.value) || 0;
+      const dt  = parseFloat(document.getElementById('wc_dtHrs')?.value) || 0;
+      const regPay = reg * base;
+      const otPay  = ot  * base * 1.5;
+      const dtPay  = dt  * base * 2;
+      document.getElementById('wc_regularPay').textContent   = `R${regPay.toFixed(2)}`;
+      document.getElementById('wc_overtimePay').textContent  = `R${otPay.toFixed(2)}`;
+      document.getElementById('wc_doubleTimePay').textContent = `R${dtPay.toFixed(2)}`;
+      document.getElementById('wc_totalPay').textContent     = `R${(regPay + otPay + dtPay).toFixed(2)}`;
+      document.getElementById('wc_overtimeResults').style.display = 'block';
+    };
+
+    // Employee edit form: auto-calculate hourly from monthly pay + shift hours
+    window.wcAutoCalcFromMonthly = function() {
+      const monthlyInput = document.getElementById('editMonthlyBasicPay');
+      const hourlyInput  = document.getElementById('editHourlyRateInput');
+      const infoDiv      = document.getElementById('editAutoCalcInfo');
+      const shiftSel     = document.getElementById('employeeShiftSelect');
+      if (!monthlyInput || !hourlyInput) return;
+
+      const monthly = parseFloat(monthlyInput.value) || 0;
+      if (monthly <= 0) { if (infoDiv) infoDiv.textContent = ''; return; }
+
+      // Primary: read from global shift map using selected shiftId
+      // Fallback: read data attribute, then default 45
+      let weeklyHrs = 45;
+      let shiftLabel = 'default (45 hrs/week)';
+
+      if (shiftSel && shiftSel.value) {
+        const shiftId = shiftSel.value;
+        const mapEntry = window._empShiftHoursMap && window._empShiftHoursMap[shiftId];
+        if (mapEntry && mapEntry.hours > 0) {
+          weeklyHrs = mapEntry.hours;
+          shiftLabel = `${mapEntry.name} (${weeklyHrs.toFixed(1)} hrs/week)`;
+        } else {
+          // fallback to data attribute
+          const opt = shiftSel.options[shiftSel.selectedIndex];
+          const h = parseFloat(opt && opt.dataset.weeklyHours);
+          if (h > 0) {
+            weeklyHrs = h;
+            shiftLabel = `${opt.textContent.trim()} (${h.toFixed(1)} hrs/week)`;
+          }
+        }
+      }
+
+      const hourly = monthly / (weeklyHrs * 4.33);
+      hourlyInput.value = hourly.toFixed(2);
+      if (infoDiv) infoDiv.textContent = `✅ Calculated: R${hourly.toFixed(2)}/hr based on ${shiftLabel}`;
+    };
 
     // ========== APPLICATIONS MODULE ==========
     
@@ -6062,6 +6650,12 @@
                       ${employee.paymentType === 'daily' ? '💰 Daily Basic (R' + (employee.dailyRate || 0).toFixed(2) + '/day)' : '⏱️ Hourly (R' + (employee.hourlyRate || employee.payRate || 0).toFixed(2) + '/hr)'}
                     </span>
                   </div>
+                  ${employee.monthlyBasicPay ? `
+                  <div class="employee-detail-row" style="background: #f0f4ff;">
+                    <span class="detail-label" style="color: #667eea;">📊 Monthly Basic:</span>
+                    <span class="detail-value" style="color: #667eea;">R${parseFloat(employee.monthlyBasicPay).toFixed(2)}/month</span>
+                  </div>
+                  ` : ''}
                   <div class="employee-detail-row">
                     <span class="detail-label">Last Clock:</span>
                     <span class="detail-value">${lastTime}</span>
@@ -6395,23 +6989,156 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       });
     }
     
+    // Helper: load employee data from staff collection
+    async function _getStaffData(employeeId, slotNumber) {
+      let ref = doc(db, 'businesses', businessId, 'staff', employeeId);
+      let snap = await getDoc(ref);
+      if (!snap.exists()) {
+        ref = doc(db, 'businesses', businessId, 'staff', slotNumber.toString());
+        snap = await getDoc(ref);
+      }
+      if (!snap.exists()) throw new Error('Employee not found');
+      return { id: snap.id, ...snap.data() };
+    }
+
     window.sendCredentialsEmail = async function(employeeId, slotNumber) {
       try {
-        alert('✅ This feature will be available soon!');
+        const emp = await _getStaffData(employeeId, slotNumber);
+        const email = emp.email || '';
+        const name  = emp.employeeName || 'Employee';
+        const user  = emp.username || emp.badgeNumber || '(see admin)';
+        const pass  = emp.password || '(see admin)';
+        const portal = 'https://aiclock-82608.web.app/pages/employee-login.html';
+
+        if (!email) {
+          alert('⚠️ No email address saved for ' + name + '.\nPlease edit the employee and add an email first.');
+          return;
+        }
+
+        // Check if SMTP is configured — try Cloud Function first
+        let smtpConfigured = false;
+        try {
+          const smtpSnap = await getDoc(doc(db, 'businesses', businessId, 'settings', 'smtp'));
+          if (smtpSnap.exists() && smtpSnap.data().host && smtpSnap.data().user) smtpConfigured = true;
+        } catch(e) {}
+
+        if (smtpConfigured) {
+          // Send via Cloud Function using saved SMTP
+          const resp = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/sendEmail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              businessId,
+              to: email,
+              subject: 'Your SmartClock Portal Login Details',
+              html: `<div style="font-family:sans-serif;max-width:480px;">
+                <h2 style="color:#1e3c72;">👋 Hi ${name},</h2>
+                <p>Here are your <strong>SmartClock Employee Portal</strong> login details:</p>
+                <table style="width:100%;border-collapse:collapse;margin:1rem 0;">
+                  <tr><td style="padding:0.5rem;background:#f4f6fb;">🌐 Portal URL</td><td style="padding:0.5rem;"><a href="${portal}">${portal}</a></td></tr>
+                  <tr><td style="padding:0.5rem;background:#f4f6fb;">👤 Username</td><td style="padding:0.5rem;"><strong>${user}</strong></td></tr>
+                  <tr><td style="padding:0.5rem;background:#f4f6fb;">🔑 Password</td><td style="padding:0.5rem;"><strong>${pass}</strong></td></tr>
+                </table>
+                <p>Please log in and change your password after your first login.</p>
+                <p style="color:#888;font-size:0.85rem;">If you have any issues, contact your manager.</p>
+              </div>`
+            })
+          });
+          const result = await resp.json().catch(() => ({}));
+          if (resp.ok) {
+            alert('✅ Login details emailed to ' + email);
+          } else {
+            // Cloud Function failed — fall back to mailto
+            console.warn('sendEmail CF failed, falling back to mailto:', result);
+            _openMailto(email, name, user, pass, portal);
+          }
+        } else {
+          // No SMTP configured — open mailto
+          _openMailto(email, name, user, pass, portal);
+        }
+
       } catch (error) {
         console.error('Error sending email:', error);
         alert('Failed to send email: ' + error.message);
       }
+    };
+
+    function _openMailto(email, name, user, pass, portal) {
+      const subject = encodeURIComponent('Your SmartClock Portal Login Details');
+      const body = encodeURIComponent(
+        'Hi ' + name + ',\n\n' +
+        'Here are your SmartClock Employee Portal login details:\n\n' +
+        '🌐 Portal URL: ' + portal + '\n' +
+        '👤 Username:   ' + user + '\n' +
+        '🔑 Password:   ' + pass + '\n\n' +
+        'Please log in and change your password after your first login.\n\n' +
+        'Regards,\nManagement'
+      );
+      alert('ℹ️ No SMTP configured. Opening your mail app to send manually.\n\nTip: Go to Settings → Email (SMTP) Settings to enable automatic sending.');
+      window.open('mailto:' + encodeURIComponent(email) + '?subject=' + subject + '&body=' + body, '_blank');
     }
-    
+
     window.sendCredentialsWhatsApp = async function(employeeId, slotNumber) {
       try {
-        alert('✅ This feature will be available soon!');
+        const emp = await _getStaffData(employeeId, slotNumber);
+        const phone = emp.phone || '';
+        const name  = emp.employeeName || 'Employee';
+        const user  = emp.username || emp.badgeNumber || '(see admin)';
+        const pass  = emp.password || '(see admin)';
+        const portal = 'https://aiclock-82608.web.app/pages/employee-login.html';
+
+        if (!phone) {
+          alert('⚠️ No phone number saved for ' + name + '.\nPlease edit the employee and add a phone number first.');
+          return;
+        }
+
+        // First try the WhatsApp Cloud Function
+        let sent = false;
+        try {
+          const resp = await fetch('https://sendwhatsappmessage-4q7htrps4q-uc.a.run.app', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              businessId: businessId,
+              trigger: 'portal-credentials',
+              employeeData: {
+                employeeId: emp.id,
+                employeeName: name,
+                phone: phone,
+                email: emp.email || null,
+                portalUrl: portal,
+                username: user,
+                password: pass
+              }
+            })
+          });
+          const result = await resp.json();
+          console.log('WhatsApp credentials result:', result);
+          if (resp.ok && result.success !== false) sent = true;
+        } catch (apiErr) {
+          console.warn('Cloud Function call failed, falling back to wa.me:', apiErr);
+        }
+
+        if (sent) {
+          alert('✅ Portal login details sent via WhatsApp to ' + phone);
+        } else {
+          // Fallback: open wa.me with pre-filled message
+          const msg = encodeURIComponent(
+            'Hi ' + name + ', here are your SmartClock portal login details:\n\n' +
+            '🌐 ' + portal + '\n' +
+            '👤 Username: ' + user + '\n' +
+            '🔑 Password: ' + pass + '\n\n' +
+            'Please change your password after your first login.'
+          );
+          const cleanPhone = phone.replace(/[^0-9+]/g, '');
+          window.open('https://wa.me/' + cleanPhone + '?text=' + msg, '_blank');
+        }
+
       } catch (error) {
         console.error('Error sending WhatsApp:', error);
         alert('Failed to send WhatsApp: ' + error.message);
       }
-    }
+    };
     
     window.resetEmployeePassword = async function(employeeId, slotNumber) {
       if (!confirm('Reset password for this employee? This will generate a new password.')) return;
@@ -6551,6 +7278,16 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
                   <label>Portal Password</label>
                   <input type="text" name="password" value="${emp.password || ''}" placeholder="Set employee portal password">
                   <small style="color: #666;">Leave blank to keep current password. Employee will use this with their username to access the portal.</small>
+                  <div style="display:flex;gap:0.5rem;margin-top:0.65rem;">
+                    <button type="button" onclick="sendCredentialsEmail('${employeeId}', '${emp.slot || emp.badgeNumber || ''}')"
+                      style="flex:1;padding:0.45rem 0.6rem;background:#4299e1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;">
+                      📧 Email Login Details
+                    </button>
+                    <button type="button" onclick="sendCredentialsWhatsApp('${employeeId}', '${emp.slot || emp.badgeNumber || ''}')"
+                      style="flex:1;padding:0.45rem 0.6rem;background:#25d366;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;">
+                      📱 WhatsApp Login Details
+                    </button>
+                  </div>
                 </div>
                 
                 <div class="form-group">
@@ -6600,8 +7337,16 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
                   
                   <div id="hourlyRateField" style="${emp.paymentType === 'daily' ? 'display: none;' : ''}">
                     <label>Hourly Rate (ZAR)</label>
-                    <input type="number" name="hourlyRate" value="${emp.hourlyRate || ''}" step="0.01" placeholder="0.00" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
+                    <input type="number" id="editHourlyRateInput" name="hourlyRate" value="${emp.hourlyRate || ''}" step="0.01" placeholder="0.00" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem;">
                     <small style="color: #666; display: block; margin-top: 0.25rem;">Paid per hour worked</small>
+                    
+                    <div style="margin-top: 1rem; padding: 0.75rem; background: #f0f4ff; border-radius: 6px; border-left: 3px solid #667eea;">
+                      <label style="font-size: 0.85rem; font-weight: 600; color: #667eea; display: block; margin-bottom: 0.5rem;">🧮 Or enter Monthly Basic Pay to auto-calculate hourly</label>
+                      <input type="number" id="editMonthlyBasicPay" name="monthlyBasicPay" value="${emp.monthlyBasicPay || ''}" step="0.01" placeholder="e.g. 8500.00"
+                        style="width: 100%; padding: 0.65rem; border: 1px solid #c5cfee; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
+                        oninput="wcAutoCalcFromMonthly()">
+                      <div id="editAutoCalcInfo" style="font-size: 0.8rem; color: #667eea; margin-top: 0.4rem; min-height: 1.2em;"></div>
+                    </div>
                   </div>
                   
                   <div id="dailyRateField" style="${emp.paymentType === 'daily' ? '' : 'display: none;'}">
@@ -6613,7 +7358,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
 
                 <div class="form-group">
                   <label>Work Shift</label>
-                  <select id="employeeShiftSelect" name="shiftId" onchange="handleShiftSelection(event)">
+                  <select id="employeeShiftSelect" name="shiftId" onchange="handleShiftSelection(event); wcAutoCalcFromMonthly();">
                     <option value="">Use Business Default Schedule</option>
                     <!-- Populated dynamically -->
                   </select>
@@ -6661,6 +7406,9 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     };
 
     // Load available shifts into employee edit modal
+    // Global map: shiftId → weekly hours (populated by loadShiftsForEmployee)
+    window._empShiftHoursMap = {};
+
     async function loadShiftsForEmployee(selectedShiftId) {
       try {
         const response = await fetch(
@@ -6673,6 +7421,9 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           const shiftSelect = document.getElementById('employeeShiftSelect');
           if (!shiftSelect) return;
 
+          // Reset map
+          window._empShiftHoursMap = {};
+
           // Clear existing options (except default)
           shiftSelect.innerHTML = '<option value="">Use Business Default Schedule</option>';
 
@@ -6682,12 +7433,38 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
             option.value = shift.shiftId;
             option.textContent = shift.shiftName + (shift.isDefault ? ' (Default)' : '');
 
+            // Calculate weekly hours from shift schedule
+            // Accept any day that has startTime + endTime (enabled flag is optional)
+            let weeklyHours = 0;
+            if (shift.schedule) {
+              Object.values(shift.schedule).forEach(day => {
+                if (day && day.startTime && day.endTime && day.enabled !== false) {
+                  const [sh, sm] = day.startTime.split(':').map(Number);
+                  const [eh, em] = day.endTime.split(':').map(Number);
+                  let mins = (eh * 60 + em) - (sh * 60 + sm);
+                  if (mins < 0) mins += 24 * 60;
+                  mins -= (parseFloat(day.breakDuration) || 0);
+                  weeklyHours += Math.max(0, mins / 60);
+                }
+              });
+            }
+
+            // Store in global map and as data attribute
+            window._empShiftHoursMap[shift.shiftId] = {
+              hours: weeklyHours,
+              name: shift.shiftName
+            };
+            option.dataset.weeklyHours = weeklyHours.toFixed(2);
+
             if (shift.shiftId === selectedShiftId) {
               option.selected = true;
             }
 
             shiftSelect.appendChild(option);
           });
+
+          // Auto-calculate once shifts are loaded (in case monthly pay pre-filled)
+          wcAutoCalcFromMonthly();
         }
       } catch (error) {
         console.error('Error loading shifts:', error);
@@ -6702,6 +7479,8 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       if (selectedOption.value) {
         console.log('✅ Shift selected:', selectedOption.textContent);
       }
+      // Re-run auto-calc in case monthly pay already entered
+      wcAutoCalcFromMonthly();
     }
 
     async function saveEmployee(event, employeeId) {
@@ -6729,6 +7508,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           paymentType: paymentType,
           hourlyRate: parseFloat(formData.get('hourlyRate')) || 0,
           dailyRate: parseFloat(formData.get('dailyRate')) || 0,
+          monthlyBasicPay: parseFloat(formData.get('monthlyBasicPay')) || 0,
           notes: formData.get('notes'),
           updatedAt: new Date().toISOString()
         };
@@ -11796,6 +12576,41 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           document.getElementById('breakDuration').value = data.breakDuration || 60;
           document.getElementById('overtimeRule').value = data.overtimeRule || 'none';
           document.getElementById('overtimeMultiplier').value = data.overtimeMultiplier || 1.5;
+
+          // Business Tracker Settings
+          document.getElementById('trackerWorkingDays').value = data.trackerWorkingDays || 22;
+          // Gemini AI Key
+          const gkInp = document.getElementById('geminiApiKey');
+          if (gkInp && data.geminiApiKey) gkInp.value = data.geminiApiKey;
+
+          // Email Server Settings (load from businesses/{businessId}/settings/smtp)
+          try {
+            const smtpSnap = await getDoc(doc(db, 'businesses', businessId, 'settings', 'smtp'));
+            if (smtpSnap.exists()) {
+              const s = smtpSnap.data();
+              // Email settings
+              const su  = document.getElementById('settingsSmtpUser');       if (su)  su.value  = s.user || '';
+              const sw  = document.getElementById('settingsSmtpPassword');   if (sw)  sw.value  = s.password || '';
+              const sph = document.getElementById('settingsSmtpHost');       if (sph) sph.value = s.host || 'mail.srcomponents.co.za';
+              const sih = document.getElementById('settingsImapHost');       if (sih) sih.value = s.imapHost || 'mail.srcomponents.co.za';
+              const sf  = document.getElementById('settingsSmtpFromName');   if (sf)  sf.value  = s.fromName || '';
+              const ipr = document.getElementById('settingsImapProtocol');   if (ipr) ipr.value = s.imapProtocol || 'imap';
+              const ssl = document.getElementById('settingsSmtpSSL');        if (ssl) ssl.checked = (s.secure !== 'none');
+              if (typeof updateEmailPreview === 'function') updateEmailPreview();
+            }
+          } catch(e) { console.warn('Email settings load error', e); }
+          const trackerExpenses = data.trackerExpenses || [];
+          const btExpList = document.getElementById('trackerExpensesList');
+          if (btExpList) {
+            btExpList.innerHTML = '';
+            if (trackerExpenses.length > 0) {
+              trackerExpenses.forEach(exp => window.addTrackerExpenseRow(exp.name, exp.amount));
+            } else {
+              window.addTrackerExpenseRow('Rent', '');
+              window.addTrackerExpenseRow('Electricity', '');
+              window.addTrackerExpenseRow('Salaries', '');
+            }
+          }
         }
         
         // Load application settings
@@ -11941,6 +12756,870 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     // Make saveApplicationSettings globally available
     window.saveApplicationSettings = saveApplicationSettings;
 
+    // ========================================
+    // BUSINESS TRACKER MODULE
+    // ========================================
+    let btChart = null;
+    let btSettings = { workingDays: 22, expenses: [], currency: 'R' };
+    let btTransactions = []; // cache for current month's transactions
+
+    async function initBusinessTracker() {
+      try {
+        const businessRef = doc(db, "businesses", businessId);
+        const businessDoc = await getDoc(businessRef);
+
+        if (businessDoc.exists()) {
+          const data = businessDoc.data();
+          btSettings.workingDays = data.trackerWorkingDays || 22;
+          btSettings.expenses = data.trackerExpenses || [];
+          btSettings.currency = data.currency || 'R';
+        }
+
+        const workingDays = btSettings.workingDays;
+        const currency = btSettings.currency;
+        const now = new Date();
+
+        // Date display
+        const btDateEl = document.getElementById('btTodayDate');
+        if (btDateEl) btDateEl.textContent = now.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Set default date on transaction form
+        const btTxDate = document.getElementById('btTxDate');
+        if (btTxDate && !btTxDate.value) btTxDate.value = now.toISOString().split('T')[0];
+
+        if (btSettings.expenses.length === 0) {
+          ['btMonthlyTotal','btNeededToday','btDailyRate','btRemaining'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '—';
+          });
+          const btProgressBar = document.getElementById('btProgressBar');
+          if (btProgressBar) btProgressBar.style.width = '0%';
+          const btProgressLabel = document.getElementById('btProgressLabel');
+          if (btProgressLabel) btProgressLabel.textContent = 'No expenses configured';
+          const btExpenseTable = document.getElementById('btExpenseTable');
+          if (btExpenseTable) btExpenseTable.innerHTML = '<div style="text-align:center;padding:2.5rem;color:#bbb;"><div style="font-size:2.5rem;margin-bottom:0.75rem;">💡</div><p style="margin:0;">Go to <strong>⚙️ Settings → Business Tracker Settings</strong> to add monthly expenses.</p></div>';
+          return;
+        }
+
+        // Calculate current working day of month (Mon–Fri only)
+        const currentWD = btGetWorkingDayOfMonth(now);
+        const cappedWD = Math.min(currentWD, workingDays);
+        const totalExpenses = btSettings.expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+        const dailyRate = workingDays > 0 ? totalExpenses / workingDays : 0;
+        const neededToday = dailyRate * cappedWD;
+        const remaining = Math.max(0, totalExpenses - neededToday);
+
+        // Update cards
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('btCurrentWorkingDay', cappedWD);
+        set('btTotalWorkingDays', workingDays);
+        set('btMonthlyTotal', btFmt(totalExpenses, currency));
+        set('btNeededToday', btFmt(neededToday, currency));
+        set('btDailyRate', btFmt(dailyRate, currency));
+        set('btRemaining', btFmt(remaining, currency));
+
+        // Progress bar
+        const pct = workingDays > 0 ? (cappedWD / workingDays) * 100 : 0;
+        const barEl = document.getElementById('btProgressBar');
+        if (barEl) barEl.style.width = pct.toFixed(1) + '%';
+        set('btProgressLabel', `Working day ${cappedWD} of ${workingDays} (${pct.toFixed(0)}%)`);
+        set('btProgressEnd', `Day ${workingDays}`);
+
+        // Slider
+        const sliderEl = document.getElementById('btDaySlider');
+        if (sliderEl) {
+          sliderEl.max = workingDays;
+          sliderEl.value = cappedWD;
+        }
+        set('btSliderMax', `Day ${workingDays}`);
+        window.btSliderChange(cappedWD);
+
+        // Load transactions for this month
+        btTransactions = await btLoadTransactions();
+        btRenderTransactions(currency);
+
+        // Chart (with actual balance overlay)
+        btRenderChart(workingDays, dailyRate, cappedWD, currency, btTransactions);
+
+        // Table
+        btRenderExpenseTable(cappedWD, workingDays, totalExpenses, currency);
+
+      } catch (error) {
+        console.error('Error loading business tracker:', error);
+      }
+    }
+
+    function btGetWorkingDayOfMonth(date) {
+      let count = 0;
+      const d = new Date(date.getFullYear(), date.getMonth(), 1);
+      const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      while (d <= target) {
+        const dow = d.getDay();
+        if (dow >= 1 && dow <= 5) count++;
+        d.setDate(d.getDate() + 1);
+      }
+      return count;
+    }
+
+    function btFmt(amount, currency) {
+      const sym = currency || 'R';
+      return sym + ' ' + Math.round(amount).toLocaleString('en-ZA');
+    }
+
+    window.btSliderChange = function(value) {
+      const day = parseInt(value);
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      set('btSliderDayDisplay', day);
+      const workingDays = btSettings.workingDays || 22;
+      const totalExpenses = (btSettings.expenses || []).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+      const dailyRate = workingDays > 0 ? totalExpenses / workingDays : 0;
+      set('btSliderAmount', btFmt(dailyRate * day, btSettings.currency || 'R'));
+    };
+
+    function btRenderChart(workingDays, dailyRate, currentWD, currency, transactions = []) {
+      const ctx = document.getElementById('btTimelineChart');
+      if (!ctx) return;
+      if (btChart) { btChart.destroy(); btChart = null; }
+
+      const labels = [];
+      const requiredData = [];
+      const actualData = [];
+      const pointColors = [];
+      const pointSizes = [];
+
+      // Build a map: workingDay -> cumulative net (in - out)
+      // We need to assign each transaction to a working-day index
+      const now = new Date();
+      const yr = now.getFullYear();
+      const mo = now.getMonth();
+
+      // Map date string -> working day number
+      const dateToWD = {};
+      let wdCounter = 0;
+      const iter = new Date(yr, mo, 1);
+      while (iter.getMonth() === mo) {
+        const dow = iter.getDay();
+        if (dow >= 1 && dow <= 5) {
+          wdCounter++;
+          if (wdCounter <= workingDays) {
+            dateToWD[iter.toISOString().split('T')[0]] = wdCounter;
+          }
+        }
+        iter.setDate(iter.getDate() + 1);
+      }
+
+      // Accumulate net by working day
+      const netByWD = {};
+      transactions.forEach(tx => {
+        const wd = dateToWD[tx.date];
+        if (!wd) return;
+        const amt = parseFloat(tx.amount || 0);
+        netByWD[wd] = (netByWD[wd] || 0) + (tx.direction === 'in' ? amt : -amt);
+      });
+
+      // Build cumulative actual balance series
+      let cumulative = 0;
+      for (let d = 1; d <= workingDays; d++) {
+        labels.push('Day ' + d);
+        requiredData.push(parseFloat((dailyRate * d).toFixed(2)));
+        const isToday = d === currentWD;
+        pointColors.push(isToday ? '#e8834b' : d < currentWD ? '#2a5298' : '#a0b4d6');
+        pointSizes.push(isToday ? 8 : 4);
+
+        if (d <= currentWD) {
+          cumulative += (netByWD[d] || 0);
+          actualData.push(parseFloat(cumulative.toFixed(2)));
+        } else {
+          actualData.push(null); // no data yet for future days
+        }
+      }
+
+      const todayLinePlugin = {
+        id: 'btTodayLine',
+        afterDraw(chart) {
+          if (currentWD < 1 || currentWD > workingDays) return;
+          const { ctx: c, chartArea, scales } = chart;
+          const x = scales.x.getPixelForValue(currentWD - 1);
+          c.save();
+          c.strokeStyle = '#e8834b';
+          c.lineWidth = 2;
+          c.setLineDash([6, 4]);
+          c.beginPath();
+          c.moveTo(x, chartArea.top);
+          c.lineTo(x, chartArea.bottom);
+          c.stroke();
+          c.setLineDash([]);
+          c.fillStyle = '#e8834b';
+          c.font = 'bold 11px sans-serif';
+          c.textAlign = 'center';
+          c.fillText('TODAY', x, chartArea.top - 5);
+          c.restore();
+        }
+      };
+
+      const hasActual = actualData.some(v => v !== null);
+
+      btChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Required Balance',
+              data: requiredData,
+              borderColor: '#2a5298',
+              backgroundColor: 'rgba(42,82,152,0.06)',
+              borderWidth: 2.5,
+              fill: true,
+              tension: 0,
+              pointBackgroundColor: pointColors,
+              pointBorderColor: pointColors,
+              pointRadius: pointSizes,
+              pointHoverRadius: 8
+            },
+            ...(hasActual ? [{
+              label: 'Actual Balance (In − Out)',
+              data: actualData,
+              borderColor: '#1a7431',
+              backgroundColor: 'rgba(26,116,49,0.06)',
+              borderWidth: 2.5,
+              borderDash: [],
+              fill: false,
+              tension: 0,
+              pointBackgroundColor: '#1a7431',
+              pointBorderColor: '#1a7431',
+              pointRadius: 5,
+              pointHoverRadius: 8,
+              spanGaps: false
+            }] : [])
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: hasActual, position: 'top', labels: { boxWidth: 14, font: { size: 12 } } },
+            tooltip: {
+              callbacks: {
+                label: ctx => '  ' + ctx.dataset.label + ': ' + btFmt(ctx.parsed.y, currency)
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(0,0,0,0.04)' },
+              ticks: { maxRotation: 45, font: { size: 10 }, maxTicksLimit: 15 }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(0,0,0,0.06)' },
+              ticks: { callback: val => btFmt(val, currency) }
+            }
+          }
+        },
+        plugins: [todayLinePlugin]
+      });
+    }
+
+    function btRenderExpenseTable(currentWD, workingDays, totalExpenses, currency) {
+      const container = document.getElementById('btExpenseTable');
+      if (!container) return;
+      const expenses = btSettings.expenses || [];
+      if (expenses.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#bbb;padding:2rem;">No expenses configured.</p>';
+        return;
+      }
+
+      let html = `
+        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+          <thead>
+            <tr style="background:#f4f6fb;border-bottom:2px solid #dee2e6;">
+              <th style="padding:0.75rem 1rem;text-align:left;color:#495057;font-weight:600;">Expense</th>
+              <th style="padding:0.75rem 1rem;text-align:right;color:#495057;font-weight:600;">Monthly</th>
+              <th style="padding:0.75rem 1rem;text-align:right;color:#495057;font-weight:600;">Per Day</th>
+              <th style="padding:0.75rem 1rem;text-align:right;color:#495057;font-weight:600;">Accrued Today</th>
+              <th style="padding:0.75rem 1rem;text-align:right;color:#495057;font-weight:600;">Remaining</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      expenses.forEach((exp, i) => {
+        const amt = parseFloat(exp.amount || 0);
+        const perDay = workingDays > 0 ? amt / workingDays : 0;
+        const accrued = perDay * currentWD;
+        const remaining = Math.max(0, amt - accrued);
+        const pct = amt > 0 ? Math.round(accrued / amt * 100) : 0;
+        html += `
+          <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};border-bottom:1px solid #f0f0f0;">
+            <td style="padding:0.75rem 1rem;font-weight:500;color:#333;">${exp.name || 'Expense ' + (i + 1)}</td>
+            <td style="padding:0.75rem 1rem;text-align:right;color:#555;">${btFmt(amt, currency)}</td>
+            <td style="padding:0.75rem 1rem;text-align:right;color:#888;font-size:0.85rem;">${btFmt(perDay, currency)}</td>
+            <td style="padding:0.75rem 1rem;text-align:right;">
+              <span style="color:#c84b31;font-weight:600;">${btFmt(accrued, currency)}</span>
+              <div style="background:#e9ecef;border-radius:100px;height:4px;margin-top:5px;">
+                <div style="background:linear-gradient(90deg,#2a5298,#e8834b);height:4px;border-radius:100px;width:${pct}%;"></div>
+              </div>
+            </td>
+            <td style="padding:0.75rem 1rem;text-align:right;color:#888;">${btFmt(remaining, currency)}</td>
+          </tr>
+        `;
+      });
+
+      const totalPerDay = workingDays > 0 ? totalExpenses / workingDays : 0;
+      const totalAccrued = totalPerDay * currentWD;
+      const totalRemaining = Math.max(0, totalExpenses - totalAccrued);
+
+      html += `
+          <tr style="background:#eef1fb;border-top:2px solid #d0d8ef;font-weight:700;">
+            <td style="padding:0.75rem 1rem;color:#1e3c72;">TOTAL</td>
+            <td style="padding:0.75rem 1rem;text-align:right;color:#1e3c72;">${btFmt(totalExpenses, currency)}</td>
+            <td style="padding:0.75rem 1rem;text-align:right;color:#1e3c72;">${btFmt(totalPerDay, currency)}</td>
+            <td style="padding:0.75rem 1rem;text-align:right;color:#c84b31;">${btFmt(totalAccrued, currency)}</td>
+            <td style="padding:0.75rem 1rem;text-align:right;color:#1a7431;">${btFmt(totalRemaining, currency)}</td>
+          </tr>
+        </tbody>
+        </table>
+      `;
+      container.innerHTML = html;
+    }
+
+    window.addTrackerExpenseRow = function(name = '', amount = '') {
+      const list = document.getElementById('trackerExpensesList');
+      if (!list) return;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 130px 36px;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
+      row.innerHTML = `
+        <input type="text" placeholder="e.g. Rent, Electricity, Salaries" value="${name}"
+          style="padding:0.45rem 0.75rem;border:1px solid #dee2e6;border-radius:6px;font-size:0.875rem;" class="bt-exp-name">
+        <input type="number" placeholder="Amount" value="${amount}" min="0" step="0.01"
+          style="padding:0.45rem 0.75rem;border:1px solid #dee2e6;border-radius:6px;font-size:0.875rem;" class="bt-exp-amount">
+        <button type="button" onclick="this.closest('div').remove()"
+          style="padding:0.45rem;background:#dc3545;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;text-align:center;">✕</button>
+      `;
+      list.appendChild(row);
+    };
+
+    window.saveTrackerSettings = async function() {
+      try {
+        const workingDays = parseInt(document.getElementById('trackerWorkingDays').value) || 22;
+        const rows = document.querySelectorAll('#trackerExpensesList > div');
+        const expenses = [];
+        rows.forEach(row => {
+          const name = row.querySelector('.bt-exp-name')?.value?.trim();
+          const amount = parseFloat(row.querySelector('.bt-exp-amount')?.value || 0);
+          if (name && amount > 0) expenses.push({ name, amount });
+        });
+        const businessRef = doc(db, "businesses", businessId);
+        await setDoc(businessRef, {
+          trackerWorkingDays: workingDays,
+          trackerExpenses: expenses,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        alert('✅ Business tracker settings saved!');
+      } catch (error) {
+        console.error('Error saving tracker settings:', error);
+        alert('Error saving: ' + error.message);
+      }
+    };
+
+    window.initBusinessTracker = initBusinessTracker;
+
+    // Load this month's transactions from Firestore
+    async function btLoadTransactions() {
+      try {
+        const now = new Date();
+        const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const txRef = collection(db, "businesses", businessId, "trackerTransactions");
+        // Avoid composite index: get all docs, filter + sort in JS
+        const snap = await getDocs(txRef);
+        return snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(tx => tx.monthKey === monthKey)
+          .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.timestamp || '').localeCompare(b.timestamp || ''));
+      } catch (e) {
+        console.error('Error loading transactions:', e);
+        return [];
+      }
+    }
+
+    window.btAddTransaction = async function() {
+      const desc = document.getElementById('btTxDesc')?.value?.trim();
+      const amount = parseFloat(document.getElementById('btTxAmount')?.value || 0);
+      const direction = document.getElementById('btTxDirection')?.value || 'in';
+      const method = document.getElementById('btTxMethod')?.value || 'cash';
+      const date = document.getElementById('btTxDate')?.value;
+
+      if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
+      if (!date) { alert('Please select a date.'); return; }
+
+      const now = new Date();
+      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+      try {
+        const txRef = collection(db, "businesses", businessId, "trackerTransactions");
+        await addDoc(txRef, {
+          description: desc || (direction === 'in' ? 'Money In' : 'Money Out'),
+          amount,
+          direction,
+          method,
+          date,
+          monthKey,
+          timestamp: new Date().toISOString()
+        });
+
+        // Clear form inputs
+        document.getElementById('btTxDesc').value = '';
+        document.getElementById('btTxAmount').value = '';
+
+        // Reload tracker
+        await initBusinessTracker();
+      } catch (error) {
+        console.error('Error adding transaction:', error);
+        alert('Error saving transaction: ' + error.message);
+      }
+    };
+
+    window.btDeleteTransaction = async function(txId) {
+      if (!confirm('Delete this transaction?')) return;
+      try {
+        await deleteDoc(doc(db, "businesses", businessId, "trackerTransactions", txId));
+        await initBusinessTracker();
+      } catch (error) {
+        alert('Error deleting: ' + error.message);
+      }
+    };
+
+    function btRenderTransactions(currency) {
+      const container = document.getElementById('btTransactionsList');
+      if (!container) return;
+
+      const txs = btTransactions;
+      if (txs.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:2rem;color:#bbb;font-size:0.9rem;">No transactions recorded yet for this month.</div>';
+        // Reset summary badges
+        ['btTotalIn','btTotalOut','btNetBalance','btVsRequired'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '—';
+        });
+        return;
+      }
+
+      // Totals
+      let totalIn = 0, totalOut = 0;
+      txs.forEach(tx => {
+        const amt = parseFloat(tx.amount || 0);
+        if (tx.direction === 'in') totalIn += amt;
+        else totalOut += amt;
+      });
+      const net = totalIn - totalOut;
+
+      // Update summary badges
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      set('btTotalIn', btFmt(totalIn, currency));
+      set('btTotalOut', btFmt(totalOut, currency));
+      set('btNetBalance', btFmt(net, currency));
+      const netEl = document.getElementById('btNetBalance');
+      if (netEl) netEl.style.color = net >= 0 ? '#1a7431' : '#c84b31';
+
+      // vs Required
+      const workingDays = btSettings.workingDays || 22;
+      const totalExpenses = (btSettings.expenses || []).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+      const now = new Date();
+      const currentWD = Math.min(btGetWorkingDayOfMonth(now), workingDays);
+      const needed = workingDays > 0 ? (totalExpenses / workingDays) * currentWD : 0;
+      const diff = net - needed;
+      const vsEl = document.getElementById('btVsRequired');
+      if (vsEl) {
+        vsEl.textContent = (diff >= 0 ? '+' : '') + btFmt(diff, currency);
+        vsEl.style.color = diff >= 0 ? '#1a7431' : '#c84b31';
+      }
+
+      // Group by date
+      const byDate = {};
+      txs.forEach(tx => {
+        if (!byDate[tx.date]) byDate[tx.date] = [];
+        byDate[tx.date].push(tx);
+      });
+
+      const methodIcon = { cash: '💵', card: '💳', eft: '🏦' };
+
+      let html = '';
+      Object.keys(byDate).sort().reverse().forEach(date => {
+        const dayTxs = byDate[date];
+        const dayIn = dayTxs.filter(t => t.direction === 'in').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+        const dayOut = dayTxs.filter(t => t.direction === 'out').reduce((s, t) => s + parseFloat(t.amount || 0), 0);
+        const dateLabel = new Date(date + 'T12:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        html += `<div style="margin-bottom:1rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0.75rem;background:#f4f6fb;border-radius:8px;margin-bottom:0.4rem;">
+            <span style="font-weight:600;color:#1e3c72;font-size:0.88rem;">📅 ${dateLabel}</span>
+            <span style="font-size:0.82rem;color:#555;">
+              <span style="color:#1a7431;font-weight:600;">In: ${btFmt(dayIn, currency)}</span>
+              &nbsp;&nbsp;
+              <span style="color:#c84b31;font-weight:600;">Out: ${btFmt(dayOut, currency)}</span>
+            </span>
+          </div>`;
+
+        dayTxs.forEach(tx => {
+          const amt = parseFloat(tx.amount || 0);
+          const isIn = tx.direction === 'in';
+          html += `
+          <div style="display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0.75rem;border-bottom:1px solid #f0f0f0;font-size:0.875rem;">
+            <span style="width:28px;height:28px;border-radius:50%;background:${isIn ? '#e8f5e9' : '#fce4ec'};display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0;">${isIn ? '↑' : '↓'}</span>
+            <span style="flex:1;color:#333;">${tx.description || (isIn ? 'Money In' : 'Money Out')}</span>
+            <span style="color:#888;font-size:0.8rem;">${methodIcon[tx.method] || ''} ${tx.method || ''}</span>
+            <span style="font-weight:700;min-width:90px;text-align:right;color:${isIn ? '#1a7431' : '#c84b31'};">${isIn ? '+' : '−'}${btFmt(amt, currency)}</span>
+            <button onclick="btDeleteTransaction('${tx.id}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;padding:0 0.25rem;" title="Delete">✕</button>
+          </div>`;
+        });
+
+        html += `</div>`;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ========================================
+    // SMTP SETTINGS FUNCTIONS
+    // ========================================
+
+    window.updateEmailPreview = function() {
+      const useSSL   = document.getElementById('settingsSmtpSSL')?.checked !== false;
+      const protocol = document.getElementById('settingsImapProtocol')?.value || 'imap';
+      const smtpPort = useSSL ? 465 : 587;
+      const inPort   = protocol === 'pop3' ? (useSSL ? 995 : 110) : (useSSL ? 993 : 143);
+      const enc      = useSSL ? 'SSL/TLS' : 'None (not recommended)';
+      const preview  = document.getElementById('emailSettingsPreview');
+      if (preview) {
+        preview.innerHTML = '<strong>Outgoing SMTP port:</strong> ' + smtpPort + ' &nbsp;&bull;&nbsp; <strong>Incoming ' + protocol.toUpperCase() + ' port:</strong> ' + inPort + ' &nbsp;&bull;&nbsp; <strong>Encryption:</strong> ' + enc;
+      }
+    };
+
+    window.saveSmtpSettings = async function() {
+      const statusDiv = document.getElementById('smtpSettingsStatus');
+      const show = (msg, ok) => {
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = ok ? '#d4edda' : '#f8d7da';
+        statusDiv.style.color = ok ? '#155724' : '#721c24';
+        statusDiv.innerHTML = msg;
+      };
+      try {
+        const user     = document.getElementById('settingsSmtpUser')?.value.trim();
+        const password = document.getElementById('settingsSmtpPassword')?.value;
+        const host     = document.getElementById('settingsSmtpHost')?.value.trim() || 'mail.srcomponents.co.za';
+        const imapHost = document.getElementById('settingsImapHost')?.value.trim() || host;
+        const protocol = document.getElementById('settingsImapProtocol')?.value || 'imap';
+        const fromName = document.getElementById('settingsSmtpFromName')?.value.trim();
+        const useSSL   = document.getElementById('settingsSmtpSSL')?.checked !== false;
+
+        if (!user || !password) {
+          show('⚠️ Please fill in your Email Address and Password.', false);
+          return;
+        }
+
+        const secure   = useSSL ? 'ssl' : 'none';
+        const port     = useSSL ? 465 : 587;
+        const imapPort = protocol === 'pop3' ? (useSSL ? 995 : 110) : (useSSL ? 993 : 143);
+
+        const smtpData = {
+          host, port, secure, user, password, fromName,
+          imapHost, imapPort, imapProtocol: protocol, imapSecure: secure, imapUser: user, imapPassword: password,
+          updatedAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'businesses', businessId, 'settings', 'smtp'), smtpData);
+
+        // Sync into Payslips module fields if they exist
+        const fldMap = { smtpHost: host, smtpPort: port, smtpUser: user, smtpPassword: password, smtpFromName: fromName };
+        Object.entries(fldMap).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.value = val; });
+
+        show('✅ Email settings saved!', true);
+        setTimeout(() => { statusDiv.style.display = 'none'; }, 4000);
+      } catch(e) {
+        show('❌ Failed to save: ' + e.message, false);
+      }
+    };
+
+    window.testSmtpSettings = async function() {
+      const statusDiv = document.getElementById('smtpSettingsStatus');
+      const show = (msg, ok) => {
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = ok ? '#d4edda' : '#f8d7da';
+        statusDiv.style.color = ok ? '#155724' : '#721c24';
+        statusDiv.innerHTML = msg;
+      };
+      const user = document.getElementById('settingsSmtpUser')?.value.trim();
+      if (!user) { show('⚠️ Please save your SMTP settings first.', false); return; }
+      show('⏳ Sending test email to <strong>' + user + '</strong>…', true);
+      try {
+        const resp = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/sendEmail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessId,
+            to: user,
+            subject: 'SmartClock SMTP Test',
+            html: '<p>✅ Your SmartClock email settings are working correctly!</p><p>This is a test email from your SmartClock business dashboard.</p>'
+          })
+        });
+        const result = await resp.json().catch(() => ({}));
+        if (resp.ok) show('✅ Test email sent to <strong>' + user + '</strong>! Check your inbox.', true);
+        else show('❌ Server error: ' + (result.error || resp.status), false);
+      } catch(e) {
+        show('⚠️ Could not reach email server. Check your settings and try again. (' + e.message + ')', false);
+      }
+    };
+
+    // ========================================
+    // AI BUSINESS ASSISTANT MODULE
+    // ========================================
+
+    let aiChatHistory = [];   // [{role:'user'|'model', parts:[{text}]}]
+    let aiContext = {};        // snapshot of tracker data passed to AI
+    let aiGeminiKey = '';      // loaded from Firestore
+    let aiPendingTransactions = []; // transactions AI wants to confirm
+
+    // Load Gemini key from Firestore and save back when settings saved
+    async function aiLoadKey() {
+      try {
+        const snap = await getDoc(doc(db, 'businesses', businessId));
+        if (snap.exists()) aiGeminiKey = snap.data().geminiApiKey || '';
+        const inp = document.getElementById('geminiApiKey');
+        if (inp && aiGeminiKey) inp.value = aiGeminiKey;
+      } catch(e) { console.warn('AI key load error', e); }
+    }
+
+    // Patch saveTrackerSettings to also save geminiApiKey
+    const _origSaveTracker = window.saveTrackerSettings;
+    window.saveTrackerSettings = async function() {
+      await _origSaveTracker();
+      try {
+        const key = document.getElementById('geminiApiKey')?.value?.trim();
+        if (key) {
+          await setDoc(doc(db, 'businesses', businessId), { geminiApiKey: key }, { merge: true });
+          aiGeminiKey = key;
+        }
+      } catch(e) { console.warn('AI key save error', e); }
+    };
+
+    function aiGetContext() {
+      const workingDays = btSettings.workingDays || 22;
+      const totalExpenses = (btSettings.expenses || []).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+      const now = new Date();
+      const currentWD = Math.min(btGetWorkingDayOfMonth(now), workingDays);
+      const dailyRate = workingDays > 0 ? totalExpenses / workingDays : 0;
+      const needed = dailyRate * currentWD;
+      const totalIn  = btTransactions.filter(t => t.direction === 'in').reduce((s, t) => s + parseFloat(t.amount||0), 0);
+      const totalOut = btTransactions.filter(t => t.direction === 'out').reduce((s, t) => s + parseFloat(t.amount||0), 0);
+      const net = totalIn - totalOut;
+      const diff = net - needed;
+      const currency = btSettings.currency || 'R';
+      return {
+        date: now.toLocaleDateString('en-ZA', { weekday:'long', day:'numeric', month:'long', year:'numeric' }),
+        currentWD, workingDays, totalExpenses, dailyRate, needed, totalIn, totalOut, net, diff,
+        ahead: diff >= 0,
+        currency,
+        expenses: (btSettings.expenses || []).map(e => ({ name: e.name, amount: parseFloat(e.amount||0) })),
+        recentTransactions: btTransactions.slice(-10).map(t => ({
+          date: t.date, direction: t.direction, method: t.method,
+          description: t.description, amount: parseFloat(t.amount||0)
+        }))
+      };
+    }
+
+    function aiSystemPrompt(ctx) {
+      return `You are a smart, friendly AI business financial assistant for a small South African business.
+Today is ${ctx.date}. It is working day ${ctx.currentWD} of ${ctx.workingDays} for this month.
+Total monthly expenses: ${ctx.currency}${ctx.totalExpenses.toFixed(2)}
+Daily rate needed: ${ctx.currency}${ctx.dailyRate.toFixed(2)}/day
+Required bank balance by today: ${ctx.currency}${ctx.needed.toFixed(2)}
+Actual net (money in minus money out this month): ${ctx.currency}${ctx.net.toFixed(2)}
+Status: ${ctx.ahead ? 'AHEAD by ' + ctx.currency + Math.abs(ctx.diff).toFixed(2) : 'BEHIND by ' + ctx.currency + Math.abs(ctx.diff).toFixed(2)}
+Expenses breakdown: ${JSON.stringify(ctx.expenses)}
+Recent transactions: ${JSON.stringify(ctx.recentTransactions)}
+
+Your role:
+1. Greet warmly with today's financial status summary.
+2. Ask what money came IN today (sales, payments received). When the user tells you, extract amounts, descriptions, and method (cash/card/EFT). Confirm before saving.
+3. Then ask what went OUT today (suppliers, expenses paid). Same extraction.
+4. After capturing transactions, give brief, practical financial advice based on the numbers — are they on track, what to watch out for, tips.
+5. Keep responses SHORT (2-4 sentences max per message). Be conversational and encouraging.
+6. When you want to save a transaction, output a special JSON block in this EXACT format on its own line:
+TRANSACTION_SAVE: {"description":"...","amount":0,"direction":"in"|"out","method":"cash"|"card"|"eft","date":"YYYY-MM-DD"}
+You can output multiple TRANSACTION_SAVE lines. Only output these after the user confirms.
+7. After saving, say "✅ Saved!" and continue the conversation.`;
+    }
+
+    async function aiCallGemini(history) {
+      const key = aiGeminiKey;
+      if (!key) {
+        return '⚠️ No Gemini API key set. Please add it in **Settings → Business Tracker Settings → Gemini AI API Key** and save.';
+      }
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(key)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: history })
+          }
+        );
+        const data = await resp.json();
+        if (!resp.ok) {
+          return `⚠️ Gemini error: ${data?.error?.message || resp.status}`;
+        }
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || '(no response)';
+      } catch(e) {
+        return '⚠️ Network error calling Gemini: ' + e.message;
+      }
+    }
+
+    async function aiParseAndSaveTransactions(text) {
+      const lines = text.split('\n');
+      const saved = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('TRANSACTION_SAVE:')) continue;
+        try {
+          const json = trimmed.replace('TRANSACTION_SAVE:', '').trim();
+          const tx = JSON.parse(json);
+          if (!tx.amount || !tx.direction) continue;
+          const now = new Date();
+          const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+          const txRef = collection(db, 'businesses', businessId, 'trackerTransactions');
+          await addDoc(txRef, {
+            description: tx.description || (tx.direction === 'in' ? 'Money In' : 'Money Out'),
+            amount: parseFloat(tx.amount),
+            direction: tx.direction,
+            method: tx.method || 'cash',
+            date: tx.date || now.toISOString().split('T')[0],
+            monthKey,
+            timestamp: new Date().toISOString()
+          });
+          saved.push(tx);
+        } catch(e) { console.warn('AI tx parse error', e, line); }
+      }
+      if (saved.length > 0) {
+        // Reload tracker data silently in background
+        btTransactions = await btLoadTransactions();
+        btRenderTransactions(btSettings.currency || 'R');
+        const ctx = aiGetContext();
+        btRenderChart(ctx.workingDays, ctx.dailyRate, ctx.currentWD, ctx.currency, btTransactions);
+      }
+      return saved.length;
+    }
+
+    function aiAppendMessage(role, rawText) {
+      const log = document.getElementById('aiChatLog');
+      if (!log) return;
+      // Strip TRANSACTION_SAVE lines from display
+      const displayText = rawText.split('\n').filter(l => !l.trim().startsWith('TRANSACTION_SAVE:')).join('\n').trim();
+      if (!displayText) return;
+      const isUser = role === 'user';
+      const div = document.createElement('div');
+      div.style.cssText = `display:flex;justify-content:${isUser?'flex-end':'flex-start'};margin-bottom:0.85rem;`;
+      // Convert **bold** markdown and newlines to HTML
+      const html = displayText
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+        .replace(/\n/g,'<br>');
+      div.innerHTML = `<div style="max-width:82%;padding:0.75rem 1rem;border-radius:${isUser?'18px 18px 4px 18px':'18px 18px 18px 4px'};background:${isUser?'linear-gradient(135deg,#6a11cb,#2575fc)':'#f0f2f5'};color:${isUser?'white':'#222'};font-size:0.9rem;line-height:1.55;box-shadow:0 2px 8px rgba(0,0,0,0.08);">${html}</div>`;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function aiShowTyping(show) {
+      const el = document.getElementById('aiTypingIndicator');
+      if (el) el.style.display = show ? 'flex' : 'none';
+    }
+
+    async function aiSend(userText) {
+      if (!userText.trim()) return;
+      aiChatHistory.push({ role: 'user', parts: [{ text: userText }] });
+      aiAppendMessage('user', userText);
+      document.getElementById('aiUserInput').value = '';
+      aiShowTyping(true);
+      // Build history with system prompt prepended as first model turn
+      const fullHistory = [
+        { role: 'user', parts: [{ text: aiSystemPrompt(aiContext) + '\n\nPlease start the daily check-in.' }] },
+        { role: 'model', parts: [{ text: 'Understood. I am your business AI assistant. I will follow those instructions.' }] },
+        ...aiChatHistory
+      ];
+      const replyRaw = await aiCallGemini(fullHistory);
+      aiShowTyping(false);
+      aiChatHistory.push({ role: 'model', parts: [{ text: replyRaw }] });
+      aiAppendMessage('model', replyRaw);
+      // Auto-save any transactions the AI embedded
+      await aiParseAndSaveTransactions(replyRaw);
+    }
+
+    window.openAIAssistant = async function(autoDailyCheck) {
+      await aiLoadKey();
+      aiContext = aiGetContext();
+      const modal = document.getElementById('aiAssistantModal');
+      if (!modal) return;
+      modal.style.display = 'flex';
+      const log = document.getElementById('aiChatLog');
+      // Only start fresh if no history yet
+      if (aiChatHistory.length === 0) {
+        log.innerHTML = '';
+        aiShowTyping(true);
+        const openingHistory = [
+          { role: 'user', parts: [{ text: aiSystemPrompt(aiContext) + '\n\nPlease start the daily check-in.' }] }
+        ];
+        const greeting = await aiCallGemini(openingHistory);
+        aiShowTyping(false);
+        aiChatHistory.push({ role: 'model', parts: [{ text: greeting }] });
+        aiAppendMessage('model', greeting);
+        // Mark daily chat as seen today
+        localStorage.setItem('aiDailyChat_' + new Date().toISOString().split('T')[0], '1');
+      }
+      document.getElementById('aiUserInput')?.focus();
+    };
+
+    window.closeAIAssistant = function() {
+      document.getElementById('aiAssistantModal').style.display = 'none';
+    };
+
+    window.aiSendMessage = async function() {
+      const inp = document.getElementById('aiUserInput');
+      const text = inp?.value?.trim();
+      if (!text) return;
+      await aiSend(text);
+    };
+
+    window.aiInputKeydown = function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.aiSendMessage(); }
+    };
+
+    window.aiResetChat = function() {
+      aiChatHistory = [];
+      const log = document.getElementById('aiChatLog');
+      if (log) log.innerHTML = '';
+      openAIAssistant();
+    };
+
+    // Trigger daily check-in when Business Tracker loads (once per day)
+    function aiCheckDailyPopup() {
+      const todayKey = 'aiDailyChat_' + new Date().toISOString().split('T')[0];
+      if (!localStorage.getItem(todayKey)) {
+        setTimeout(() => openAIAssistant(true), 1500);
+      }
+    }
+
+    // Hook into initBusinessTracker to trigger daily popup
+    const _origInitBT = window.initBusinessTracker;
+    window.initBusinessTracker = async function() {
+      await _origInitBT();
+      // Load AI key quietly in background
+      aiLoadKey();
+    };
+
+    // ========================================
+    // END OF BUSINESS TRACKER MODULE
+    // ========================================
+
     // Debug functions for testing
     async function addTestEmployee() {
       try {
@@ -12061,8 +13740,8 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - dateRange);
         
-        // Fetch employees
-        const employeesRef = collection(db, "businesses", businessId, "employees");
+        // Fetch employees from correct 'staff' collection
+        const employeesRef = collection(db, "businesses", businessId, "staff");
         const employeesSnapshot = await getDocs(employeesRef);
         
         if (employeesSnapshot.empty) {
@@ -12071,19 +13750,31 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           return;
         }
         
-        // Fetch attendance events for date range
-        const eventsRef = collection(db, "attendance_events");
-        const eventsQuery = query(
-          eventsRef,
-          where("businessId", "==", businessId),
-          where("timestamp", ">=", startDate.toISOString()),
-          orderBy("timestamp", "desc")
-        );
+        // Build date strings for the range
+        const dates = [];
+        for (let i = 0; i < dateRange; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          dates.push(d.toISOString().split('T')[0]);
+        }
         
-        const eventsSnapshot = await getDocs(eventsQuery);
-        const attendanceEvents = eventsSnapshot.docs.map(doc => doc.data());
+        // Fetch attendance events from nested structure: attendance_events/{date}/{employeeId}/*
+        const attendanceByEmployee = {};
+        for (const empDoc of employeesSnapshot.docs) {
+          const employeeId = empDoc.id;
+          attendanceByEmployee[employeeId] = [];
+          for (const dateStr of dates) {
+            try {
+              const dayEventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
+              const dayEventsSnap = await getDocs(dayEventsRef);
+              dayEventsSnap.forEach(evDoc => {
+                attendanceByEmployee[employeeId].push(evDoc.data());
+              });
+            } catch (e) { /* No events for this date/employee */ }
+          }
+        }
         
-        console.log(`Found ${attendanceEvents.length} attendance events in last ${dateRange} days`);
+        console.log(`Loaded attendance from ${dates.length} days for ${employeesSnapshot.size} employees`);
         
         // Calculate stats for each employee
         employeeStatsData = [];
@@ -12095,20 +13786,14 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         for (const empDoc of employeesSnapshot.docs) {
           const employee = empDoc.data();
           const employeeId = empDoc.id;
-          
-          // Filter events for this employee
-          const employeeEvents = attendanceEvents.filter(event => 
-            event.employeeId === employeeId || 
-            event.personName === employee.name ||
-            event.cardNo === employee.cardNo
-          );
+          const employeeEvents = attendanceByEmployee[employeeId] || [];
           
           // Calculate metrics
           const stats = calculateEmployeeMetrics(employee, employeeEvents, dateRange);
           
           employeeStatsData.push({
             id: employeeId,
-            name: employee.name,
+            name: employee.employeeName || employee.name || 'Unknown',
             ...stats
           });
           
@@ -12178,8 +13863,8 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       // Analyze each day
       Object.keys(eventsByDate).forEach(date => {
         const dayEvents = eventsByDate[date];
-        const clockIn = dayEvents.find(e => e.eventType === 'check-in' || e.type === 'Clock In');
-        const clockOut = dayEvents.find(e => e.eventType === 'check-out' || e.type === 'Clock Out');
+        const clockIn = dayEvents.find(e => e.eventType === 'check-in' || e.type === 'Clock In' || e.type === 'clock-in' || e.attendanceStatus === 'in');
+        const clockOut = dayEvents.find(e => e.eventType === 'check-out' || e.type === 'Clock Out' || e.type === 'clock-out' || e.attendanceStatus === 'out');
         
         if (clockIn) {
           metrics.daysPresent++;
@@ -12240,7 +13925,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       
       // Take top 10 for better readability
       const top10 = sortedData.slice(0, 10);
-      const employeeNames = top10.map(e => e.name.split(' ')[0]); // First name only
+      const employeeNames = top10.map(e => (e.name || '').split(' ')[0]); // First name only
       
       // Destroy existing charts
       Object.values(employeeStatsCharts).forEach(chart => {
@@ -14115,6 +15800,57 @@ Click "Test Connection" after starting the service.`);
       });
     }
   </script>
+
+  <!-- ✨ AI Business Assistant Modal -->
+  <div id="aiAssistantModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;padding:1rem;">
+    <div style="width:100%;max-width:560px;height:88vh;max-height:720px;background:white;border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden;">
+
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#6a11cb,#2575fc);padding:1.1rem 1.4rem;display:flex;align-items:center;gap:0.85rem;">
+        <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;">✨</div>
+        <div style="flex:1;">
+          <div style="color:white;font-weight:700;font-size:1rem;line-height:1.2;">AI Business Assistant</div>
+          <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;">Powered by Google Gemini</div>
+        </div>
+        <button onclick="aiResetChat()" title="New chat" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:0.35rem 0.7rem;cursor:pointer;font-size:0.8rem;">↺ New</button>
+        <button onclick="closeAIAssistant()" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:50%;width:32px;height:32px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+
+      <!-- Chat log -->
+      <div id="aiChatLog" style="flex:1;overflow-y:auto;padding:1.25rem 1rem;display:flex;flex-direction:column;"></div>
+
+      <!-- Typing indicator -->
+      <div id="aiTypingIndicator" style="display:none;padding:0 1rem 0.5rem;align-items:center;gap:0.5rem;">
+        <div style="background:#f0f2f5;border-radius:18px;padding:0.6rem 1rem;display:flex;gap:4px;align-items:center;">
+          <span style="width:7px;height:7px;border-radius:50%;background:#aaa;animation:aiDot 1.2s infinite 0s;"></span>
+          <span style="width:7px;height:7px;border-radius:50%;background:#aaa;animation:aiDot 1.2s infinite 0.3s;"></span>
+          <span style="width:7px;height:7px;border-radius:50%;background:#aaa;animation:aiDot 1.2s infinite 0.6s;"></span>
+        </div>
+        <span style="font-size:0.78rem;color:#aaa;">AI is thinking…</span>
+      </div>
+
+      <!-- Quick replies -->
+      <div style="padding:0.5rem 1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <button onclick="aiSend('Nothing came in today.')" style="background:#f0f2f5;border:none;border-radius:20px;padding:0.4rem 0.85rem;font-size:0.8rem;cursor:pointer;color:#555;">Nothing in today</button>
+        <button onclick="aiSend('Nothing went out today.')" style="background:#f0f2f5;border:none;border-radius:20px;padding:0.4rem 0.85rem;font-size:0.8rem;cursor:pointer;color:#555;">Nothing out today</button>
+        <button onclick="aiSend('Give me a financial summary and advice.')" style="background:#f0f2f5;border:none;border-radius:20px;padding:0.4rem 0.85rem;font-size:0.8rem;cursor:pointer;color:#555;">💡 Advice</button>
+      </div>
+
+      <!-- Input -->
+      <div style="padding:0.75rem 1rem;border-top:1px solid #f0f0f0;display:flex;gap:0.65rem;align-items:flex-end;">
+        <textarea id="aiUserInput" rows="1" onkeydown="aiInputKeydown(event)" placeholder="Type a message… (Enter to send)"
+          style="flex:1;padding:0.65rem 0.9rem;border:1px solid #dee2e6;border-radius:14px;font-size:0.9rem;resize:none;font-family:inherit;line-height:1.4;max-height:100px;overflow-y:auto;outline:none;"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"></textarea>
+        <button onclick="aiSendMessage()" style="background:linear-gradient(135deg,#6a11cb,#2575fc);border:none;color:white;border-radius:50%;width:42px;height:42px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">➤</button>
+      </div>
+
+    </div>
+  </div>
+
+  <style>
+    @keyframes aiDot { 0%,60%,100%{transform:translateY(0);opacity:.6} 30%{transform:translateY(-6px);opacity:1} }
+    #aiChatLog::-webkit-scrollbar{width:4px} #aiChatLog::-webkit-scrollbar-thumb{background:#ddd;border-radius:4px}
+  </style>
 
 </body>
 </html>

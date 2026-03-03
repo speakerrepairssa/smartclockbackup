@@ -185,6 +185,21 @@ class PayslipsModule {
     if (whatsappToggle) {
       whatsappToggle.addEventListener('change', () => this.updateDeliveryMethods());
     }
+
+    // SMTP Configuration
+    const saveSMTPBtn = document.getElementById('saveSMTPBtn');
+    const testSMTPBtn = document.getElementById('testSMTPBtn');
+    
+    if (saveSMTPBtn) {
+      saveSMTPBtn.addEventListener('click', () => this.saveSMTPSettings());
+    }
+    
+    if (testSMTPBtn) {
+      testSMTPBtn.addEventListener('click', () => this.testSMTPConnection());
+    }
+
+    // Load existing SMTP settings
+    this.loadSMTPSettings();
   }
 
   /**
@@ -1463,6 +1478,140 @@ Best regards,
     const whatsappChecked = document.getElementById('deliveryWhatsApp')?.checked;
     
     console.log('📬 Delivery methods updated:', { email: emailChecked, whatsapp: whatsappChecked });
+  }
+
+  /**
+   * Load SMTP settings from Firestore
+   */
+  async loadSMTPSettings() {
+    try {
+      const smtpDoc = await getDoc(doc(db, "businesses", this.businessId, "settings", "smtp"));
+      
+      if (smtpDoc.exists()) {
+        const settings = smtpDoc.data();
+        document.getElementById('smtpHost').value = settings.host || '';
+        document.getElementById('smtpPort').value = settings.port || 587;
+        document.getElementById('smtpUser').value = settings.user || '';
+        document.getElementById('smtpPassword').value = settings.password || '';
+        document.getElementById('smtpFromName').value = settings.fromName || '';
+        
+        console.log('✅ SMTP settings loaded');
+      } else {
+        console.log('ℹ️ No SMTP settings found, using defaults');
+      }
+    } catch (error) {
+      console.error('❌ Error loading SMTP settings:', error);
+    }
+  }
+
+  /**
+   * Save SMTP settings to Firestore
+   */
+  async saveSMTPSettings() {
+    try {
+      const host = document.getElementById('smtpHost').value.trim();
+      const port = parseInt(document.getElementById('smtpPort').value);
+      const user = document.getElementById('smtpUser').value.trim();
+      const password = document.getElementById('smtpPassword').value;
+      const fromName = document.getElementById('smtpFromName').value.trim();
+
+      if (!host || !port || !user || !password) {
+        showNotification('Please fill in all required SMTP fields', 'warning');
+        return;
+      }
+
+      const smtpSettings = {
+        host,
+        port,
+        user,
+        password,
+        fromName,
+        updatedAt: Timestamp.now()
+      };
+
+      await setDoc(doc(db, "businesses", this.businessId, "settings", "smtp"), smtpSettings);
+      
+      const statusDiv = document.getElementById('smtpStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#d4edda';
+      statusDiv.style.color = '#155724';
+      statusDiv.innerHTML = '✅ Email settings saved successfully!';
+      
+      setTimeout(() => {
+        statusDiv.style.display = 'none';
+      }, 3000);
+
+      showNotification('Email settings saved successfully', 'success');
+      console.log('✅ SMTP settings saved');
+    } catch (error) {
+      console.error('❌ Error saving SMTP settings:', error);
+      
+      const statusDiv = document.getElementById('smtpStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#f8d7da';
+      statusDiv.style.color = '#721c24';
+      statusDiv.innerHTML = '❌ Failed to save settings: ' + error.message;
+      
+      showNotification('Failed to save email settings', 'error');
+    }
+  }
+
+  /**
+   * Test SMTP connection by sending a test email
+   */
+  async testSMTPConnection() {
+    try {
+      const user = document.getElementById('smtpUser').value.trim();
+      
+      if (!user) {
+        showNotification('Please save SMTP settings first', 'warning');
+        return;
+      }
+
+      const statusDiv = document.getElementById('smtpStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#d1ecf1';
+      statusDiv.style.color = '#0c5460';
+      statusDiv.innerHTML = '📧 Sending test email to ' + user + '...';
+
+      // Call Firebase Function to send test email
+      const response = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/sendTestEmail', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          businessId: this.businessId,
+          testEmail: user
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        statusDiv.style.background = '#d4edda';
+        statusDiv.style.color = '#155724';
+        statusDiv.innerHTML = '✅ Test email sent successfully! Check ' + user;
+        showNotification('Test email sent successfully!', 'success');
+      } else {
+        throw new Error(result.error || 'Unknown error');
+      }
+
+      setTimeout(() => {
+        statusDiv.style.display = 'none';
+      }, 5000);
+
+    } catch (error) {
+      console.error('❌ Error testing SMTP:', error);
+      
+      const statusDiv = document.getElementById('smtpStatus');
+      statusDiv.style.display = 'block';
+      statusDiv.style.background = '#f8d7da';
+      statusDiv.style.color = '#721c24';
+      statusDiv.innerHTML = '❌ Test failed: ' + error.message;
+      
+      showNotification('Test email failed: ' + error.message, 'error');
+    }
   }
 }
 

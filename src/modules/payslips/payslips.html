@@ -56,6 +56,49 @@
         </div>
       </div>
 
+      <!-- Email Server Configuration -->
+      <div class="payslip-card" style="margin-top: 2rem;">
+        <h2>📧 Email Server Setup</h2>
+        <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">Configure your SMTP server to send payslips via email</p>
+        
+        <div class="form-group">
+          <label for="smtpHost">SMTP Host</label>
+          <input type="text" id="smtpHost" placeholder="smtp.gmail.com">
+          <small>Your email provider's SMTP server address</small>
+        </div>
+
+        <div class="form-group">
+          <label for="smtpPort">SMTP Port</label>
+          <input type="number" id="smtpPort" placeholder="587" value="587">
+          <small>Common ports: 587 (TLS), 465 (SSL), 25 (unsecured)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="smtpUser">Email Address</label>
+          <input type="email" id="smtpUser" placeholder="info@yourdomain.com">
+          <small>The email address that will send payslips</small>
+        </div>
+
+        <div class="form-group">
+          <label for="smtpPassword">Email Password / App Password</label>
+          <input type="password" id="smtpPassword" placeholder="••••••••">
+          <small>For Gmail, use an App Password (not your regular password)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="smtpFromName">From Name</label>
+          <input type="text" id="smtpFromName" placeholder="Your Company Name">
+          <small>The name employees will see as the sender</small>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+          <button class="btn-success" id="saveSMTPBtn">💾 Save Email Settings</button>
+          <button class="btn-secondary" id="testSMTPBtn">✉️ Send Test Email</button>
+        </div>
+
+        <div id="smtpStatus" style="margin-top: 1rem; padding: 1rem; border-radius: 4px; display: none;"></div>
+      </div>
+
       <!-- Delivery Options -->
       <div class="payslip-card" style="margin-top: 2rem;">
         <h2>📬 Delivery Options</h2>

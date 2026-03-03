@@ -6513,3 +6513,52 @@ exports.autoBackupOnTimecardChange = onDocumentWritten(
     }
   }
 );
+
+// ========================================
+// SEND EMAIL (via business SMTP settings)
+// ========================================
+exports.sendEmail = onRequest({ invoker: 'public' }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Methods', 'POST');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    return res.sendStatus(204);
+  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const { businessId, to, subject, html, text } = req.body || {};
+  if (!businessId || !to || !subject) {
+    return res.status(400).json({ error: 'Missing required fields: businessId, to, subject' });
+  }
+
+  try {
+    const nodemailer = require('nodemailer');
+    const smtpSnap = await db.collection('businesses').doc(businessId)
+      .collection('settings').doc('smtp').get();
+    if (!smtpSnap.exists) {
+      return res.status(400).json({ error: 'No email settings saved. Configure Email Server Settings in the dashboard first.' });
+    }
+    const s = smtpSnap.data();
+    if (!s.host || !s.user || !s.password) {
+      return res.status(400).json({ error: 'Incomplete email settings (host, user, password required).' });
+    }
+    const transport = nodemailer.createTransport({
+      host: s.host,
+      port: parseInt(s.port) || 465,
+      secure: s.secure === 'ssl',
+      auth: { user: s.user, pass: s.password },
+      tls: { rejectUnauthorized: false }
+    });
+    await transport.sendMail({
+      from: s.fromName ? '"' + s.fromName + '" <' + s.user + '>' : s.user,
+      to,
+      subject,
+      html: html || '',
+      text: text || ''
+    });
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    logger.error('sendEmail error', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
