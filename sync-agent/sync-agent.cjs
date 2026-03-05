@@ -175,6 +175,50 @@ async function firestoreQuery(collectionPath, fieldPath, op, value) {
   });
 }
 
+// List documents in a collection — uses API key directly
+function listDocs(collectionPath) {
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'firestore.googleapis.com',
+      port: 443,
+      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${collectionPath}?key=${FIREBASE_API_KEY}`,
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    };
+    const req = https.request(opts, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(raw)); } catch (_) { resolve({}); }
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+// Fetch a single doc by path — uses API key directly
+function getDocByPath(docPath) {
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'firestore.googleapis.com',
+      port: 443,
+      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${docPath}?key=${FIREBASE_API_KEY}`,
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    };
+    const req = https.request(opts, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(raw)); } catch (_) { resolve(null); }
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 // Login-specific query: uses API key directly so Firestore rules can't block it
 function loginQuery(email) {
   return new Promise((resolve, reject) => {
@@ -648,8 +692,38 @@ async function doLogin() {
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'Login failed');
     loginData = d;
-    showStep('step-scan');
-    startScan();
+
+    if (d.device && d.device.ip && d.device.pass) {
+      // Device credentials found — auto-connect without manual scan
+      showStatus('loginStatus', `✅ Logged in as ${d.businessName}. Connecting to device ${d.device.ip}...`, 'success');
+      btn.textContent = 'Connecting...';
+      const tr = await fetch('/api/test-device', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ip: d.device.ip,
+          port: 443,
+          user: d.device.user,
+          pass: d.device.pass,
+          serial: d.device.serial,
+          model: d.device.model,
+          businessId: d.businessId
+        })
+      });
+      const td = await tr.json();
+      if (td.success) {
+        showStep('step-done');
+      } else {
+        // Auto-connect failed — fall through to scan so user can pick device
+        showStatus('loginStatus', `Logged in. Auto-connect failed (${td.error}) — scanning for device...`, 'info');
+        showStep('step-scan');
+        startScan();
+      }
+    } else {
+      // No device on file — run scan
+      showStep('step-scan');
+      startScan();
+    }
   } catch (e) {
     showStatus('loginStatus', e.message, 'error');
     btn.disabled = false;
@@ -807,8 +881,33 @@ function startSetupServer(onComplete) {
         if (fields.password.stringValue !== parsed.password) throw new Error('Incorrect password.');
         const bizId   = match.document.name.split('/').pop();
         const bizName = fields.businessName?.stringValue || 'Your Business';
+
+        // Look up linked device credentials from businesses/{bizId}/devices subcollection
+        let deviceInfo = null;
+        try {
+          const devList = await listDocs(`businesses/${bizId}/devices`);
+          const devDocs = devList.documents || [];
+          for (const devRef of devDocs) {
+            const deviceId = devRef.name.split('/').pop();
+            const globalDev = await getDocByPath(`devices/${deviceId}`);
+            if (globalDev && globalDev.fields) {
+              const f = globalDev.fields;
+              if (f.ipAddress?.stringValue && f.password?.stringValue) {
+                deviceInfo = {
+                  ip:       f.ipAddress.stringValue,
+                  user:     f.username?.stringValue || 'admin',
+                  pass:     f.password.stringValue,
+                  serial:   f.serialNumber?.stringValue || '',
+                  model:    f.deviceName?.stringValue || 'Hikvision Device'
+                };
+                break;
+              }
+            }
+          }
+        } catch (_) { /* device lookup failure is non-fatal */ }
+
         res.writeHead(200);
-        res.end(JSON.stringify({ success: true, businessId: bizId, businessName: bizName }));
+        res.end(JSON.stringify({ success: true, businessId: bizId, businessName: bizName, device: deviceInfo }));
       } catch (err) {
         res.writeHead(400);
         res.end(JSON.stringify({ success: false, error: err.message }));
