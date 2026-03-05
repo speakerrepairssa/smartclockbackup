@@ -519,7 +519,7 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
-      if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
+      if (!authService.isAuthenticated() || !authService.canAccessBusiness()) {
         window.location.href = '/pages/login.html';
         return;
       }

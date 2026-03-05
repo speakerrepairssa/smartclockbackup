@@ -648,6 +648,12 @@
   </style>
 </head>
 <body>
+  <!-- Admin Impersonation Banner -->
+  <div id="adminImpersonationBanner" style="display:none; background:#f59e0b; color:#1f2937; padding:0.6rem 1.2rem; font-size:0.9rem; font-weight:600; text-align:center; position:sticky; top:0; z-index:9999; box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+    🔑 Admin View — You are browsing as this business.
+    <button onclick="returnToAdmin()" style="margin-left:1.5rem; background:#1f2937; color:#fff; border:none; border-radius:4px; padding:0.3rem 0.9rem; cursor:pointer; font-size:0.85rem;">↩ Return to Admin</button>
+  </div>
+
   <!-- Mobile Menu Button -->
   <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">☰</button>
 
@@ -655,6 +661,23 @@
   <div class="mobile-overlay" onclick="toggleMobileSidebar()"></div>
 
   <div class="dashboard-wrapper">
+    <script>
+      // Show admin impersonation banner if applicable
+      (function() {
+        if (sessionStorage.getItem('adminImpersonating') === 'true') {
+          document.getElementById('adminImpersonationBanner').style.display = 'block';
+        }
+      })();
+
+      function returnToAdmin() {
+        // Clear impersonation context (role was never changed from admin)
+        sessionStorage.removeItem('adminImpersonating');
+        sessionStorage.removeItem('businessId');
+        sessionStorage.removeItem('businessName');
+        window.location.href = '/pages/admin-dashboard.html';
+      }
+    </script>
+
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">🕐 SmartClock</div>
@@ -673,6 +696,7 @@
         <li><button class="menu-btn" data-module="timecard" onclick="switchModule('timecard')">🕐 Timecard</button></li>
         <li><button class="menu-btn" data-module="punches" onclick="switchModule('punches')">👊 Punches</button></li>
         <li><button class="menu-btn" data-module="sync" onclick="switchModule('sync')">🔄 Device Sync</button></li>
+        <li><a href="import-device-events.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📥 Import Events</button></a></li>
         <li><button class="menu-btn" data-module="backup-restore" onclick="switchModule('backup-restore')">💾 Backup & Restore</button></li>
         <li><button class="menu-btn" data-module="sql-integration" onclick="switchModule('sql-integration')">🗄️ SQL Integration</button></li>
         <li><button class="menu-btn" data-module="downloads" onclick="switchModule('downloads')">📥 Downloads</button></li>
@@ -3726,6 +3750,15 @@
             </div>
           </div>
           
+          <!-- Import Historical Events Card -->
+          <div class="sync-card" style="margin-top: 2rem; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); color: white;">
+            <h3 style="color: white;">📥 Import All Historical Events</h3>
+            <p style="opacity: 0.85; margin-bottom: 1.5rem;">Fetch and save every attendance event stored on your device directly into Firebase — covers months or years of history in one click.</p>
+            <a href="import-device-events.html" style="display:inline-block; background: white; color: #0f172a; font-weight: 700; padding: 0.85rem 2rem; border-radius: 8px; text-decoration: none; font-size: 1rem;">
+              📥 Open Import Tool
+            </a>
+          </div>
+
           <!-- Event Comparison Table -->
           <div class="events-comparison">
             <h3>📊 Event Comparison</h3>
@@ -5050,8 +5083,8 @@
       try {
         console.log('Initializing dashboard...');
         
-        // Check authentication
-        if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
+        // Check authentication — allow business owner OR admin impersonating
+        if (!authService.isAuthenticated() || !authService.canAccessBusiness()) {
           console.log('Authentication failed, redirecting to login');
           window.location.href = '/pages/login.html';
           return;
@@ -5755,108 +5788,102 @@
       }
     }
 
-    async function loadMonitorData() {
-      try {
-        console.log("Loading monitor data for business:", businessId);
-        
-        const statusRef = collection(db, "businesses", businessId, "status");
-        const statusSnap = await getDocs(statusRef);
-        
-        console.log("Retrieved status documents:", statusSnap.size);
-        
-        let inEmployees = [];
-        let outEmployees = [];
-        
-        statusSnap.forEach(doc => {
-          const status = doc.data();
-          console.log("Processing employee:", status.employeeName, "attendanceStatus:", status.attendanceStatus);
-          
-          // Only show employees who have actually clocked in at some point (have lastClockTime)
-          // This filters out unused slots that were auto-created
-          if (!status.lastClockTime) {
-            console.log("Skipping unused slot:", status.employeeName);
-            return;
+    // Holds the live onSnapshot unsubscribe for the monitor panel
+    let monitorLiveUnsubscribe = null;
+
+    function renderMonitorSnapshot(snapshot) {
+      let inEmployees = [];
+      let outEmployees = [];
+
+      snapshot.forEach(doc => {
+        const status = doc.data();
+        if (!status.lastClockTime) return; // Skip unused slots
+        if (status.attendanceStatus === 'in') {
+          inEmployees.push(status);
+        } else {
+          outEmployees.push(status);
+        }
+      });
+
+      // Sort by slot number
+      const bySlot = (a, b) => (parseInt(a.slot || a.slotNumber || a.employeeId || 99)) - (parseInt(b.slot || b.slotNumber || b.employeeId || 99));
+      inEmployees.sort(bySlot);
+      outEmployees.sort(bySlot);
+
+      // Render IN employees
+      let inHtml = '';
+      if (inEmployees.length === 0) {
+        inHtml = '<div class="no-employees">No employees clocked in</div>';
+      } else {
+        inEmployees.forEach(emp => {
+          const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
+          let lastTime = 'N/A';
+          if (emp.lastClockTime) {
+            const date = new Date(emp.lastClockTime);
+            if (!isNaN(date.getTime())) lastTime = date.toLocaleTimeString();
           }
-          
-          // Check attendanceStatus field for IN/OUT
-          if (status.attendanceStatus === 'in') {
-            inEmployees.push(status);
-          } else {
-            outEmployees.push(status);
-          }
+          inHtml += `
+            <div class="employee-item">
+              <div>
+                <div class="employee-name">${emp.employeeName}</div>
+                <div class="employee-slot">SLOT ${slotDisplay}</div>
+              </div>
+              <div class="employee-time">${lastTime}</div>
+            </div>
+          `;
         });
+      }
+      document.getElementById('inEmployees').innerHTML = inHtml;
 
-        console.log("IN employees:", inEmployees.length);
-        console.log("OUT employees:", outEmployees.length);
-
-        // Render IN employees
-        let inHtml = '';
-        if (inEmployees.length === 0) {
-          inHtml = '<div class="no-employees">No employees clocked in</div>';
-        } else {
-          inEmployees.forEach(emp => {
-            const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-            // Safely format date - check if valid before formatting
-            let lastTime = 'N/A';
-            if (emp.lastClockTime) {
-              const date = new Date(emp.lastClockTime);
-              if (!isNaN(date.getTime())) {
-                lastTime = date.toLocaleTimeString();
-              }
-            }
-            inHtml += `
-              <div class="employee-item">
-                <div>
-                  <div class="employee-name">${emp.employeeName}</div>
-                  <div class="employee-slot">SLOT ${slotDisplay}</div>
-                </div>
-                <div class="employee-time">${lastTime}</div>
+      // Render OUT employees
+      let outHtml = '';
+      if (outEmployees.length === 0) {
+        outHtml = '<div class="no-employees">No employees clocked out</div>';
+      } else {
+        outEmployees.forEach(emp => {
+          const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
+          let lastTime = 'N/A';
+          if (emp.lastClockTime) {
+            const date = new Date(emp.lastClockTime);
+            if (!isNaN(date.getTime())) lastTime = date.toLocaleTimeString();
+          }
+          outHtml += `
+            <div class="employee-item">
+              <div>
+                <div class="employee-name">${emp.employeeName}</div>
+                <div class="employee-slot">SLOT ${slotDisplay}</div>
               </div>
-            `;
-          });
-        }
-        document.getElementById('inEmployees').innerHTML = inHtml;
+              <div class="employee-time">${lastTime}</div>
+            </div>
+          `;
+        });
+      }
+      document.getElementById('outEmployees').innerHTML = outHtml;
 
-        // Render OUT employees
-        let outHtml = '';
-        if (outEmployees.length === 0) {
-          outHtml = '<div class="no-employees">No employees clocked out</div>';
-        } else {
-          outEmployees.forEach(emp => {
-            const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-            // Safely format date - check if valid before formatting
-            let lastTime = 'N/A';
-            if (emp.lastClockTime) {
-              const date = new Date(emp.lastClockTime);
-              if (!isNaN(date.getTime())) {
-                lastTime = date.toLocaleTimeString();
-              }
-            }
-            outHtml += `
-              <div class="employee-item">
-                <div>
-                  <div class="employee-name">${emp.employeeName}</div>
-                  <div class="employee-slot">SLOT ${slotDisplay}</div>
-                </div>
-                <div class="employee-time">${lastTime}</div>
-              </div>
-            `;
-          });
-        }
-        document.getElementById('outEmployees').innerHTML = outHtml;
+      // Update timestamp
+      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+      document.getElementById('lastUpdateTime').textContent = timeStr;
+    }
 
-        // Update timestamp
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
-        document.getElementById('lastUpdateTime').textContent = timeStr;
+    function loadMonitorData() {
+      // Tear down any previous live listener
+      if (monitorLiveUnsubscribe) {
+        monitorLiveUnsubscribe();
+        monitorLiveUnsubscribe = null;
+      }
 
-      } catch (error) {
-        console.error("Error loading monitor data:", error);
-        console.error("Error code:", error.code);
+      console.log("Setting up live monitor listener for:", businessId);
+      const statusRef = collection(db, "businesses", businessId, "status");
+
+      monitorLiveUnsubscribe = onSnapshot(statusRef, (snapshot) => {
+        console.log("🔴 Live monitor update received -", snapshot.size, "docs");
+        renderMonitorSnapshot(snapshot);
+      }, (error) => {
+        console.error("Error in live monitor listener:", error);
         const errorMsg = error.code === 'permission-denied' ? 'Permission denied - check Firestore rules' : error.message;
         document.getElementById('inEmployees').innerHTML = '<div class="no-employees" style="color: #c33;">Error: ' + errorMsg + '</div>';
         document.getElementById('outEmployees').innerHTML = '<div class="no-employees"></div>';
-      }
+      });
     }
 
     // Update global reference to loadMonitorData

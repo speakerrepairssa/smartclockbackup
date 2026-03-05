@@ -1,1 +1,10 @@
+node_modules/
 functions/node_modules/
+sql-service/node_modules/
+.DS_Store
+.firebase/
+*.tar.gz
+*.gz
+pglite-debug.log
+dataconnect-debug.log
+dataconnect-debug.log*

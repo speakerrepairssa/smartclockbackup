@@ -33,8 +33,8 @@ class BusinessDashboardController {
    * Initialize dashboard
    */
   async init() {
-    // Check authentication
-    if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
+    // Check authentication — allow business owner OR admin impersonating
+    if (!authService.isAuthenticated() || !authService.canAccessBusiness()) {
       window.location.href = "/pages/login.html";
       return;
     }

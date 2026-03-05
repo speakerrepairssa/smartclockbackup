@@ -7,12 +7,12 @@
 class HistoricalEventsImporter {
   constructor() {
     this.firebaseConfig = {
-      apiKey: "AIzaSyAmKmv9cmWEhTGpuxWxVu3vOKvpJLVUXx0",
-      authDomain: "aiclock-82608.firebaseapp.com", 
-      projectId: "aiclock-82608",
-      storageBucket: "aiclock-82608.firebasestorage.app",
-      messagingSenderId: "434208200088",
-      appId: "1:434208200088:web:1ef0ac8a89a3e2cdd94a50"
+      apiKey: "AIzaSyC6capPBwQDzIyp73i4ML0m9UwqjcfJ_WE",
+      authDomain: "smartclock-v2-8271f.firebaseapp.com",
+      projectId: "smartclock-v2-8271f",
+      storageBucket: "smartclock-v2-8271f.firebasestorage.app",
+      messagingSenderId: "994384787802",
+      appId: "1:994384787802:web:e08a4db7ae7693c4199b63"
     };
     this.db = null;
     this.currentEmployees = new Map(); // slot -> employee mapping

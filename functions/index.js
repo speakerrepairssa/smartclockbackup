@@ -6562,3 +6562,199 @@ exports.sendEmail = onRequest({ invoker: 'public' }, async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+
+// ============================================================
+// 📋 IMPORT HISTORICAL EVENTS FROM HIKVISION DEVICE
+// Endpoint: GET /importHistoricalEvents?businessId=X&deviceId=X&ip=X&username=X&password=X&months=3
+// ============================================================
+const { exec } = require('child_process');
+const util = require('util');
+const execAsyncImport = util.promisify(exec);
+
+exports.importHistoricalEvents = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+
+  try {
+    const { businessId, deviceId, ip, username, password } = req.query;
+    const months = parseInt(req.query.months) || 3;
+
+    if (!businessId || !ip || !username || !password) {
+      return res.status(400).json({ success: false, error: 'Missing required params: businessId, ip, username, password' });
+    }
+
+    logger.info('📋 importHistoricalEvents started', { businessId, deviceId, ip, months });
+
+    // ── Date range ──────────────────────────────────────────
+    const endDate   = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - months);
+    const fmt = d => d.toISOString().replace('T', ' ').split('.')[0];
+
+    // ── Load staff for name/badge mapping ───────────────────
+    const staffSnap = await db.collection('businesses').doc(businessId).collection('staff').get();
+    const staffByBadge  = {};   // badgeNumber  -> { slotId, employeeName }
+    const staffByName   = {};   // lowercase name -> { slotId, employeeName }
+    staffSnap.forEach(doc => {
+      const d = doc.data();
+      if (!d.active && !d.isActive) return;
+      const entry = { slotId: doc.id, employeeName: d.employeeName || d.name || `Slot ${doc.id}` };
+      if (d.badgeNumber)  staffByBadge[String(d.badgeNumber)] = entry;
+      if (d.employeeId)   staffByBadge[String(d.employeeId)]  = entry;
+      const name = (d.employeeName || d.name || '').toLowerCase().trim();
+      if (name) staffByName[name] = entry;
+    });
+
+    // ── Fetch events from device with pagination ─────────────
+    const allEvents = [];
+    let position = 0;
+    let hasMore   = true;
+
+    while (hasMore) {
+      const body = JSON.stringify({
+        AcsEventCond: {
+          searchID: `import_${Date.now()}`,
+          searchResultPosition: position,
+          maxResults: 100,
+          major: 5,
+          minor: 0,
+          startTime: fmt(startDate),
+          endTime:   fmt(endDate)
+        }
+      });
+
+      const curlCmd = `curl -s --digest -u "${username}:${password}" -X POST -H "Content-Type: application/json" -d '${body.replace(/'/g, "'\\''")}' "http://${ip}/ISAPI/AccessControl/AcsEvent?format=json"`;
+
+      const { stdout } = await execAsyncImport(curlCmd, { maxBuffer: 10 * 1024 * 1024, timeout: 30000 });
+      const data = JSON.parse(stdout);
+
+      if (!data.AcsEvent) break;
+
+      const infoList = Array.isArray(data.AcsEvent.InfoList)
+        ? data.AcsEvent.InfoList
+        : (data.AcsEvent.InfoList ? [data.AcsEvent.InfoList] : []);
+
+      allEvents.push(...infoList);
+
+      const status = data.AcsEvent.responseStatusStrg;
+      if (status === 'OK' || status === 'NO MATCH' || infoList.length === 0) {
+        hasMore = false;
+      } else {
+        position += infoList.length;
+      }
+    }
+
+    logger.info(`📋 Fetched ${allEvents.length} raw events from device`, { businessId, ip });
+
+    // ── Map events to staff & write to Firestore ─────────────
+    let batch      = db.batch();
+    let batchCount = 0;
+    let imported     = 0;
+    let skipped      = 0;
+    const unmappedNames = new Set();
+
+    const flushBatch = async () => {
+      if (batchCount > 0) {
+        await batch.commit();
+        batch = db.batch();
+        batchCount = 0;
+      }
+    };
+
+    for (const evt of allEvents) {
+      const badgeNo   = String(evt.employeeNoString || evt.employeeNo || '');
+      const evtName   = (evt.name || '').toLowerCase().trim();
+
+      let staff = staffByBadge[badgeNo] || staffByName[evtName];
+
+      if (!staff) {
+        unmappedNames.add(evt.name || badgeNo || 'unknown');
+        skipped++;
+        continue;
+      }
+
+      const ts      = new Date(evt.time);
+      const dateStr = ts.toISOString().split('T')[0];          // YYYY-MM-DD
+      const timeStr = ts.toTimeString().split(' ')[0];          // HH:MM:SS
+
+      // Determine type: minor 75 = entry/access granted (clock-in)
+      const minor = parseInt(evt.minor || 0);
+      let isIn;
+      if (evt.attendanceStatus === 'checkin' || evt.attendanceStatus === 'checkIn') {
+        isIn = true;
+      } else if (evt.attendanceStatus === 'checkout' || evt.attendanceStatus === 'checkOut') {
+        isIn = false;
+      } else {
+        isIn = (minor === 75 || minor === 8 || minor === 1);
+      }
+
+      const eventDocRef = db
+        .collection('businesses').doc(businessId)
+        .collection('attendance_events').doc(dateStr)
+        .collection(staff.slotId)
+        .doc(`hist_${ts.getTime()}`);
+
+      batch.set(eventDocRef, {
+        employeeId:       staff.slotId,
+        employeeName:     staff.employeeName,
+        slotNumber:       parseInt(staff.slotId) || staff.slotId,
+        time:             timeStr,
+        timestamp:        ts.toISOString(),
+        type:             isIn ? 'clock-in' : 'clock-out',
+        attendanceStatus: isIn ? 'in' : 'out',
+        deviceId:         deviceId || ip,
+        serialNo:         evt.serialNo || null,
+        recordedAt:       new Date().toISOString(),
+        isDuplicatePunch: false,
+        isManual:         false,
+        source:           'historical-import',
+        originalBadge:    badgeNo,
+        originalName:     evt.name || ''
+      }, { merge: true });
+      batchCount++;
+
+      // Update status (latest event per employee)
+      const statusRef = db.collection('businesses').doc(businessId)
+        .collection('status').doc(staff.slotId);
+      batch.set(statusRef, {
+        employeeId:       staff.slotId,
+        employeeName:     staff.employeeName,
+        attendanceStatus: isIn ? 'in' : 'out',
+        lastClockStatus:  isIn ? 'in' : 'out',
+        lastClockTime:    ts.toISOString(),
+        lastEventType:    isIn ? 'clock-in' : 'clock-out',
+        deviceId:         deviceId || ip,
+        updatedAt:        new Date().toISOString()
+      }, { merge: true });
+      batchCount++;
+
+      imported++;
+
+      // Flush every 400 writes (Firestore batch limit is 500)
+      if (batchCount >= 400) {
+        await flushBatch();
+        logger.info(`💾 Batch flushed at ${imported} imported`);
+      }
+    }
+
+    // Flush remaining writes
+    await flushBatch();
+
+    logger.info('✅ Historical import complete', { businessId, imported, skipped });
+
+    return res.json({
+      success:  true,
+      imported,
+      skipped,
+      total:    allEvents.length,
+      unmappedNames: [...unmappedNames].slice(0, 20),
+      months
+    });
+
+  } catch (err) {
+    logger.error('❌ importHistoricalEvents error', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});

@@ -483,6 +483,25 @@ class AuthService {
   getBusinessId() {
     return sessionStorage.getItem("businessId");
   }
+
+  /**
+   * Check if admin is impersonating a business
+   * (admin = app owner/developer viewing a business dashboard)
+   * @returns {boolean}
+   */
+  isAdminImpersonating() {
+    return sessionStorage.getItem("adminImpersonating") === "true" &&
+           sessionStorage.getItem("userRole") === "admin";
+  }
+
+  /**
+   * Check if current user can access business-level pages
+   * (either a logged-in business owner OR the admin impersonating)
+   * @returns {boolean}
+   */
+  canAccessBusiness() {
+    return this.getUserRole() === "business" || this.isAdminImpersonating();
+  }
 }
 
 // Export singleton instance

@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Import Device Events – SmartClock</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f1f5f9;
+      min-height: 100vh;
+    }
+
+    .top-bar {
+      background: #1e293b;
+      color: #fff;
+      padding: 0.9rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .top-bar a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; }
+    .top-bar a:hover { color: #fff; }
+    .top-bar h1 { font-size: 1.1rem; font-weight: 600; }
+
+    .page { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .form-group label { font-size: 0.85rem; font-weight: 500; color: #374151; }
+    .form-group input,
+    .form-group select {
+      padding: 0.6rem 0.85rem;
+      border: 1.5px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus,
+    .form-group select:focus { border-color: #6366f1; }
+    .form-group small { font-size: 0.78rem; color: #6b7280; }
+
+    .full-col { grid-column: 1 / -1; }
+
+    .btn {
+      padding: 0.7rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary  { background: #6366f1; color: #fff; }
+    .btn-primary:hover  { background: #4f46e5; }
+    .btn-secondary { background: #f1f5f9; color: #374151; border: 1.5px solid #d1d5db; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-row { display: flex; gap: 0.85rem; margin-top: 1.5rem; flex-wrap: wrap; }
+
+    /* Status banner */
+    .status-box {
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.92rem;
+      display: none;
+    }
+    .status-box.info    { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
+    .status-box.success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #15803d; }
+    .status-box.error   { background: #fef2f2; border-left: 4px solid #ef4444; color: #b91c1c; }
+    .status-box.warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+
+    /* Progress */
+    .progress-bar-wrap {
+      background: #e2e8f0;
+      border-radius: 99px;
+      height: 10px;
+      overflow: hidden;
+      margin: 0.75rem 0;
+      display: none;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    /* Results grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .stat-box {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+    }
+    .stat-box .val { font-size: 2rem; font-weight: 700; color: #1e293b; }
+    .stat-box .lbl { font-size: 0.8rem; color: #64748b; margin-top: 0.2rem; }
+    .stat-box.green .val { color: #16a34a; }
+    .stat-box.amber .val { color: #d97706; }
+    .stat-box.red   .val { color: #dc2626; }
+
+    /* Unmapped list */
+    .unmapped-list {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.88rem;
+      color: #6b4c0d;
+    }
+    .unmapped-list strong { display: block; margin-bottom: 0.4rem; }
+    .unmapped-list code {
+      display: inline-block;
+      background: #fef3c7;
+      border-radius: 4px;
+      padding: 0.1rem 0.45rem;
+      margin: 0.15rem;
+      font-family: monospace;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hint-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      font-size: 0.87rem;
+      color: #475569;
+      line-height: 1.6;
+    }
+    .hint-box strong { color: #1e293b; }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <a href="business-dashboard.html">← Dashboard</a>
+  <h1>📥 Import Historical Device Events</h1>
+</div>
+
+<div class="page">
+
+  <!-- Status banner -->
+  <div id="statusBox" class="status-box"></div>
+  <div class="progress-bar-wrap" id="progressWrap">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+
+  <!-- Device config card -->
+  <div class="card">
+    <h2>🔌 Device & Import Settings</h2>
+
+    <div class="form-grid">
+
+      <div class="form-group">
+        <label>Business</label>
+        <input type="text" id="businessId" readonly>
+        <small>From your session</small>
+      </div>
+
+      <div class="form-group">
+        <label>Registered Devices</label>
+        <select id="deviceSelect" onchange="onDeviceSelected()">
+          <option value="">— loading... —</option>
+        </select>
+        <small>Select a registered device</small>
+      </div>
+
+      <div class="form-group">
+        <label>Device IP Address *</label>
+        <input type="text" id="deviceIp" placeholder="e.g. 192.168.7.2">
+        <small>Local or remote IP of the Hikvision device</small>
+      </div>
+
+      <div class="form-group">
+        <label>Device Username</label>
+        <input type="text" id="deviceUsername" value="admin">
+      </div>
+
+      <div class="form-group">
+        <label>Device Password *</label>
+        <input type="password" id="devicePassword" placeholder="Device admin password">
+        <small>Digest auth – same as web UI login</small>
+      </div>
+
+      <div class="form-group">
+        <label>Import Range</label>
+        <select id="months">
+          <option value="1">Last 1 month</option>
+          <option value="2">Last 2 months</option>
+          <option value="3" selected>Last 3 months</option>
+          <option value="6">Last 6 months</option>
+          <option value="12">Last 12 months</option>
+          <option value="24">Last 24 months (all)</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="importBtn" onclick="startImport()">
+        📥 Import Events
+      </button>
+      <button class="btn btn-secondary" onclick="testConnection()">
+        🔍 Test Connection
+      </button>
+    </div>
+  </div>
+
+  <!-- Results card (hidden until import) -->
+  <div class="card" id="resultsCard" style="display:none;">
+    <h2>📊 Import Results</h2>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="val" id="resTotal">—</div><div class="lbl">Events on Device</div></div>
+      <div class="stat-box green"><div class="val" id="resImported">—</div><div class="lbl">Imported to Firebase</div></div>
+      <div class="stat-box amber"><div class="val" id="resSkipped">—</div><div class="lbl">Skipped (no match)</div></div>
+      <div class="stat-box"><div class="val" id="resMonths">—</div><div class="lbl">Months Scanned</div></div>
+    </div>
+    <div id="unmappedBox" class="unmapped-list" style="display:none;"></div>
+  </div>
+
+  <!-- How it works -->
+  <div class="card">
+    <h2>ℹ️ How it works</h2>
+    <div class="hint-box">
+      <strong>1. Connect via relay</strong> – The browser calls a VPS relay server which forwards the request to your Hikvision device using Digest authentication. This works with local LAN IP addresses.<br><br>
+      <strong>2. Extract month by month</strong> – Events are fetched one month at a time for the selected range.<br><br>
+      <strong>3. Map</strong> – Each event is matched to an employee by <em>badge number</em> or <em>name</em>. Unmatched events are skipped and shown below.<br><br>
+      <strong>4. Save</strong> – Matched events are written directly to Firebase under
+      <code>businesses / {businessId} / attendance_events / {date} / {slot}</code> with duplicate prevention.<br><br>
+      <strong>Note:</strong> Employee names on the device must roughly match the names in SmartClock for mapping to succeed. The import is safe to run multiple times – existing events are not duplicated.
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+  import { db } from '../config/firebase.js';
+  import {
+    collection, getDocs, writeBatch, doc
+  } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+  import authService from '../modules/auth/auth.service.js';
+
+  // deviceSyncProxy routes through the VPS relay which can reach local LAN devices
+  const CF_BASE = 'https://us-central1-smartclock-v2-8271f.cloudfunctions.net';
+
+  // ── Auth check ───────────────────────────────────────────────
+  if (!authService.isAuthenticated() || !authService.canAccessBusiness()) {
+    window.location.href = '/pages/login.html';
+  }
+
+  const businessId = authService.getBusinessId();
+  document.getElementById('businessId').value = businessId || '';
+
+  // ── Load registered devices ──────────────────────────────────
+  async function loadDevices() {
+    if (!businessId) return;
+    try {
+      const devSnap = await getDocs(collection(db, 'businesses', businessId, 'devices'));
+      const sel = document.getElementById('deviceSelect');
+      sel.innerHTML = '<option value="">— select a device —</option>';
+      if (devSnap.empty) {
+        sel.innerHTML = '<option value="">No devices registered yet</option>';
+        return;
+      }
+      devSnap.forEach(d => {
+        const data = d.data();
+        const opt  = document.createElement('option');
+        opt.value       = d.id;
+        opt.dataset.ip  = data.ip || data.deviceIp || '';
+        opt.textContent = `${data.name || d.id} (${data.ip || data.deviceIp || 'no IP'})`;
+        sel.appendChild(opt);
+      });
+      if (devSnap.size === 1) { sel.selectedIndex = 1; window.onDeviceSelected(); }
+    } catch (err) {
+      document.getElementById('deviceSelect').innerHTML = '<option value="">Error loading devices</option>';
+    }
+  }
+
+  window.onDeviceSelected = function() {
+    const sel = document.getElementById('deviceSelect');
+    const opt = sel.options[sel.selectedIndex];
+    if (opt && opt.dataset.ip) document.getElementById('deviceIp').value = opt.dataset.ip;
+  };
+
+  // ── UI helpers ───────────────────────────────────────────────
+  let progressTimer = null;
+  function startProgress() {
+    const fill = document.getElementById('progressFill');
+    document.getElementById('progressWrap').style.display = 'block';
+    fill.style.width = '0%';
+    let w = 0;
+    progressTimer = setInterval(() => { w = Math.min(w + Math.random() * 2, 85); fill.style.width = w + '%'; }, 500);
+  }
+  function stopProgress(success) {
+    clearInterval(progressTimer);
+    const fill = document.getElementById('progressFill');
+    fill.style.width = '100%';
+    fill.style.background = success ? '#22c55e' : '#ef4444';
+    setTimeout(() => {
+      document.getElementById('progressWrap').style.display = 'none';
+      fill.style.background = 'linear-gradient(90deg, #6366f1, #8b5cf6)';
+    }, 1500);
+  }
+  function showStatus(msg, type) {
+    const box = document.getElementById('statusBox');
+    box.className = `status-box ${type}`;
+    box.innerHTML = msg;
+    box.style.display = 'block';
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── Fetch one month of events via deviceSyncProxy (VPS relay) ─
+  async function fetchMonth(ip, username, password, month, year) {
+    const url = `${CF_BASE}/deviceSyncProxy?` + new URLSearchParams({ ip, username, password, month, year });
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status} fetching month ${month}/${year}`);
+    const data = await r.json();
+    if (data.success === false) throw new Error(data.message || `Device error for ${month}/${year}`);
+    return data.events || [];
+  }
+
+  // ── Test connection ──────────────────────────────────────────
+  window.testConnection = async function() {
+    const ip  = document.getElementById('deviceIp').value.trim();
+    const usr = document.getElementById('deviceUsername').value.trim();
+    const pwd = document.getElementById('devicePassword').value.trim();
+    if (!ip || !pwd) { showStatus('Enter device IP and password first.', 'warning'); return; }
+    showStatus('<span class="spinner"></span>Testing connection via relay…', 'info');
+    try {
+      const events = await fetchMonth(ip, usr, pwd, new Date().getMonth() + 1, new Date().getFullYear());
+      showStatus(`✅ Connection successful! Device returned <strong>${events.length}</strong> events for this month.`, 'success');
+    } catch (e) {
+      showStatus(`❌ Connection failed: ${e.message}`, 'error');
+    }
+  };
+
+  // ── Import ───────────────────────────────────────────────────
+  window.startImport = async function() {
+    const biz = document.getElementById('businessId').value.trim();
+    const ip  = document.getElementById('deviceIp').value.trim();
+    const usr = document.getElementById('deviceUsername').value.trim();
+    const pwd = document.getElementById('devicePassword').value.trim();
+    const dev = document.getElementById('deviceSelect').value;
+    const mo  = parseInt(document.getElementById('months').value) || 3;
+
+    if (!biz || !ip || !pwd) {
+      showStatus('Please fill in Business ID, Device IP, and Password.', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('importBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Importing…';
+    document.getElementById('resultsCard').style.display = 'none';
+    startProgress();
+
+    try {
+      // ── 1. Load staff for badge/name mapping ─────────────────
+      showStatus(`<span class="spinner"></span>Loading staff list from Firebase…`, 'info');
+      const staffSnap = await getDocs(collection(db, 'businesses', biz, 'staff'));
+      const staffByBadge = {};
+      const staffByName  = {};
+      staffSnap.forEach(s => {
+        const d = s.data();
+        if (d.active === false && d.isActive === false) return;
+        const entry = { slotId: s.id, employeeName: d.employeeName || d.name || `Slot ${s.id}` };
+        if (d.badgeNumber) staffByBadge[String(d.badgeNumber)] = entry;
+        if (d.employeeId)  staffByBadge[String(d.employeeId)]  = entry;
+        const name = (d.employeeName || d.name || '').toLowerCase().trim();
+        if (name) staffByName[name] = entry;
+      });
+
+      // ── 2. Fetch events month by month via VPS relay ──────────
+      const allEvents = [];
+      const now = new Date();
+      for (let m = 0; m < mo; m++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+        const month = d.getMonth() + 1;
+        const year  = d.getFullYear();
+        showStatus(`<span class="spinner"></span>Fetching month ${mo - m}/${mo}: ${month}/${year}…`, 'info');
+        try {
+          const events = await fetchMonth(ip, usr, pwd, month, year);
+          allEvents.push(...events);
+        } catch (e) {
+          console.warn(`Month ${month}/${year} failed:`, e.message);
+        }
+      }
+
+      showStatus(`<span class="spinner"></span>Processing ${allEvents.length} events and saving to Firebase…`, 'info');
+
+      // ── 3. Map events → staff, write to Firestore ─────────────
+      let batch        = writeBatch(db);
+      let batchCount   = 0;
+      let imported     = 0;
+      let skipped      = 0;
+      const unmappedNames = new Set();
+
+      const flushBatch = async () => {
+        if (batchCount > 0) { await batch.commit(); batch = writeBatch(db); batchCount = 0; }
+      };
+
+      for (const evt of allEvents) {
+        const badgeNo = String(evt.employeeNo || evt.employeeNoString || '');
+        const evtName = (evt.name || '').toLowerCase().trim();
+        const staff   = staffByBadge[badgeNo] || staffByName[evtName];
+
+        if (!staff) {
+          unmappedNames.add(evt.name || badgeNo || 'unknown');
+          skipped++;
+          continue;
+        }
+
+        const ts      = new Date(evt.time);
+        if (isNaN(ts)) { skipped++; continue; }
+        const dateStr = ts.toISOString().split('T')[0];
+        const timeStr = ts.toTimeString().split(' ')[0];
+
+        const minor = parseInt(evt.minor || 0);
+        let isIn;
+        const status = (evt.attendanceStatus || '').toLowerCase();
+        if (status === 'checkin')       isIn = true;
+        else if (status === 'checkout') isIn = false;
+        else                            isIn = (minor === 75 || minor === 8 || minor === 1);
+
+        const eventRef = doc(
+          collection(db, 'businesses', biz, 'attendance_events', dateStr, staff.slotId),
+          `hist_${ts.getTime()}`
+        );
+        batch.set(eventRef, {
+          employeeId:       staff.slotId,
+          employeeName:     staff.employeeName,
+          time:             timeStr,
+          timestamp:        ts.toISOString(),
+          type:             isIn ? 'clock-in' : 'clock-out',
+          attendanceStatus: isIn ? 'in' : 'out',
+          deviceId:         dev || ip,
+          recordedAt:       new Date().toISOString(),
+          source:           'historical-import',
+          originalBadge:    badgeNo,
+          originalName:     evt.name || ''
+        }, { merge: true });
+        batchCount++;
+
+        // Status doc — latest event per employee
+        const statusRef = doc(db, 'businesses', biz, 'status', staff.slotId);
+        batch.set(statusRef, {
+          employeeId:       staff.slotId,
+          employeeName:     staff.employeeName,
+          attendanceStatus: isIn ? 'in' : 'out',
+          lastClockStatus:  isIn ? 'in' : 'out',
+          lastClockTime:    ts.toISOString(),
+          lastEventType:    isIn ? 'clock-in' : 'clock-out',
+          deviceId:         dev || ip,
+          updatedAt:        new Date().toISOString()
+        }, { merge: true });
+        batchCount++;
+        imported++;
+
+        if (batchCount >= 400) await flushBatch();
+      }
+      await flushBatch();
+
+      stopProgress(true);
+      showStatus(`✅ Import complete! <strong>${imported}</strong> events saved to Firebase.`, 'success');
+
+      // Results card
+      document.getElementById('resTotal').textContent    = allEvents.length;
+      document.getElementById('resImported').textContent = imported;
+      document.getElementById('resSkipped').textContent  = skipped;
+      document.getElementById('resMonths').textContent   = mo;
+      document.getElementById('resultsCard').style.display = 'block';
+
+      const box = document.getElementById('unmappedBox');
+      const unmapped = [...unmappedNames];
+      if (unmapped.length > 0) {
+        box.style.display = 'block';
+        box.innerHTML = `<strong>⚠️ ${unmapped.length} device name(s) could not be matched:</strong>` +
+          unmapped.map(n => `<code>${n}</code>`).join('') +
+          '<br><br>Ensure these names match the employee names in your staff list.';
+      } else {
+        box.style.display = 'none';
+      }
+
+    } catch (e) {
+      stopProgress(false);
+      showStatus(`❌ ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📥 Import Events';
+    }
+  };
+
+  loadDevices();
+</script>
+</body>
+</html>

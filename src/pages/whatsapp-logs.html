@@ -608,7 +608,7 @@ Employee Name: ${log.employeeData?.employeeName || 'N/A'}</pre>
     };
 
     // Check authentication and initialize
-    if (!authService.isAuthenticated() || authService.getUserRole() !== "business") {
+    if (!authService.isAuthenticated() || !authService.canAccessBusiness()) {
       console.log('Authentication failed, redirecting to login');
       window.location.href = '/pages/login.html';
     } else {

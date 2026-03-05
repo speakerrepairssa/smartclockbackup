@@ -354,13 +354,31 @@ class AdminDashboardController {
           <button class="btn btn-small btn-secondary" onclick="adminDashboard.editBusiness('${business.id}')">
             Edit
           </button>
-
+          <button class="btn btn-small" style="background:#10b981;color:#fff;" onclick="adminDashboard.loginAsBusiness('${business.id}', '${business.businessName}')">
+            🔑 Login as
+          </button>
           <button class="btn btn-small btn-danger" onclick="adminDashboard.deleteBusiness('${business.id}')">
             Delete
           </button>
         </td>
       </tr>
     `).join("");
+  }
+
+  /**
+   * Login as a business (admin override — no password required)
+   */
+  loginAsBusiness(businessId, businessName) {
+    if (!confirm(`Log into "${businessName}" as admin?\nYou will be redirected to their dashboard.`)) return;
+
+    // Keep admin role — just add impersonation context
+    sessionStorage.setItem("adminImpersonating", "true");
+    sessionStorage.setItem("adminReturnEmail", sessionStorage.getItem("userEmail") || "info@simplewebhost.co.za");
+    sessionStorage.setItem("businessId", businessId);
+    sessionStorage.setItem("businessName", businessName);
+    // Role stays "admin" — auth guards check for admin+impersonating
+
+    window.location.href = "/pages/business-dashboard.html";
   }
 
   /**

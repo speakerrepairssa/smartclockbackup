@@ -1,7 +1,8 @@
 {
   "projects": {
-    "default": "aiclock-82608",
-    "aiclock": "aiclock-82608"
+    "default": "smartclock-v2-8271f",
+    "aiclock": "aiclock-82608",
+    "smartclock": "smartclock-v2-8271f"
   },
   "targets": {},
   "etags": {}
