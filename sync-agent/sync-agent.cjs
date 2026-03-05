@@ -996,6 +996,87 @@ async function startAgent(config) {
   setInterval(() => checkSyncRequest(config), POLL_INTERVAL);
 
   log('Agent running. Press Ctrl+C to stop.');
+
+  // Always serve a status page on the setup port so the browser link works
+  startStatusServer(config);
+}
+
+// ── Status Server (agent mode) ────────────────────────────────────────────────
+function startStatusServer(config) {
+  const STATUS_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SmartClock Connector</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f3f4f6;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+  .card{background:#fff;border-radius:16px;padding:2rem 2.5rem;max-width:420px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center}
+  .logo{font-size:2.5rem;margin-bottom:.5rem}
+  h1{font-size:1.3rem;color:#1f2937;margin:.5rem 0}
+  .status-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dot-green{background:#22c55e} .dot-red{background:#ef4444}
+  .info{background:#f9fafb;border-radius:8px;padding:1rem;text-align:left;font-size:.85rem;color:#374151;line-height:1.8;margin:1.2rem 0}
+  .info strong{color:#111}
+  .btn{display:inline-block;padding:.65rem 1.5rem;border-radius:8px;border:none;cursor:pointer;font-size:.9rem;font-weight:600;margin:.3rem}
+  .btn-blue{background:#3b82f6;color:#fff} .btn-blue:hover{background:#2563eb}
+  .btn-red{background:#ef4444;color:#fff} .btn-red:hover{background:#dc2626}
+  .btn-green{background:#22c55e;color:#fff} .btn-green:hover{background:#16a34a}
+  #msg{margin-top:1rem;font-size:.85rem;color:#6b7280}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🔗</div>
+  <h1>SmartClock Connector</h1>
+  <p style="color:#6b7280;font-size:.85rem;margin:.25rem 0 1rem">Running in background</p>
+  <div><span class="status-dot dot-green"></span><strong style="color:#15803d">Active</strong></div>
+  <div class="info">
+    <div><strong>Business:</strong> ${config.businessId}</div>
+    <div><strong>Device:</strong> ${config.deviceIP}:${config.devicePort || 443}</div>
+    <div><strong>Version:</strong> ${AGENT_VERSION}</div>
+    <div><strong>Host:</strong> ${os.hostname()}</div>
+  </div>
+  <button class="btn btn-green" onclick="syncNow()">🔄 Sync Now</button>
+  <button class="btn btn-red" onclick="resetConfig()">⚙️ Reconfigure</button>
+  <div id="msg"></div>
+</div>
+<script>
+async function syncNow() {
+  document.getElementById('msg').textContent = 'Sync triggered…';
+  await fetch('/api/sync-now', { method: 'POST' });
+  document.getElementById('msg').textContent = 'Sync started — check your dashboard.';
+}
+async function resetConfig() {
+  if (!confirm('This will delete the saved setup and restart configuration. Continue?')) return;
+  await fetch('/api/reset', { method: 'POST' });
+  document.getElementById('msg').textContent = 'Config cleared. Restarting setup…';
+  setTimeout(() => location.reload(), 3000);
+}
+</script>
+</body></html>`;
+
+  const srv = http.createServer((req, res) => {
+    const url = req.url.split('?')[0];
+    if (url === '/api/sync-now' && req.method === 'POST') {
+      log('Manual sync triggered from status page');
+      runSync(config).catch(e => log('Manual sync error: ' + e.message));
+      res.writeHead(200); res.end('{}');
+      return;
+    }
+    if (url === '/api/reset' && req.method === 'POST') {
+      log('Config reset requested from status page');
+      try { fs.unlinkSync(CONFIG_FILE); } catch (_) {}
+      res.writeHead(200); res.end('{}');
+      setTimeout(() => process.exit(0), 500); // service manager will restart
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(STATUS_HTML);
+  });
+
+  srv.listen(SETUP_PORT, '127.0.0.1', () => {
+    log(`Status server running at http://localhost:${SETUP_PORT}`);
+  });
+  srv.on('error', () => {}); // ignore if port already in use
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
