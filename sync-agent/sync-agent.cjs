@@ -265,6 +265,30 @@ async function writeDoc(docPath, fields) {
   return firestoreRequest('PATCH', docPath, body);
 }
 
+// Write using API key directly — used for heartbeat/status so it always works
+function writeDocApiKey(docPath, fields) {
+  const body = { fields: {} };
+  for (const [k, v] of Object.entries(fields)) body.fields[k] = fv(v);
+  const data = JSON.stringify(body);
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'firestore.googleapis.com',
+      port: 443,
+      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${docPath}?key=${FIREBASE_API_KEY}`,
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
+    };
+    const req = https.request(opts, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch (_) { resolve({}); } });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
 async function docExists(docPath) {
   const res = await firestoreRequest('GET', docPath);
   return !!(res && res.fields);
@@ -480,23 +504,27 @@ async function runSync(config, onStatus) {
     const toWrite = parsed.filter(e => !existingSet.has(e.docPath));
     log(`Sync: ${existingSet.size} existing, ${toWrite.length} new to write`);
 
-    // Write missing events
+    // Write missing events in parallel batches of 50
     if (onStatus) onStatus('writing');
     let written = 0;
-    for (const e of toWrite) {
-      try {
-        await writeDoc(e.docPath, {
-          employeeId: e.slot, employeeName: e.empName, slotNumber: e.slotNum,
-          time: e.ts.toLocaleTimeString('en-US', { hour12: false }),
-          timestamp: e.isoTs, type: e.statusStr === 'in' ? 'clock-in' : 'clock-out',
-          attendanceStatus: e.statusStr, deviceId: config.deviceSerial || 'unknown',
-          serialNo: e.serialNo, recordedAt: new Date().toISOString(),
-          isDuplicatePunch: false, isManual: false, source: 'connector-sync'
-        });
-        written++;
-      } catch (err) {
-        log(`Write error: ${err.message}`);
-      }
+    const WRITE_BATCH = 50;
+    for (let i = 0; i < toWrite.length; i += WRITE_BATCH) {
+      const batch = toWrite.slice(i, i + WRITE_BATCH);
+      await Promise.all(batch.map(async e => {
+        try {
+          await writeDoc(e.docPath, {
+            employeeId: e.slot, employeeName: e.empName, slotNumber: e.slotNum,
+            time: e.ts.toLocaleTimeString('en-US', { hour12: false }),
+            timestamp: e.isoTs, type: e.statusStr === 'in' ? 'clock-in' : 'clock-out',
+            attendanceStatus: e.statusStr, deviceId: config.deviceSerial || 'unknown',
+            serialNo: e.serialNo, recordedAt: new Date().toISOString(),
+            isDuplicatePunch: false, isManual: false, source: 'connector-sync'
+          });
+          written++;
+        } catch (err) {
+          log(`Write error: ${err.message}`);
+        }
+      }));
     }
 
     log(`Sync complete: ${written} written`);
@@ -512,7 +540,7 @@ async function runSync(config, onStatus) {
 // ── Heartbeat ─────────────────────────────────────────────────────────────────
 async function sendHeartbeat(config, extra = {}) {
   try {
-    await writeDoc(`businesses/${config.businessId}/connector_status/current`, {
+    await writeDocApiKey(`businesses/${config.businessId}/connector_status/current`, {
       active:      true,
       lastSeen:    new Date().toISOString(),
       hostname:    os.hostname(),
@@ -521,6 +549,7 @@ async function sendHeartbeat(config, extra = {}) {
       deviceSerial: config.deviceSerial || '',
       ...extra
     });
+    log('Heartbeat sent OK');
   } catch (err) {
     log(`Heartbeat error: ${err.message}`);
   }
