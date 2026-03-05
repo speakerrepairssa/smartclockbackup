@@ -158,9 +158,42 @@ async function firestoreQuery(collectionPath, fieldPath, op, value) {
     const opts = {
       hostname: 'firestore.googleapis.com',
       port: 443,
-      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${parentPath}:runQuery`,
+      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents${parentPath ? '/' + parentPath : ''}:runQuery`,
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    };
+    const req = https.request(opts, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(raw)); } catch (_) { resolve([]); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// Login-specific query: uses API key directly so Firestore rules can't block it
+function loginQuery(email) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'businesses' }],
+        where: { fieldFilter: {
+          field: { fieldPath: 'email' },
+          op: 'EQUAL',
+          value: { stringValue: email }
+        }}
+      }
+    });
+    const opts = {
+      hostname: 'firestore.googleapis.com',
+      port: 443,
+      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery?key=${FIREBASE_API_KEY}`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
     };
     const req = https.request(opts, res => {
       let raw = '';
@@ -753,11 +786,12 @@ function startSetupServer(onComplete) {
 
     if (req.method === 'POST' && url === '/api/login') {
       try {
-        const results = await firestoreQuery('businesses', 'email', 'EQUAL', parsed.email);
-        const match = results.find?.(r => r.document);
-        if (!match) throw new Error('Account not found');
+        const results = await loginQuery(parsed.email);
+        const match = Array.isArray(results) && results.find(r => r.document);
+        if (!match) throw new Error('Account not found. Please check your email address.');
         const fields = match.document.fields;
-        if (fields.password?.stringValue !== parsed.password) throw new Error('Incorrect password');
+        if (!fields.password?.stringValue) throw new Error('Account has no password set. Contact support.');
+        if (fields.password.stringValue !== parsed.password) throw new Error('Incorrect password.');
         const bizId   = match.document.name.split('/').pop();
         const bizName = fields.businessName?.stringValue || 'Your Business';
         res.writeHead(200);
