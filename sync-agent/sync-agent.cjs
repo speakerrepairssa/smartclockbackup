@@ -695,7 +695,7 @@ async function doLogin() {
 
     if (d.device && d.device.ip && d.device.pass) {
       // Device credentials found — auto-connect without manual scan
-      showStatus('loginStatus', `✅ Logged in as ${d.businessName}. Connecting to device ${d.device.ip}...`, 'success');
+      showStatus('loginStatus', 'Logged in as ' + d.businessName + '. Connecting to device ' + d.device.ip + '...', 'success');
       btn.textContent = 'Connecting...';
       const tr = await fetch('/api/test-device', {
         method: 'POST',
@@ -715,7 +715,7 @@ async function doLogin() {
         showStep('step-done');
       } else {
         // Auto-connect failed — fall through to scan so user can pick device
-        showStatus('loginStatus', `Logged in. Auto-connect failed (${td.error}) — scanning for device...`, 'info');
+        showStatus('loginStatus', 'Logged in. Auto-connect failed (' + td.error + ') - scanning for device...', 'info');
         showStep('step-scan');
         startScan();
       }
@@ -727,7 +727,7 @@ async function doLogin() {
   } catch (e) {
     showStatus('loginStatus', e.message, 'error');
     btn.disabled = false;
-    btn.textContent = 'Sign In & Continue →';
+    btn.textContent = 'Sign In & Continue ->';
   }
 }
 
@@ -751,7 +751,7 @@ async function startScan() {
       item.dataset.port   = d.device.port || 443;
       item.dataset.serial = d.device.serial;
       item.dataset.model  = d.device.model;
-      item.innerHTML = '<div class="device-icon">📷</div><div class="device-info"><strong>' + d.device.model + '</strong><small>' + d.device.ip + ':' + (d.device.port || 443) + (d.device.serial ? ' · ' + d.device.serial : '') + '</small></div>';
+  item.innerHTML = '<div class="device-icon">CAM</div><div class="device-info"><strong>' + d.device.model + '</strong><small>' + d.device.ip + ':' + (d.device.port || 443) + (d.device.serial ? ' - ' + d.device.serial : '') + '</small></div>';
       item.onclick = () => selectDevice(item);
       list.appendChild(item);
     }
