@@ -87,7 +87,15 @@ echo "  Setup wizard opening at http://localhost:7663"
 echo " ====================================================="
 echo ""
 
-sleep 2
+# Wait for the server to be ready (up to 20 seconds)
+echo " [..] Waiting for connector to start..."
+for i in $(seq 1 20); do
+  if curl -s --max-time 1 http://localhost:7663 >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
 open "http://localhost:7663"
 
 echo ""
