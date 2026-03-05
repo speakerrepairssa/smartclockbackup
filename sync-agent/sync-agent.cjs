@@ -231,15 +231,16 @@ function md5(s) { return crypto.createHash('md5').update(s).digest('hex'); }
 
 let _digestChallenge = null;
 
-function requestDeviceChallenge(ip) {
+function requestDeviceChallenge(ip, port) {
+  port = port || 443;
   return new Promise((resolve, reject) => {
     const opts = {
-      hostname: ip, port: 443,
+      hostname: ip, port,
       path: '/ISAPI/AccessControl/AcsEvent?format=json',
       method: 'GET', rejectUnauthorized: false,
       headers: {}, timeout: 3000
     };
-    const req = https.request(opts, res => {
+    const req = (port === 443 ? https : http).request(opts, res => {
       res.resume();
       if (res.statusCode === 401) {
         const w = res.headers['www-authenticate'] || '';
@@ -257,9 +258,10 @@ function requestDeviceChallenge(ip) {
   });
 }
 
-async function deviceRequest(ip, user, pass, body) {
+async function deviceRequest(ip, user, pass, body, port) {
+  port = port || 443;
   if (!_digestChallenge) {
-    _digestChallenge = await requestDeviceChallenge(ip);
+    _digestChallenge = await requestDeviceChallenge(ip, port);
   }
   const { realm, nonce } = _digestChallenge;
   const path = '/ISAPI/AccessControl/AcsEvent?format=json';
@@ -271,12 +273,12 @@ async function deviceRequest(ip, user, pass, body) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body);
     const opts = {
-      hostname: ip, port: 443, path,
+      hostname: ip, port, path,
       method: 'POST', rejectUnauthorized: false,
       headers: { 'Content-Type': 'application/json', 'Authorization': auth, 'Content-Length': Buffer.byteLength(data) },
       timeout: 10000
     };
-    const req = https.request(opts, res => {
+    const req = (port === 443 ? https : http).request(opts, res => {
       let raw = '';
       res.on('data', c => raw += c);
       res.on('end', () => {
@@ -295,7 +297,8 @@ async function deviceRequest(ip, user, pass, body) {
   });
 }
 
-async function fetchAllDeviceEvents(ip, user, pass) {
+async function fetchAllDeviceEvents(ip, user, pass, port) {
+  port = port || 443;
   const all = [];
   let pos = 0, total = null;
   const start = '2020-01-01T00:00:00';
@@ -304,7 +307,7 @@ async function fetchAllDeviceEvents(ip, user, pass) {
   while (true) {
     const d = await deviceRequest(ip, user, pass, {
       AcsEventCond: { searchID: 'connector_sync', searchResultPosition: pos, maxResults: 50, major: 5, minor: 75, startTime: start, endTime: end }
-    });
+    }, port);
     const evts = d?.AcsEvent || {};
     if (total === null) total = evts.totalMatches || 0;
     const batch = evts.InfoList || [];
@@ -330,29 +333,37 @@ function getLocalSubnet() {
 }
 
 function probeHikvision(ip) {
-  return new Promise(resolve => {
-    const opts = {
-      hostname: ip, port: 443,
-      path: '/ISAPI/System/deviceInfo', method: 'GET',
-      rejectUnauthorized: false, timeout: 1500
-    };
-    const req = https.request(opts, res => {
-      let raw = '';
-      res.on('data', c => raw += c);
-      res.on('end', () => {
-        if (raw.includes('DeviceInfo') || raw.includes('serialNumber') || raw.includes('Hikvision')) {
-          const serial = (raw.match(/<serialNumber>([^<]+)</) || [])[1] || '';
-          const model  = (raw.match(/<model>([^<]+)</) || [])[1]  || 'Hikvision Device';
-          resolve({ ip, serial, model });
-        } else {
-          resolve(null);
-        }
+  // Try a port, resolve with device info if Hikvision responds (200 or 401 = device exists)
+  function tryPort(port) {
+    return new Promise(resolve => {
+      const opts = {
+        hostname: ip, port,
+        path: '/ISAPI/System/deviceInfo', method: 'GET',
+        rejectUnauthorized: false, timeout: 2500
+      };
+      const req = (port === 443 ? https : http).request(opts, res => {
+        let raw = '';
+        res.on('data', c => raw += c);
+        res.on('end', () => {
+          // 401 = Hikvision answered (auth required — definitely the ISAPI endpoint)
+          // 200 = answered with XML
+          if (res.statusCode === 401 || res.statusCode === 200) {
+            const serial = (raw.match(/<serialNumber>([^<]+)</) || [])[1] || '';
+            const model  = (raw.match(/<model>([^<]+)</)        || [])[1] || 'Hikvision Device';
+            resolve({ ip, port, serial, model });
+          } else {
+            resolve(null);
+          }
+        });
       });
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => { req.destroy(); resolve(null); });
+      req.end();
     });
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-    req.end();
-  });
+  }
+
+  // Try HTTPS (443) first, fall back to HTTP (80)
+  return tryPort(443).then(r => r || tryPort(80));
 }
 
 async function scanNetwork(onProgress) {
@@ -379,12 +390,13 @@ async function scanNetwork(onProgress) {
 
 // ── Sync Logic ────────────────────────────────────────────────────────────────
 async function runSync(config, onStatus) {
-  const { deviceIP, deviceUser, devicePass, businessId } = config;
+  const { deviceIP, deviceUser, devicePass, devicePort, businessId } = config;
+  const port = devicePort || 443;
   _digestChallenge = null; // reset per sync
 
   try {
     if (onStatus) onStatus('fetching');
-    const events = await fetchAllDeviceEvents(deviceIP, deviceUser, devicePass);
+    const events = await fetchAllDeviceEvents(deviceIP, deviceUser, devicePass, port);
     log(`Sync: fetched ${events.length} events from device`);
 
     // Parse valid events
@@ -662,9 +674,10 @@ async function startScan() {
       const item = document.createElement('div');
       item.className = 'device-item';
       item.dataset.ip     = d.device.ip;
+      item.dataset.port   = d.device.port || 443;
       item.dataset.serial = d.device.serial;
       item.dataset.model  = d.device.model;
-      item.innerHTML = '<div class="device-icon">📷</div><div class="device-info"><strong>' + d.device.model + '</strong><small>' + d.device.ip + (d.device.serial ? ' · ' + d.device.serial : '') + '</small></div>';
+      item.innerHTML = '<div class="device-icon">📷</div><div class="device-info"><strong>' + d.device.model + '</strong><small>' + d.device.ip + ':' + (d.device.port || 443) + (d.device.serial ? ' · ' + d.device.serial : '') + '</small></div>';
       item.onclick = () => selectDevice(item);
       list.appendChild(item);
     }
@@ -686,7 +699,7 @@ async function startScan() {
 function selectDevice(item) {
   document.querySelectorAll('.device-item').forEach(i => i.classList.remove('selected'));
   item.classList.add('selected');
-  selectedDevice = { ip: item.dataset.ip, serial: item.dataset.serial, model: item.dataset.model };
+  selectedDevice = { ip: item.dataset.ip, port: parseInt(item.dataset.port) || 443, serial: item.dataset.serial, model: item.dataset.model };
   document.getElementById('selectDeviceBtn').style.display = 'block';
 }
 
@@ -707,7 +720,7 @@ async function testDevice() {
   btn.disabled = true; btn.textContent = 'Testing connection...';
   showStatus('devPassStatus', 'Testing device connection...', 'info');
   try {
-    const r = await fetch('/api/test-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip: selectedDevice.ip, user: 'admin', pass, serial: selectedDevice.serial, model: selectedDevice.model, businessId: loginData.businessId }) });
+    const r = await fetch('/api/test-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip: selectedDevice.ip, port: selectedDevice.port || 443, user: 'admin', pass, serial: selectedDevice.serial, model: selectedDevice.model, businessId: loginData.businessId }) });
     const d = await r.json();
     if (!d.success) throw new Error(d.error);
     showStep('step-done');
@@ -724,7 +737,7 @@ async function testManual() {
   if (!ip || !pass) { showStatus('manualStatus', 'Please fill in all fields.', 'error'); return; }
   showStatus('manualStatus', 'Testing connection...', 'info');
   try {
-    const r = await fetch('/api/test-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, user, pass, serial: '', model: 'Hikvision Device', businessId: loginData.businessId }) });
+    const r = await fetch('/api/test-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, port: 443, user, pass, serial: '', model: 'Hikvision Device', businessId: loginData.businessId }) });
     const d = await r.json();
     if (!d.success) throw new Error(d.error);
     showStep('step-done');
@@ -806,11 +819,12 @@ function startSetupServer(onComplete) {
     if (req.method === 'POST' && url === '/api/test-device') {
       try {
         _digestChallenge = null;
-        const events = await fetchAllDeviceEvents(parsed.ip, parsed.user, parsed.pass);
+        const events = await fetchAllDeviceEvents(parsed.ip, parsed.user, parsed.pass, parsed.port || 443);
         // Save config
         const cfg = {
           businessId:   parsed.businessId,
           deviceIP:     parsed.ip,
+          devicePort:   parsed.port || 443,
           deviceUser:   parsed.user,
           devicePass:   parsed.pass,
           deviceSerial: parsed.serial || '',
