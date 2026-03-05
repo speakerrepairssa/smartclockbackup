@@ -225,16 +225,27 @@ Access: `https://192.168.0.114` → Configuration → Network → Advanced → I
 
 Set HTTP slot 1 to:
 ```
-URL: http://69.62.109.168:7662/admin-webhook
+Event Alarm IP/Domain Name: relay.smartclock.co.za
+URL:                        /admin-webhook
+Port:                       7662
+Protocol:                   HTTP
 ```
 
-> ⚠️ Use HTTP (not HTTPS) for the VPS URL — the device sends to the VPS, the VPS uses HTTPS to Firebase.
+> ⚠️ Use HTTP (not HTTPS) — the device sends plain HTTP to the relay, the relay uses HTTPS to Firebase.
+> ⚠️ Do NOT use the raw VPS IP (`69.62.109.168`) — always use the domain so if the VPS IP ever changes you only update DNS in one place.
 
 ### Test the device connection
 ```bash
-curl -s http://69.62.109.168:7662/health
+curl -s http://relay.smartclock.co.za:7662/health
 # Should return: {"status":"ok"}
 ```
+
+### DNS record required (WHM / Cloudflare / any DNS provider)
+| Name | Type | Value | Proxy |
+|---|---|---|---|
+| `relay` | `A` | `69.62.109.168` | ❌ DNS only (no proxy) |
+
+This creates `relay.smartclock.co.za` → VPS. If VPS IP ever changes, update this one record and all client devices follow automatically.
 
 ### Test a live scan reaches Firebase
 Make someone scan. Then check Firestore:
