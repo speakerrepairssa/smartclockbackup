@@ -3628,7 +3628,35 @@
       <div class="view-section" id="syncView">
         <h2 class="section-title">Device Event Sync</h2>
         <p class="section-description">Monitor device event mirroring and automatic synchronization</p>
-        
+
+        <!-- ── Connector Status Panel ───────────────────────────────────── -->
+        <div id="connectorPanel" style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <span id="connectorDot" style="width:12px;height:12px;border-radius:50%;background:#d1d5db;display:inline-block;flex-shrink:0;"></span>
+              <div>
+                <div style="font-weight:700;font-size:1rem;color:#1f2937;" id="connectorStatusLabel">Checking connector...</div>
+                <div style="font-size:0.8rem;color:#6b7280;margin-top:2px;" id="connectorStatusDetail">—</div>
+              </div>
+            </div>
+            <button id="syncNowBtn" onclick="triggerConnectorSync()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:8px;padding:0.65rem 1.4rem;font-weight:600;cursor:pointer;font-size:0.9rem;" disabled>
+              🔄 Sync Now
+            </button>
+          </div>
+          <div id="syncResultBanner" style="display:none;margin-top:1rem;padding:0.75rem 1rem;border-radius:8px;font-size:0.9rem;"></div>
+          <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid #f3f4f6;display:flex;gap:1.5rem;flex-wrap:wrap;">
+            <div><div style="font-size:0.75rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Last Sync</div><div style="font-weight:600;color:#374151;font-size:0.9rem;" id="connectorLastSync">—</div></div>
+            <div><div style="font-size:0.75rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Device</div><div style="font-weight:600;color:#374151;font-size:0.9rem;" id="connectorDevice">—</div></div>
+            <div><div style="font-size:0.75rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">Host Machine</div><div style="font-weight:600;color:#374151;font-size:0.9rem;" id="connectorHost">—</div></div>
+            <div><div style="font-size:0.75rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">New Events (last sync)</div><div style="font-weight:600;color:#374151;font-size:0.9rem;" id="connectorNewEvents">—</div></div>
+          </div>
+          <div id="connectorNotInstalled" style="display:none;margin-top:1.25rem;padding:1rem;background:#fffbeb;border-radius:8px;border:1px solid #fcd34d;">
+            <strong style="color:#92400e;">⚠️ Connector not installed</strong>
+            <p style="color:#92400e;font-size:0.85rem;margin-top:0.4rem;">The SmartClock Connector is not running on your local network. Without it, events missed during internet outages will not be recovered automatically.</p>
+            <button onclick="switchModule('downloads')" style="margin-top:0.75rem;background:#f59e0b;color:white;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-weight:600;font-size:0.85rem;">📥 Download Connector</button>
+          </div>
+        </div>
+
         <div class="sync-container">
           <!-- Sync Status Cards -->
           <div class="sync-status-grid">
@@ -5791,6 +5819,101 @@
     // Holds the live onSnapshot unsubscribe for the monitor panel
     let monitorLiveUnsubscribe = null;
 
+    // ── Connector Status (live listener) ─────────────────────────────────────
+    let connectorStatusUnsubscribe = null;
+
+    function initConnectorStatus() {
+      if (connectorStatusUnsubscribe) connectorStatusUnsubscribe();
+      const statusRef = doc(db, `businesses/${businessId}/connector_status/current`);
+
+      connectorStatusUnsubscribe = onSnapshot(statusRef, (snap) => {
+        const dot    = document.getElementById('connectorDot');
+        const label  = document.getElementById('connectorStatusLabel');
+        const detail = document.getElementById('connectorStatusDetail');
+        const lastSync = document.getElementById('connectorLastSync');
+        const deviceEl = document.getElementById('connectorDevice');
+        const hostEl   = document.getElementById('connectorHost');
+        const newEvEl  = document.getElementById('connectorNewEvents');
+        const notInst  = document.getElementById('connectorNotInstalled');
+        const syncBtn  = document.getElementById('syncNowBtn');
+
+        if (!snap.exists()) {
+          dot.style.background = '#d1d5db';
+          label.textContent = 'Connector not installed';
+          detail.textContent = 'Download and install the SmartClock Connector on your local network machine';
+          notInst.style.display = 'block';
+          syncBtn.disabled = true;
+          return;
+        }
+
+        const d = snap.data();
+        notInst.style.display = 'none';
+        const lastSeenMs = d.lastSeen ? Date.now() - new Date(d.lastSeen).getTime() : Infinity;
+        const isOnline   = lastSeenMs < 5 * 60 * 1000; // within 5 minutes
+
+        dot.style.background   = isOnline ? '#22c55e' : '#ef4444';
+        label.textContent      = isOnline ? '🟢 Connector Online' : '🔴 Connector Offline';
+        detail.textContent     = isOnline
+          ? `Last seen ${Math.round(lastSeenMs / 1000)}s ago · syncing every 5 minutes`
+          : `Last seen ${d.lastSeen ? new Date(d.lastSeen).toLocaleString() : 'never'}`;
+
+        lastSync.textContent   = d.lastSyncAt   ? new Date(d.lastSyncAt).toLocaleString() : '—';
+        deviceEl.textContent   = d.deviceIP     ? `${d.deviceIP}${d.deviceSerial ? ' · ' + d.deviceSerial : ''}` : '—';
+        hostEl.textContent     = d.hostname     || '—';
+        newEvEl.textContent    = d.lastSyncNewEvents != null ? d.lastSyncNewEvents + ' events' : '—';
+        syncBtn.disabled       = !isOnline;
+      });
+
+      // Also watch sync request doc for result feedback
+      const reqRef = doc(db, `businesses/${businessId}/connector_sync_request/current`);
+      onSnapshot(reqRef, (snap) => {
+        const banner = document.getElementById('syncResultBanner');
+        if (!snap.exists()) return;
+        const d = snap.data();
+        if (d.status === 'running') {
+          banner.style.display = 'block';
+          banner.style.background = '#eff6ff';
+          banner.style.color = '#1d4ed8';
+          banner.textContent = '🔄 Sync in progress...';
+        } else if (d.status === 'done') {
+          banner.style.display = 'block';
+          banner.style.background = '#f0fdf4';
+          banner.style.color = '#15803d';
+          banner.textContent = `✅ Sync complete — ${d.newEvents || 0} new event${d.newEvents !== 1 ? 's' : ''} imported (${d.completedAt ? new Date(d.completedAt).toLocaleTimeString() : ''})`;
+        } else if (d.status === 'error') {
+          banner.style.display = 'block';
+          banner.style.background = '#fef2f2';
+          banner.style.color = '#dc2626';
+          banner.textContent = `❌ Sync failed: ${d.error || 'unknown error'}`;
+        }
+      });
+    }
+
+    async function triggerConnectorSync() {
+      const btn = document.getElementById('syncNowBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Syncing...';
+      const banner = document.getElementById('syncResultBanner');
+      banner.style.display = 'block';
+      banner.style.background = '#eff6ff';
+      banner.style.color = '#1d4ed8';
+      banner.textContent = '🔄 Sending sync request to connector...';
+      try {
+        const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await setDoc(doc(db, `businesses/${businessId}/connector_sync_request/current`), {
+          status: 'requested',
+          requestedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        banner.style.background = '#fef2f2';
+        banner.style.color = '#dc2626';
+        banner.textContent = '❌ Failed to send request: ' + err.message;
+        btn.disabled = false;
+        btn.textContent = '🔄 Sync Now';
+      }
+      setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 Sync Now'; }, 30000);
+    }
+
     function renderMonitorSnapshot(snapshot) {
       let inEmployees = [];
       let outEmployees = [];
@@ -5928,6 +6051,7 @@
         
         if (module === 'sync') {
           console.log('Loading sync module...');
+          initConnectorStatus();
           await initDeviceSync();
           return;
         }

@@ -303,6 +303,18 @@ class AdminDashboardController {
         });
       });
 
+      // Batch-fetch connector_status for all businesses in parallel
+      this.connectorStatuses = {};
+      const connectorFetches = this.businesses.map(async (biz) => {
+        try {
+          const statusDoc = await getDoc(doc(db, "businesses", biz.id, "connector_status", "current"));
+          if (statusDoc.exists()) {
+            this.connectorStatuses[biz.id] = statusDoc.data();
+          }
+        } catch (_) { /* ignore per-business errors */ }
+      });
+      await Promise.all(connectorFetches);
+
       this.displayBusinesses();
       
       // Load businesses into permissions selector
@@ -327,7 +339,7 @@ class AdminDashboardController {
     if (this.businesses.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" style="text-align: center; padding: 2rem;">
+          <td colspan="8" style="text-align: center; padding: 2rem;">
             No businesses registered yet
           </td>
         </tr>
@@ -335,7 +347,21 @@ class AdminDashboardController {
       return;
     }
 
-    tbody.innerHTML = this.businesses.map(business => `
+    tbody.innerHTML = this.businesses.map(business => {
+      const cs = this.connectorStatuses?.[business.id];
+      let dotColor = '#d1d5db'; // grey = not installed
+      let dotTitle = 'Connector not installed';
+      if (cs && cs.lastSeen) {
+        const ageMs = Date.now() - new Date(cs.lastSeen).getTime();
+        if (ageMs < 5 * 60 * 1000) {
+          dotColor = '#22c55e'; // green = online
+          dotTitle = `Online · last seen ${Math.round(ageMs / 1000)}s ago · ${cs.hostname || ''}`;
+        } else {
+          dotColor = '#ef4444'; // red = offline
+          dotTitle = `Offline · last seen ${new Date(cs.lastSeen).toLocaleString()}`;
+        }
+      }
+      return `
       <tr>
         <td style="font-family: monospace; color: #3b82f6; font-weight: 600;">${business.id}</td>
         <td>${business.businessName}</td>
@@ -346,6 +372,9 @@ class AdminDashboardController {
           <span class="status-badge ${business.status}">
             ${business.status}
           </span>
+        </td>
+        <td style="text-align: center;">
+          <span title="${dotTitle}" style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${dotColor};cursor:help;vertical-align:middle;"></span>
         </td>
         <td>
           <button class="btn btn-small" onclick="adminDashboard.viewBusiness('${business.id}')">
@@ -361,8 +390,8 @@ class AdminDashboardController {
             Delete
           </button>
         </td>
-      </tr>
-    `).join("");
+      </tr>`;
+    }).join("");
   }
 
   /**

@@ -1,0 +1,14 @@
+{
+  "name": "smartclock-connector",
+  "version": "1.0.0",
+  "description": "SmartClock local device connector — syncs Hikvision attendance events to Firestore",
+  "main": "sync-agent.cjs",
+  "scripts": {
+    "start":   "node sync-agent.cjs",
+    "install-service":   "node install-service.cjs",
+    "uninstall-service": "node uninstall-service.cjs"
+  },
+  "dependencies": {
+    "node-windows": "^1.0.0-beta.8"
+  }
+}
