@@ -260,8 +260,18 @@
 </div>
 
 <script type="module">
-  import { db } from '../config/firebase.js';
-  import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const cfg = {
+    apiKey:"AIzaSyAmKmv9cmWEhTGpuxWxVu3vOKvpJLVUXx0",
+    authDomain:"aiclock-82608.firebaseapp.com",
+    projectId:"aiclock-82608",
+    storageBucket:"aiclock-82608.firebasestorage.app",
+    messagingSenderId:"434208200088",
+    appId:"1:434208200088:web:1ef0ac8a89a3e2cdd94a50"
+  };
+  const db = getFirestore(initializeApp(cfg));
 
   const ini = n => (n||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   const fmt = ts => { if(!ts) return "--:--"; const d=new Date(ts); return isNaN(d)?"--:--":d.toLocaleTimeString("en-ZA",{hour:"2-digit",minute:"2-digit",hour12:false}); };
