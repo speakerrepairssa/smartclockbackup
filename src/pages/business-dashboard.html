@@ -5631,7 +5631,8 @@
     let pollingInterval = null;
     let statusUnsubscribe = null;
     let eventListenersSetup = false; // Prevent duplicate event listener setup
-    window._staffPhotoMap = new Map(); // slot (string) → facePhotoUrl
+    window._staffPhotoMap = new Map();        // slot (string) → facePhotoUrl
+    window._lastMonitorSnapshot = null;        // last status snapshot for re-render on photo arrival
 
     // Placeholder functions for global access
     window.loadModuleData = async function(module) {
@@ -6202,13 +6203,19 @@
         console.log("👥 Employee data change detected - refreshing Realtime Database cache");
 
         // Update staff photo map for Monitor Mode avatars
+        let photoMapChanged = false;
         snapshot.forEach(doc => {
           const d = doc.data();
           const slot = String(d.slot || d.slotNumber || doc.id);
-          if (d.facePhotoUrl) {
+          if (d.facePhotoUrl && window._staffPhotoMap.get(slot) !== d.facePhotoUrl) {
             window._staffPhotoMap.set(slot, d.facePhotoUrl);
+            photoMapChanged = true;
           }
         });
+        // If new photos arrived and monitor is visible, re-render immediately
+        if (photoMapChanged && window._lastMonitorSnapshot) {
+          try { renderMonitorSnapshot(window._lastMonitorSnapshot); } catch(e) {}
+        }
         
         // Trigger background cache refresh when employee data changes
         setTimeout(async () => {
@@ -7183,6 +7190,7 @@
 
       monitorLiveUnsubscribe = onSnapshot(statusRef, (snapshot) => {
         console.log("🔴 Live monitor update received -", snapshot.size, "docs");
+        window._lastMonitorSnapshot = snapshot;
         try {
           renderMonitorSnapshot(snapshot);
         } catch (renderErr) {
