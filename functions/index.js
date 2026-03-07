@@ -964,11 +964,13 @@ async function processAttendanceEvent(businessId, eventData) {
 
     await staffSlotRef.set(updatedSlotData, { merge: true });
 
-    // AUTO-SAVE FACE PHOTO — always update on clock-in, same as name
-    if (faceImageBuffer && faceImageBuffer.length > 500) {
-      // Run non-blocking so it never delays attendance recording
-      (async () => {
-        try {
+    // AUTO-SAVE FACE PHOTO — two-pass approach:
+    // Pass 1: save the capture photo from the webhook immediately (fast, available right away)
+    // Pass 2: fetch the enrolled REFERENCE photo from the device and overwrite (consistent quality)
+    (async () => {
+      try {
+        // Pass 1 — save capture photo from webhook for immediate display
+        if (faceImageBuffer && faceImageBuffer.length > 500) {
           const ext      = (faceImageMimeType || 'image/jpeg').includes('png') ? 'png' : 'jpg';
           const bucket   = getStorage().bucket(STORAGE_BUCKET);
           const filePath = `businesses/${businessId}/employee-faces/${slotNumber}.${ext}`;
@@ -979,16 +981,19 @@ async function processAttendanceEvent(businessId, eventData) {
           });
           await file.makePublic();
           const photoUrl = `https://storage.googleapis.com/${STORAGE_BUCKET}/${filePath}`;
-          await staffSlotRef.update({
-            facePhotoUrl: photoUrl,
-            facePhotoSyncedAt: FieldValue.serverTimestamp()
-          });
-          console.log('Face photo saved from webhook image', businessId, slotNumber, photoUrl, faceImageBuffer.length);
-        } catch (e) {
-          console.warn('Face photo save failed (non-critical):', e.message);
+          await staffSlotRef.update({ facePhotoUrl: photoUrl, facePhotoSyncedAt: FieldValue.serverTimestamp() });
+          logger.info('📸 Capture photo saved (pass 1)', { businessId, slotNumber, size: faceImageBuffer.length });
         }
-      })();
-    }
+
+        // Pass 2 — fetch enrolled reference photo from device and overwrite (always consistent)
+        // fetchAndSaveFacePhoto handles its own error logging; failure never disrupts attendance
+        await fetchAndSaveFacePhoto(businessId, String(slotNumber), slotNumber, employeeName);
+        logger.info('📸 Reference photo sync attempted (pass 2)', { businessId, slotNumber });
+
+      } catch (e) {
+        logger.warn('Face photo pipeline failed (non-critical):', e.message);
+      }
+    })();
 
     // UPDATE STATUS COLLECTION FOR REAL-TIME MONITORING (with lastClockStatus tracking)
     const statusUpdateRef = db.collection('businesses')
