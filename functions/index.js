@@ -3,6 +3,9 @@ const { onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/
 const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+// Derive storage bucket from the project this function is deployed to,
+// so the same code works on smartclock-v2-8271f (test) AND aiclock-82608 (prod)
+const STORAGE_BUCKET = `${process.env.GCLOUD_PROJECT || 'aiclock-82608'}.firebasestorage.app`;
 const busboy = require('busboy');
 
 // Initialize Firebase Admin
@@ -109,12 +112,19 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
     let eventData = {};
 
     // Handle multipart/form-data from VPS relay
+    let webhookImageBuffer = null;
+    let webhookImageMimeType = null;
     if (req.get('content-type')?.includes('multipart/form-data')) {
       logger.info("🔄 Parsing multipart data...");
-      eventData = await parseMultipartData(req);
+      const parsed = await parseMultipartData(req);
+      eventData = parsed.fields;
+      webhookImageBuffer = parsed.imageBuffer;
+      webhookImageMimeType = parsed.imageMimeType;
       logger.info("📦 Multipart data parsed:", { 
         fieldCount: Object.keys(eventData).length,
-        fields: Object.keys(eventData)
+        fields: Object.keys(eventData),
+        hasImage: !!webhookImageBuffer,
+        imageSize: webhookImageBuffer ? webhookImageBuffer.length : 0
       });
     }
     // Handle JSON from direct HTTP calls
@@ -364,7 +374,9 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
         attendanceStatus: attendanceStatus || 'in',
         timestamp: timestamp || new Date().toISOString(),
         verifyNo,
-        serialNo
+        serialNo,
+        faceImageBuffer: webhookImageBuffer,
+        faceImageMimeType: webhookImageMimeType
       })
     );
 
@@ -439,18 +451,34 @@ function parseMultipartData(req) {
           hasData = true;
         });
 
+        let imageBuffer = null;
+        let imageMimeType = null;
+
         bb.on('file', (fieldname, file, info) => {
           logger.info(`📎 File field: ${fieldname}`, info);
-          file.resume(); // Drain the stream
+          // Capture image instead of draining — this is the face snapshot from the device
+          const chunks = [];
+          file.on('data', chunk => chunks.push(chunk));
+          file.on('end', () => {
+            const buf = Buffer.concat(chunks);
+            logger.info(`📸 Captured file field "${fieldname}": ${buf.length} bytes, mime: ${info.mimeType}`);
+            // Keep the largest image (some devices send multiple parts)
+            if (!imageBuffer || buf.length > imageBuffer.length) {
+              imageBuffer = buf;
+              imageMimeType = info.mimeType || 'image/jpeg';
+            }
+          });
           hasData = true;
         });
 
         bb.on('finish', () => {
           logger.info("✅ Multipart parsing completed", { 
             fieldCount: Object.keys(fields).length,
-            fields: Object.keys(fields)
+            fields: Object.keys(fields),
+            hasImage: !!imageBuffer,
+            imageSize: imageBuffer ? imageBuffer.length : 0
           });
-          resolve(fields);
+          resolve({ fields, imageBuffer, imageMimeType });
         });
 
         bb.on('error', (err) => {
@@ -502,14 +530,26 @@ function parseMultipartData(req) {
             fields[fieldname] = value;
           });
 
+          let imageBuffer = null;
+          let imageMimeType = null;
+
           bb.on('file', (fieldname, file, info) => {
             logger.info(`📎 File field: ${fieldname}`, info);
-            file.resume();
+            const chunks = [];
+            file.on('data', chunk => chunks.push(chunk));
+            file.on('end', () => {
+              const buf = Buffer.concat(chunks);
+              logger.info(`📸 Captured file field "${fieldname}": ${buf.length} bytes`);
+              if (!imageBuffer || buf.length > imageBuffer.length) {
+                imageBuffer = buf;
+                imageMimeType = info.mimeType || 'image/jpeg';
+              }
+            });
           });
 
           bb.on('finish', () => {
-            logger.info("✅ Manual parsing completed", { fieldCount: Object.keys(fields).length });
-            resolve(fields);
+            logger.info("✅ Manual parsing completed", { fieldCount: Object.keys(fields).length, hasImage: !!imageBuffer });
+            resolve({ fields, imageBuffer, imageMimeType });
           });
 
           bb.on('error', (err) => {
@@ -662,12 +702,12 @@ async function fetchAndSaveFacePhoto(businessId, slotId, employeeNo, employeeNam
     }
 
     // Upload to Firebase Storage
-    const bucket   = getStorage().bucket();
+    const bucket   = getStorage().bucket(STORAGE_BUCKET);
     const filePath = `businesses/${businessId}/employee-faces/${slotId}.jpg`;
     const file     = bucket.file(filePath);
     await file.save(imageBuffer, { metadata: { contentType: 'image/jpeg' }, resumable: false });
     await file.makePublic();
-    const photoUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    const photoUrl = `https://storage.googleapis.com/${STORAGE_BUCKET}/${filePath}`;
 
     // Save URL to Firestore staff doc
     await db.collection('businesses').doc(businessId)
@@ -688,7 +728,8 @@ async function fetchAndSaveFacePhoto(businessId, slotId, employeeNo, employeeNam
  */
 async function processAttendanceEvent(businessId, eventData) {
   try {
-    const { employeeId, employeeName, attendanceStatus, timestamp, deviceId, verifyNo, serialNo } = eventData;
+    const { employeeId, employeeName, attendanceStatus, timestamp, deviceId, verifyNo, serialNo,
+            faceImageBuffer, faceImageMimeType } = eventData;
     
     // Get business plan limits early for validation
     const businessRef = db.collection('businesses').doc(businessId);
@@ -922,11 +963,30 @@ async function processAttendanceEvent(businessId, eventData) {
 
     await staffSlotRef.set(updatedSlotData, { merge: true });
 
-    // � AUTO-SYNC FACE PHOTO: fetch from device on first clock-in (or if photo missing)
-    // Runs non-blocking so it never delays attendance recording
-    if (!existingSlotData.facePhotoUrl) {
-      fetchAndSaveFacePhoto(businessId, slotNumber.toString(), slotNumber, employeeName)
-        .catch(e => logger.warn('Face photo background sync error:', e.message));
+    // AUTO-SAVE FACE PHOTO from webhook multipart image (no device call needed)
+    if (faceImageBuffer && faceImageBuffer.length > 500 && !existingSlotData.facePhotoUrl) {
+      // Run non-blocking so it never delays attendance recording
+      (async () => {
+        try {
+          const ext      = (faceImageMimeType || 'image/jpeg').includes('png') ? 'png' : 'jpg';
+          const bucket   = getStorage().bucket(STORAGE_BUCKET);
+          const filePath = `businesses/${businessId}/employee-faces/${slotNumber}.${ext}`;
+          const file     = bucket.file(filePath);
+          await file.save(faceImageBuffer, {
+            metadata: { contentType: faceImageMimeType || 'image/jpeg' },
+            resumable: false
+          });
+          await file.makePublic();
+          const photoUrl = `https://storage.googleapis.com/${STORAGE_BUCKET}/${filePath}`;
+          await staffSlotRef.update({
+            facePhotoUrl: photoUrl,
+            facePhotoSyncedAt: FieldValue.serverTimestamp()
+          });
+          console.log('Face photo saved from webhook image', businessId, slotNumber, photoUrl, faceImageBuffer.length);
+        } catch (e) {
+          console.warn('Face photo save failed (non-critical):', e.message);
+        }
+      })();
     }
 
     // UPDATE STATUS COLLECTION FOR REAL-TIME MONITORING (with lastClockStatus tracking)
@@ -7018,7 +7078,7 @@ exports.syncEmployeeFacePhoto = onRequest(async (req, res) => {
     }
 
     // ── Upload to Firebase Storage ───────────────────────────
-    const bucket   = getStorage().bucket();
+    const bucket   = getStorage().bucket(STORAGE_BUCKET);
     const filePath = `businesses/${businessId}/employee-faces/${employeeSlot}.jpg`;
     const file     = bucket.file(filePath);
 
@@ -7028,7 +7088,7 @@ exports.syncEmployeeFacePhoto = onRequest(async (req, res) => {
     });
     await file.makePublic();
 
-    const photoUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    const photoUrl = `https://storage.googleapis.com/${STORAGE_BUCKET}/${filePath}`;
 
     // ── Persist URL to Firestore staff doc ───────────────────
     await db.collection('businesses').doc(businessId)
@@ -7065,11 +7125,10 @@ exports.uploadEmployeePhoto = onRequest(async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing businessId, employeeSlot, or imageBase64' });
     }
 
-    const { getStorage } = require('firebase-admin/storage');
 
     const imageBuffer = Buffer.from(imageBase64, 'base64');
     const ext         = (mimeType || 'image/jpeg').includes('png') ? 'png' : 'jpg';
-    const bucket      = getStorage().bucket();
+    const bucket      = getStorage().bucket(STORAGE_BUCKET);
     const filePath    = `businesses/${businessId}/employee-faces/${employeeSlot}.${ext}`;
     const file        = bucket.file(filePath);
 
@@ -7079,7 +7138,7 @@ exports.uploadEmployeePhoto = onRequest(async (req, res) => {
     });
     await file.makePublic();
 
-    const photoUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    const photoUrl = `https://storage.googleapis.com/${STORAGE_BUCKET}/${filePath}`;
 
     await db.collection('businesses').doc(businessId)
       .collection('staff').doc(employeeSlot)
