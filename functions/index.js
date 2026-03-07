@@ -582,7 +582,108 @@ async function findBusinessByDeviceId(deviceId) {
 }
 
 /**
- * 📝 PROCESS ATTENDANCE EVENT
+ * � FETCH FACE PHOTO FROM HIKVISION DEVICE AND SAVE TO STORAGE
+ * Called automatically on first clock-in if no photo exists yet.
+ * Runs non-blocking — failures are logged but never interrupt attendance processing.
+ */
+async function fetchAndSaveFacePhoto(businessId, slotId, employeeNo, employeeName) {
+  try {
+    const axios = require('axios');
+    const https = require('https');
+    const { getStorage } = require('firebase-admin/storage');
+
+    // Load device credentials
+    const bizDoc = await db.collection('businesses').doc(businessId).get();
+    if (!bizDoc.exists) return;
+    const biz = bizDoc.data();
+    const deviceIp       = biz.deviceIp;
+    const deviceUsername = biz.deviceUsername || 'admin';
+    const devicePassword = biz.devicePassword || '';
+    if (!deviceIp) return;
+
+    const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    const auth        = Buffer.from(`${deviceUsername}:${devicePassword}`).toString('base64');
+    const baseHeaders = { 'Authorization': `Basic ${auth}` };
+
+    // JPEG scanner — works on multipart or raw response buffers
+    const findJpeg = (buffer) => {
+      for (let i = 0; i < buffer.length - 3; i++) {
+        if (buffer[i] === 0xFF && buffer[i+1] === 0xD8 && buffer[i+2] === 0xFF) {
+          for (let j = i + 2; j < buffer.length - 1; j++) {
+            if (buffer[j] === 0xFF && buffer[j+1] === 0xD9) return buffer.slice(i, j + 2);
+          }
+          return buffer.slice(i);
+        }
+      }
+      return null;
+    };
+
+    let imageBuffer = null;
+    const empNo = String(employeeNo);
+
+    // Attempt 1 — FDSearch (most reliable, face enrolled with employeeNoString)
+    try {
+      const r = await axios({
+        method: 'POST',
+        url: `http://${deviceIp}/ISAPI/Intelligent/FDLib/FDSearch?format=json`,
+        headers: { ...baseHeaders, 'Content-Type': 'application/json', 'Accept': '*/*' },
+        data: JSON.stringify({
+          FDSearchDescription: {
+            searchID: '1', maxResults: 1, searchResultPosition: 0,
+            EmployeeNoList: [{ employeeNo: empNo }]
+          }
+        }),
+        responseType: 'arraybuffer',
+        timeout: 12000,
+        httpsAgent
+      });
+      imageBuffer = findJpeg(Buffer.from(r.data));
+    } catch (e) { logger.info('FDSearch face photo attempt failed for slot', slotId, e.message); }
+
+    // Attempt 2 — Direct picture URL variants
+    if (!imageBuffer || imageBuffer.length < 500) {
+      const urls = [
+        `http://${deviceIp}/ISAPI/Intelligent/FDLib/FaceDataRecord/${empNo}`,
+        `http://${deviceIp}/ISAPI/Intelligent/personInfoPic/${empNo}`,
+        `http://${deviceIp}/doc/page/face/${empNo}.jpg`
+      ];
+      for (const url of urls) {
+        try {
+          const r = await axios({ method: 'GET', url, headers: { ...baseHeaders }, responseType: 'arraybuffer', timeout: 8000, httpsAgent });
+          const j = findJpeg(Buffer.from(r.data));
+          if (j && j.length > 500) { imageBuffer = j; break; }
+        } catch (e) { /* try next */ }
+      }
+    }
+
+    if (!imageBuffer || imageBuffer.length < 500) {
+      logger.info('📸 No face photo found on device for slot', slotId, '(employee may not have face enrolled)');
+      return;
+    }
+
+    // Upload to Firebase Storage
+    const bucket   = getStorage().bucket();
+    const filePath = `businesses/${businessId}/employee-faces/${slotId}.jpg`;
+    const file     = bucket.file(filePath);
+    await file.save(imageBuffer, { metadata: { contentType: 'image/jpeg' }, resumable: false });
+    await file.makePublic();
+    const photoUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+    // Save URL to Firestore staff doc
+    await db.collection('businesses').doc(businessId)
+      .collection('staff').doc(slotId)
+      .update({ facePhotoUrl: photoUrl, facePhotoSyncedAt: FieldValue.serverTimestamp() });
+
+    logger.info('✅ Face photo auto-synced on clock-in', { businessId, slotId, employeeNo, photoUrl });
+
+  } catch (err) {
+    // Never let a photo failure affect attendance recording
+    logger.warn('📸 Face photo auto-sync failed (non-critical):', { businessId, slotId, error: err.message });
+  }
+}
+
+/**
+ * �📝 PROCESS ATTENDANCE EVENT
  * Updates the correct business's attendance data with badge number mapping
  */
 async function processAttendanceEvent(businessId, eventData) {
@@ -821,7 +922,14 @@ async function processAttendanceEvent(businessId, eventData) {
 
     await staffSlotRef.set(updatedSlotData, { merge: true });
 
-    // 📊 UPDATE STATUS COLLECTION FOR REAL-TIME MONITORING (with lastClockStatus tracking)
+    // � AUTO-SYNC FACE PHOTO: fetch from device on first clock-in (or if photo missing)
+    // Runs non-blocking so it never delays attendance recording
+    if (!existingSlotData.facePhotoUrl) {
+      fetchAndSaveFacePhoto(businessId, slotNumber.toString(), slotNumber, employeeName)
+        .catch(e => logger.warn('Face photo background sync error:', e.message));
+    }
+
+    // UPDATE STATUS COLLECTION FOR REAL-TIME MONITORING (with lastClockStatus tracking)
     const statusUpdateRef = db.collection('businesses')
       .doc(businessId)
       .collection('status')
