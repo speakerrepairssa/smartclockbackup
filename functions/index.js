@@ -7119,12 +7119,36 @@ exports.uploadEmployeePhoto = onRequest(async (req, res) => {
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
   try {
-    const { businessId, employeeSlot, imageBase64, mimeType } = req.body;
+    let { businessId, employeeSlot, imageBase64, mimeType, deviceId, verifyNo, source } = req.body;
 
-    if (!businessId || !employeeSlot || !imageBase64) {
-      return res.status(400).json({ success: false, error: 'Missing businessId, employeeSlot, or imageBase64' });
+    // employeeSlot may come as verifyNo from the VPS relay
+    if (!employeeSlot && verifyNo) employeeSlot = String(verifyNo);
+
+    if (!imageBase64) {
+      return res.status(400).json({ success: false, error: 'Missing imageBase64' });
+    }
+    if (!employeeSlot) {
+      return res.status(400).json({ success: false, error: 'Missing employeeSlot or verifyNo' });
     }
 
+    // If no businessId, look it up by deviceId
+    if (!businessId && deviceId) {
+      const ids = await findBusinessByDeviceId(deviceId.toUpperCase());
+      if (ids && ids.length > 0) businessId = ids[0];
+    }
+    if (!businessId) {
+      return res.status(400).json({ success: false, error: 'Missing businessId and could not resolve from deviceId' });
+    }
+
+    // Check if employee already has a photo (don't overwrite unless it's a fresh upload)
+    if (source === 'webhook-fanout') {
+      const staffDoc = await db.collection('businesses').doc(businessId)
+        .collection('staff').doc(String(employeeSlot)).get();
+      if (staffDoc.exists && staffDoc.data().facePhotoUrl) {
+        logger.info('📸 Employee already has photo, skipping auto-upload', { businessId, employeeSlot });
+        return res.json({ success: true, skipped: true, reason: 'already has photo' });
+      }
+    }
 
     const imageBuffer = Buffer.from(imageBase64, 'base64');
     const ext         = (mimeType || 'image/jpeg').includes('png') ? 'png' : 'jpg';
@@ -7141,10 +7165,10 @@ exports.uploadEmployeePhoto = onRequest(async (req, res) => {
     const photoUrl = `https://storage.googleapis.com/${STORAGE_BUCKET}/${filePath}`;
 
     await db.collection('businesses').doc(businessId)
-      .collection('staff').doc(employeeSlot)
+      .collection('staff').doc(String(employeeSlot))
       .update({ facePhotoUrl: photoUrl, facePhotoUpdatedAt: FieldValue.serverTimestamp() });
 
-    logger.info('✅ Employee photo uploaded', { businessId, employeeSlot, photoUrl });
+    logger.info('✅ Employee photo uploaded', { businessId, employeeSlot, photoUrl, source });
     return res.json({ success: true, photoUrl });
 
   } catch (err) {
