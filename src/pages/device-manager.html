@@ -115,6 +115,55 @@
       box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
     }
 
+    .device-photo-wrap {
+      width: 110px;
+      height: 110px;
+      flex-shrink: 0;
+      margin-right: 1.25rem;
+      background: #f4f6ff;
+      border: 1px solid #dde3ff;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .device-photo-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 6px;
+    }
+
+    .device-photo-wrap .device-icon-fallback {
+      font-size: 3rem;
+      line-height: 1;
+    }
+
+    .model-preview-wrap {
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+      padding: 0.6rem 0.9rem;
+      background: #f4f6ff;
+      border: 1px solid #dde3ff;
+      border-radius: 8px;
+    }
+
+    .model-preview-wrap img {
+      width: 70px;
+      height: 70px;
+      object-fit: contain;
+    }
+
+    .model-preview-wrap span {
+      font-size: 0.85rem;
+      color: #555;
+      font-weight: 600;
+    }
+
     .device-info {
       flex: 1;
     }
@@ -425,6 +474,11 @@
               <option value="DS-K3G401SF">DS-K3G401SF (Swing Gate)</option>
               <option value="other">Other Hikvision Device</option>
             </select>
+            <div class="model-preview-wrap" id="modelPreview">
+              <img id="modelPreviewImg" src="" alt="Device" onerror="this.style.display='none';document.getElementById('modelPreviewIcon').style.display='block'">
+              <span id="modelPreviewIcon" style="display:none;font-size:2.5rem;">🖥️</span>
+              <span id="modelPreviewLabel"></span>
+            </div>
           </div>
 
           <div class="form-group">
@@ -643,10 +697,18 @@ Complete Configuration Copy-Paste:
           const webhookUrl = `http://69.62.109.168:7660${device.webhookPath || ''}`;
           const deviceUrl = `http://${device.deviceIP || 'N/A'}`;
           
+          const imgSrc = device.photoUrl || DEVICE_IMAGES[device.deviceModel] || '';
           html += `
             <div class="device-card">
+              <div class="device-photo-wrap">
+                ${imgSrc
+                  ? `<img src="${imgSrc}" alt="${device.deviceModel || 'Device'}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                     <span class="device-icon-fallback" style="display:none;">🖥️</span>`
+                  : `<span class="device-icon-fallback">🖥️</span>`
+                }
+              </div>
               <div class="device-info">
-                <div class="device-name">🖥️ ${device.locationName || device.deviceName || 'Unnamed Device'}</div>
+                <div class="device-name">${device.locationName || device.deviceName || 'Unnamed Device'}</div>
                 <div class="device-details">
                   <div class="detail-item">
                     <span class="detail-label">Model:</span>
@@ -769,6 +831,7 @@ Complete Configuration Copy-Paste:
           webhookPath,
           vpsIP: '69.62.109.168',
           vpsPort: 7660,
+          photoUrl: DEVICE_IMAGES[deviceModel] || '',
           status: 'active',
           createdAt: new Date().toISOString(),
           lastSeen: null,
@@ -867,10 +930,29 @@ http://69.62.109.168:7660${webhookPath}
       section.style.display = section.style.display === 'none' ? 'block' : 'none';
     };
 
+    const DEVICE_IMAGES = {
+      'DS-K1T341CMFW': 'https://www.hikvision.com/content/dam/hikvision/en/products/Image/access-controller/Value-Series-Face-Recognition-Terminal/DS-K1T341CMFW.png',
+      'DS-K1T804MF':   'https://www.hikvision.com/content/dam/hikvision/en/products/Image/access-controller/Face-Recognition-Terminal/DS-K1T804MF.png',
+      'DS-K1A804MF':   'https://www.hikvision.com/content/dam/hikvision/en/products/Image/access-controller/Metal-Face-Recognition-Terminal/DS-K1A804MF.png',
+      'DS-K3G401SF':   'https://www.hikvision.com/content/dam/hikvision/en/products/Image/access-controller/Swing-Barrier/DS-K3G401SF.png'
+    };
+
     window.updateDeviceSpecs = function() {
       const model = document.getElementById('deviceModel').value;
-      // You can add model-specific defaults here
-      console.log("Selected model:", model);
+      const previewWrap  = document.getElementById('modelPreview');
+      const previewImg   = document.getElementById('modelPreviewImg');
+      const previewIcon  = document.getElementById('modelPreviewIcon');
+      const previewLabel = document.getElementById('modelPreviewLabel');
+      if (model && model !== 'other') {
+        const imgUrl = DEVICE_IMAGES[model] || '';
+        previewImg.src = imgUrl;
+        previewImg.style.display = imgUrl ? 'block' : 'none';
+        previewIcon.style.display = imgUrl ? 'none' : 'block';
+        previewLabel.textContent = model;
+        previewWrap.style.display = 'flex';
+      } else {
+        previewWrap.style.display = 'none';
+      }
     };
 
     window.copyToClipboard = async function(text) {
