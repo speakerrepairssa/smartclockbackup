@@ -947,6 +947,8 @@
             display: flex;
             flex-direction: row;
             gap: 0;
+            flex: 1;
+            min-height: 0;
           }
 
           .status-section {
@@ -957,6 +959,8 @@
             border: 1px solid #f1f5f9;
             flex: 1;
             min-width: 0;
+            display: flex;
+            flex-direction: column;
           }
 
           /* ── Layout resize handles ── */
@@ -1130,6 +1134,14 @@
           /* ── Right panel ── */
           .mrp-panel { display: flex; flex-direction: column; gap: 1rem; flex-shrink: 0; width: 330px; }
           #mmOuterSpl { align-self: stretch; min-height: 80px; }
+          #mmInnerSpl { align-self: stretch; }
+
+          /* Zoom buttons */
+          .mm-zoom-btns { display: flex; gap: 3px; flex-shrink: 0; }
+          .mm-zoom-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: rgba(255,255,255,0.8); border-radius: 5px; padding: 0.08rem 0.42rem; font-size: 0.63rem; font-weight: 800; cursor: pointer; transition: all 0.15s; }
+          .mm-zoom-btn:hover { background: rgba(59,130,246,0.5); color: #fff; }
+          .mm-zoom-btn-light { background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.12); color: #475569; border-radius: 5px; padding: 0.08rem 0.42rem; font-size: 0.63rem; font-weight: 800; cursor: pointer; transition: all 0.15s; }
+          .mm-zoom-btn-light:hover { background: rgba(59,130,246,0.12); color: #1d4ed8; }
 
           .mrp-card {
             background: white;
@@ -2965,9 +2977,12 @@
               <div class="status-section">
                 <div class="status-header in">
                   <span>● Clocked In</span>
-                  <span class="status-header-count" id="inHeaderCount">0</span>
+                  <div style="display:flex;align-items:center;gap:0.5rem">
+                    <div class="mm-zoom-btns"><button class="mm-zoom-btn" onclick="pzoom('mm-in',-1)">A−</button><button class="mm-zoom-btn" onclick="pzoom('mm-in',1)">A+</button></div>
+                    <span class="status-header-count" id="inHeaderCount">0</span>
+                  </div>
                 </div>
-                <div class="status-body" id="inEmployees">
+                <div class="status-body" id="inEmployees" data-zp="mm-in">
                   <div class="no-employees"><span>✓</span><span>No employees clocked in</span></div>
                 </div>
               </div>
@@ -2978,9 +2993,12 @@
               <div class="status-section">
                 <div class="status-header out">
                   <span>● Clocked Out</span>
-                  <span class="status-header-count" id="outHeaderCount">0</span>
+                  <div style="display:flex;align-items:center;gap:0.5rem">
+                    <div class="mm-zoom-btns"><button class="mm-zoom-btn" onclick="pzoom('mm-out',-1)">A−</button><button class="mm-zoom-btn" onclick="pzoom('mm-out',1)">A+</button></div>
+                    <span class="status-header-count" id="outHeaderCount">0</span>
+                  </div>
                 </div>
-                <div class="status-body" id="outEmployees">
+                <div class="status-body" id="outEmployees" data-zp="mm-out">
                   <div class="no-employees"><span>○</span><span>No employees clocked out</span></div>
                 </div>
               </div>
@@ -3003,14 +3021,17 @@
             <div class="mrp-card" data-mmrk="chart">
               <div class="mrp-card-hdr">
                 <div class="mrp-card-title">📊 Employee Stats</div>
-                <div class="mrp-chart-btns">
-                  <button class="mrp-chart-btn active" onclick="setMonitorChart('bar')"     id="mcBtnBar">Bar</button>
-                  <button class="mrp-chart-btn"         onclick="setMonitorChart('horizontalBar')" id="mcBtnHBar">H-Bar</button>
-                  <button class="mrp-chart-btn"         onclick="setMonitorChart('doughnut')" id="mcBtnDnu">Donut</button>
-                  <button class="mrp-chart-btn"         onclick="setMonitorChart('pie')"     id="mcBtnPie">Pie</button>
+                <div style="display:flex;align-items:center;gap:0.4rem">
+                  <div class="mm-zoom-btns"><button class="mm-zoom-btn" onclick="pzoom('mm-chart',-1)">A−</button><button class="mm-zoom-btn" onclick="pzoom('mm-chart',1)">A+</button></div>
+                  <div class="mrp-chart-btns">
+                    <button class="mrp-chart-btn active" onclick="setMonitorChart('bar')"     id="mcBtnBar">Bar</button>
+                    <button class="mrp-chart-btn"         onclick="setMonitorChart('horizontalBar')" id="mcBtnHBar">H-Bar</button>
+                    <button class="mrp-chart-btn"         onclick="setMonitorChart('doughnut')" id="mcBtnDnu">Donut</button>
+                    <button class="mrp-chart-btn"         onclick="setMonitorChart('pie')"     id="mcBtnPie">Pie</button>
+                  </div>
                 </div>
               </div>
-              <div class="mrp-chart-wrap">
+              <div class="mrp-chart-wrap" data-zp="mm-chart">
                 <canvas id="monitorEmpChart" style="width:100%;height:100%;"></canvas>
                 <div id="mrpChartEmpty" style="display:none;position:absolute;color:#cbd5e1;font-size:0.85rem;text-align:center;">
                   <div style="font-size:2rem;opacity:0.4;">📈</div>
@@ -3024,8 +3045,9 @@
             <div class="mrp-card" data-mmrk="spotlight">
               <div class="mrp-card-hdr">
                 <div class="mrp-card-title">🌟 Spotlight</div>
+                <div class="mm-zoom-btns"><button class="mm-zoom-btn" onclick="pzoom('mm-spot',-1)">A−</button><button class="mm-zoom-btn" onclick="pzoom('mm-spot',1)">A+</button></div>
               </div>
-              <div class="mrp-spotlight-body" id="mrpSpotlightBody">
+              <div class="mrp-spotlight-body" id="mrpSpotlightBody" data-zp="mm-spot">
                 <div class="mrp-spotlight-row mrp-sr-none">
                   <div class="mrp-sr-icon">⏳</div>
                   <div><div class="mrp-sr-label">Waiting for data</div><div class="mrp-sr-name">—</div></div>
@@ -17186,6 +17208,35 @@ Click "Test Connection" after starting the service.`);
     });
 
     window.resetMmLayout = function() { localStorage.removeItem(SK); location.reload(); };
+
+    /* ── Per-panel zoom ── */
+    var ZK2 = 'mm_zoom';
+    var zv2 = JSON.parse(localStorage.getItem(ZK2)||'{}');
+    var ZS2 = [60,70,80,90,100,112,125,140,160];
+    function applyZoom2(id) {
+      var el = document.querySelector('[data-zp="'+id+'"]');
+      if (!el) return;
+      var idx = Math.max(0,Math.min(8,(zv2[id]||4)));
+      el.style.fontSize = ZS2[idx]+'%';
+    }
+    window.pzoom = function(id, d) {
+      zv2[id] = Math.max(0, Math.min(8, (zv2[id]||4)+d));
+      localStorage.setItem(ZK2, JSON.stringify(zv2));
+      applyZoom2(id);
+      if (id==='mm-chart' && window._mmChart) { try { window._mmChart.resize(); } catch(e){} }
+    };
+    /* apply saved zoom on init */
+    var _zoomPanels = ['mm-in','mm-out','mm-chart','mm-spot'];
+    function applyAllZooms() { _zoomPanels.forEach(applyZoom2); }
+    window.addEventListener('load', function() { setTimeout(applyAllZooms, 600); });
+    /* also re-apply when monitor section opens */
+    (function() {
+      var _origSwitch = window.switchModule;
+      window.switchModule = function(m) {
+        if (typeof _origSwitch === 'function') _origSwitch.apply(this, arguments);
+        if (m === 'monitor') setTimeout(applyAllZooms, 400);
+      };
+    })();
   })();
   </script>
 

@@ -131,6 +131,10 @@
     .layout-col-spl:hover::after,.layout-col-spl.dragging::after{background:rgba(59,130,246,0.7);}
     #outerColSpl{align-self:stretch;}
     #innerColSpl{align-self:stretch;}
+    /* ZOOM BUTTONS */
+    .zoom-btns{display:flex;gap:3px;flex-shrink:0;}
+    .zoom-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.65);border-radius:5px;padding:0.08rem 0.42rem;font-size:0.63rem;font-weight:800;cursor:pointer;transition:all 0.15s;letter-spacing:0.02em;}
+    .zoom-btn:hover{background:rgba(59,130,246,0.45);border-color:rgba(59,130,246,0.6);color:#fff;}
     .layout-resize-hdl{height:10px;cursor:ns-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);transition:background 0.2s;}
     .layout-resize-hdl::after{content:'';width:40px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;transition:background 0.2s;}
     .layout-resize-hdl:hover::after,.layout-resize-hdl.dragging::after{background:rgba(59,130,246,0.7);}
@@ -219,15 +223,15 @@
     <!-- LEFT: IN + OUT -->
     <div class="left-col">
       <div class="status-section in-section">
-        <div class="status-hdr in"><span>&#9679; Clocked In</span><span class="status-hdr-cnt" id="inCnt">0</span></div>
-        <div class="status-body" id="inList">
+        <div class="status-hdr in"><span>&#9679; Clocked In</span><div style="display:flex;align-items:center;gap:0.5rem"><div class="zoom-btns"><button class="zoom-btn" onclick="pzoom('fv-in',-1)">A&#8722;</button><button class="zoom-btn" onclick="pzoom('fv-in',1)">A+</button></div><span class="status-hdr-cnt" id="inCnt">0</span></div></div>
+        <div class="status-body" id="inList" data-zp="fv-in">
           <div class="no-emp"><span>&#10003;</span><span>Waiting for data&hellip;</span></div>
         </div>
       </div>
       <div class="layout-col-spl" id="innerColSpl" title="Drag to resize"></div>
       <div class="status-section out-section">
-        <div class="status-hdr out"><span>&#9679; Clocked Out</span><span class="status-hdr-cnt" id="outCnt">0</span></div>
-        <div class="status-body" id="outList">
+        <div class="status-hdr out"><span>&#9679; Clocked Out</span><div style="display:flex;align-items:center;gap:0.5rem"><div class="zoom-btns"><button class="zoom-btn" onclick="pzoom('fv-out',-1)">A&#8722;</button><button class="zoom-btn" onclick="pzoom('fv-out',1)">A+</button></div><span class="status-hdr-cnt" id="outCnt">0</span></div></div>
+        <div class="status-body" id="outList" data-zp="fv-out">
           <div class="no-emp"><span>&#9675;</span><span>Waiting for data&hellip;</span></div>
         </div>
       </div>
@@ -242,14 +246,17 @@
       <div class="rp-card" data-rk="chart">
         <div class="rp-hdr">
           <div class="rp-title">&#128202; Employee Stats</div>
-          <div class="chart-btns">
-            <button class="chart-btn active" id="cBtnBar"  onclick="setChart('bar')">Bar</button>
-            <button class="chart-btn"        id="cBtnHBar" onclick="setChart('horizontalBar')" >H-Bar</button>
-            <button class="chart-btn"        id="cBtnDnu"  onclick="setChart('doughnut')">Donut</button>
-            <button class="chart-btn"        id="cBtnPie"  onclick="setChart('pie')">Pie</button>
+          <div style="display:flex;align-items:center;gap:0.4rem">
+            <div class="zoom-btns"><button class="zoom-btn" onclick="pzoom('fv-chart',-1)">A&#8722;</button><button class="zoom-btn" onclick="pzoom('fv-chart',1)">A+</button></div>
+            <div class="chart-btns">
+              <button class="chart-btn active" id="cBtnBar"  onclick="setChart('bar')">Bar</button>
+              <button class="chart-btn"        id="cBtnHBar" onclick="setChart('horizontalBar')" >H-Bar</button>
+              <button class="chart-btn"        id="cBtnDnu"  onclick="setChart('doughnut')">Donut</button>
+              <button class="chart-btn"        id="cBtnPie"  onclick="setChart('pie')">Pie</button>
+            </div>
           </div>
         </div>
-        <div class="chart-wrap">
+        <div class="chart-wrap" data-zp="fv-chart">
           <canvas id="empChart" style="width:100%;height:100%;"></canvas>
           <div class="chart-empty" id="chartEmpty"><span>&#128200;</span>Waiting for data&hellip;</div>
         </div>
@@ -258,8 +265,8 @@
 
       <!-- Spotlight card -->
       <div class="rp-card" data-rk="spotlight">
-        <div class="rp-hdr"><div class="rp-title">&#127775; Spotlight</div></div>
-        <div class="spotlight-body" id="spotlightBody">
+        <div class="rp-hdr"><div class="rp-title">&#127775; Spotlight</div><div class="zoom-btns"><button class="zoom-btn" onclick="pzoom('fv-spot',-1)">A&#8722;</button><button class="zoom-btn" onclick="pzoom('fv-spot',1)">A+</button></div></div>
+        <div class="spotlight-body" id="spotlightBody" data-zp="fv-spot">
           <div class="spot-row none"><div class="spot-icon">&#8987;</div><div><div class="spot-lbl">Waiting</div><div class="spot-name">&mdash;</div></div></div>
         </div>
         <div class="layout-resize-hdl" title="Drag to resize"></div>
@@ -482,6 +489,26 @@
   window.resetFvLayout = function() {
     localStorage.removeItem(SK); location.reload();
   };
+
+  /* ── Per-panel zoom ── */
+  var ZK = 'fv_zoom';
+  var zv = JSON.parse(localStorage.getItem(ZK)||'{}');
+  var ZS = [60,70,80,90,100,112,125,140,160];
+  function applyZoom(id) {
+    var el = document.querySelector('[data-zp="'+id+'"]');
+    if (!el) return;
+    var idx = Math.max(0,Math.min(8,(zv[id]||4)));
+    el.style.fontSize = ZS[idx]+'%';
+  }
+  window.pzoom = function(id, d) {
+    zv[id] = Math.max(0, Math.min(8, (zv[id]||4)+d));
+    localStorage.setItem(ZK, JSON.stringify(zv));
+    applyZoom(id);
+    if (id==='fv-chart' && window._fvChart) { try { window._fvChart.resize(); } catch(e){} }
+  };
+  window.addEventListener('load', function() {
+    ['fv-in','fv-out','fv-chart','fv-spot'].forEach(applyZoom);
+  });
 })();
 </script>
 </body>
