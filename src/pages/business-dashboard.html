@@ -832,143 +832,376 @@
       <!-- Monitor View (Real-Time) -->
       <div class="view-section" id="monitorView">
         <style>
+          /* ── Monitor View Redesign ── */
           .monitor-header {
-            background: #2c3e50;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: white;
-            padding: 1.5rem;
-            border-radius: 12px;
+            padding: 1.1rem 1.5rem;
+            border-radius: 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.18);
           }
 
           .monitor-title {
             display: flex;
             align-items: center;
             gap: 1rem;
-            font-size: 1.5rem;
+            font-size: 1.1rem;
             font-weight: 700;
+            letter-spacing: -0.01em;
           }
 
-          .monitor-actions {
-            display: flex;
-            gap: 1rem;
+          .monitor-live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.35);
+            border-radius: 20px;
+            padding: 0.2rem 0.65rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #ef4444;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+
+          .monitor-live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: mLivePulse 1.4s ease-in-out infinite;
+          }
+
+          @keyframes mLivePulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50%      { opacity:0.4; transform:scale(0.8); }
           }
 
           .back-btn {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255,255,255,0.1);
             color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            transition: background 0.2s;
           }
 
-          .back-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+          .back-btn:hover { background: rgba(255,255,255,0.2); }
+
+          /* Stats bar */
+          .monitor-stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.25rem;
           }
 
+          .monitor-stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            border-left: 4px solid #e2e8f0;
+          }
+
+          .monitor-stat-card.sc-total  { border-left-color: #64748b; }
+          .monitor-stat-card.sc-in     { border-left-color: #22c55e; }
+          .monitor-stat-card.sc-out    { border-left-color: #ef4444; }
+          .monitor-stat-card.sc-rate   { border-left-color: #3b82f6; }
+
+          .msc-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+          }
+
+          .sc-total  .msc-icon { background: #f1f5f9; }
+          .sc-in     .msc-icon { background: #dcfce7; }
+          .sc-out    .msc-icon { background: #fee2e2; }
+          .sc-rate   .msc-icon { background: #dbeafe; }
+
+          .msc-label { font-size: 0.72rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+          .msc-value { font-size: 1.5rem; font-weight: 800; color: #1e293b; line-height: 1.1; margin-top: 0.1rem; }
+          .sc-in  .msc-value { color: #16a34a; }
+          .sc-out .msc-value { color: #dc2626; }
+          .sc-rate .msc-value { color: #2563eb; font-size: 1.3rem; }
+
+          /* Monitor columns */
           .monitor-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-bottom: 2rem;
+            gap: 1.25rem;
+            margin-bottom: 1.25rem;
           }
 
           .status-section {
             background: white;
-            border-radius: 12px;
+            border-radius: 14px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            border: 1px solid #f1f5f9;
           }
 
           .status-header {
-            padding: 1rem;
+            padding: 0.85rem 1.25rem;
             color: white;
             font-weight: 700;
-            font-size: 1.3rem;
-            text-align: center;
+            font-size: 0.85rem;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
           }
 
-          .status-header.in {
-            background: #4caf50;
-          }
+          .status-header.in  { background: linear-gradient(90deg, #16a34a, #22c55e); }
+          .status-header.out { background: linear-gradient(90deg, #dc2626, #ef4444); }
 
-          .status-header.out {
-            background: #f44336;
+          .status-header-count {
+            background: rgba(255,255,255,0.25);
+            border-radius: 20px;
+            padding: 0.15rem 0.6rem;
+            font-size: 0.8rem;
           }
 
           .status-body {
-            padding: 1.5rem;
-            min-height: 300px;
+            min-height: 260px;
+            max-height: 55vh;
+            overflow-y: auto;
           }
+
+          .status-body::-webkit-scrollbar { width: 4px; }
+          .status-body::-webkit-scrollbar-track { background: transparent; }
+          .status-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
 
           .employee-item {
-            padding: 1rem;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 0.85rem 1.25rem;
+            border-bottom: 1px solid #f8fafc;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 0.85rem;
+            transition: background 0.15s;
+            animation: mRowIn 0.25s ease;
           }
 
-          .employee-item:last-child {
-            border-bottom: none;
+          @keyframes mRowIn {
+            from { opacity:0; transform:translateX(-6px); }
+            to   { opacity:1; transform:translateX(0); }
           }
+
+          .employee-item:hover { background: #f8fafc; }
+          .employee-item:last-child { border-bottom: none; }
+
+          .emp-av {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            text-transform: uppercase;
+          }
+
+          .status-section:first-child .emp-av { background: #dcfce7; color: #16a34a; border: 2px solid #bbf7d0; }
+          .status-section:last-child  .emp-av { background: #fee2e2; color: #dc2626; border: 2px solid #fecaca; }
+
+          .emp-details { flex: 1; min-width: 0; }
 
           .employee-name {
             font-weight: 600;
-            color: #333;
-            font-size: 0.95rem;
+            color: #1e293b;
+            font-size: 0.92rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
 
           .employee-slot {
-            color: #999;
-            font-size: 0.85rem;
-            margin-top: 0.25rem;
+            color: #94a3b8;
+            font-size: 0.75rem;
+            margin-top: 1px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
           }
 
           .employee-time {
-            font-size: 1.2rem;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
             font-weight: 700;
-            color: #f44336;
-            text-align: right;
+            flex-shrink: 0;
           }
+
+          .status-section:first-child .employee-time { color: #16a34a; }
+          .status-section:last-child  .employee-time { color: #dc2626; }
 
           .no-employees {
-            text-align: center;
-            color: #999;
-            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            gap: 0.5rem;
           }
 
+          .no-employees span:first-child { font-size: 2rem; }
+
+          /* Footer */
           .monitor-footer {
             background: white;
-            padding: 1rem;
+            padding: 0.85rem 1.25rem;
             border-radius: 12px;
-            text-align: center;
-            color: #666;
-            font-size: 0.9rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #64748b;
+            font-size: 0.82rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
           }
 
-          .refresh-time {
-            color: #667eea;
+          .monitor-footer-live {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
             font-weight: 600;
+            color: #16a34a;
           }
+
+          .monitor-footer-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 6px rgba(34,197,94,0.5);
+            animation: mLivePulse 1.4s ease-in-out infinite;
+          }
+
+          .refresh-time { color: #3b82f6; font-weight: 600; }
 
           @media (max-width: 768px) {
-            .monitor-header {
-              flex-direction: column;
-              gap: 1rem;
-              text-align: center;
-            }
-
-            .monitor-content {
-              grid-template-columns: 1fr;
-            }
+            .monitor-header { flex-direction: column; gap: 1rem; }
+            .monitor-stats-bar { grid-template-columns: 1fr 1fr; }
+            .monitor-outer-grid { grid-template-columns: 1fr !important; }
+            .monitor-content { grid-template-columns: 1fr; }
           }
+
+          /* ── Monitor outer grid (left IN/OUT  +  right panel) ── */
+          .monitor-outer-grid {
+            display: grid;
+            grid-template-columns: 1fr 330px;
+            gap: 1.25rem;
+            align-items: start;
+          }
+
+          .monitor-left-col { display: flex; flex-direction: column; gap: 1.25rem; }
+
+          /* ── Right panel ── */
+          .mrp-panel { display: flex; flex-direction: column; gap: 1rem; }
+
+          .mrp-card {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            border: 1px solid #f1f5f9;
+            overflow: hidden;
+          }
+
+          .mrp-card-hdr {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            padding: 0.8rem 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+
+          .mrp-card-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+          }
+
+          .mrp-chart-btns { display: flex; gap: 0.35rem; }
+
+          .mrp-chart-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.7);
+            border-radius: 6px;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+
+          .mrp-chart-btn.active,
+          .mrp-chart-btn:hover {
+            background: rgba(59,130,246,0.5);
+            border-color: rgba(59,130,246,0.7);
+            color: white;
+          }
+
+          .mrp-chart-wrap {
+            padding: 1rem;
+            position: relative;
+            min-height: 210px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          /* Spotlight card */
+          .mrp-spotlight-body { padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+
+          .mrp-spotlight-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.85rem;
+            border-radius: 10px;
+          }
+
+          .mrp-sr-top  { background: #f0fdf4; border: 1px solid #bbf7d0; }
+          .mrp-sr-bot  { background: #fff7ed; border: 1px solid #fed7aa; }
+          .mrp-sr-none { background: #f8fafc; border: 1px solid #e2e8f0; }
+
+          .mrp-sr-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+          .mrp-sr-label {
+            font-size: 0.67rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+          }
+
+          .mrp-sr-top  .mrp-sr-label { color: #15803d; }
+          .mrp-sr-bot  .mrp-sr-label { color: #c2410c; }
+          .mrp-sr-none .mrp-sr-label { color: #94a3b8; }
+
+          .mrp-sr-name  { font-size: 0.87rem; font-weight: 700; color: #1e293b; margin-top: 2px; }
+          .mrp-sr-time  { font-family: 'Courier New', monospace; font-size: 0.8rem; font-weight: 700; color: #64748b; }
         </style>
 
         <style>
@@ -2579,47 +2812,207 @@
           }
         </style>
 
+        <!-- Fullscreen Monitor Overlay -->
+        <div id="fullMonitorOverlay" style="
+          display:none;
+          position:fixed;
+          inset:0;
+          z-index:99999;
+          background:#0b0f1a;
+          flex-direction:column;
+        ">
+          <button onclick="closeFullMonitor()" style="
+            position:absolute;
+            top:14px;
+            right:18px;
+            z-index:100000;
+            background:rgba(255,255,255,0.1);
+            border:1px solid rgba(255,255,255,0.2);
+            color:white;
+            border-radius:8px;
+            padding:0.45rem 1rem;
+            font-size:0.85rem;
+            font-weight:700;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            gap:0.4rem;
+            backdrop-filter:blur(8px);
+            transition:background 0.2s;
+          " onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+             onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+            ✕ Close
+          </button>
+          <iframe id="fullMonitorFrame" src="" style="
+            width:100%;
+            height:100%;
+            border:none;
+            flex:1;
+          " allow="fullscreen"></iframe>
+        </div>
+
         <!-- Monitor Header -->
         <div class="monitor-header">
           <div class="monitor-title">
             <button class="back-btn" onclick="switchModule('dashboard')">← Back</button>
             <span>🕐 LIVE ATTENDANCE MONITOR</span>
           </div>
-          <button class="btn btn-primary" onclick="loadMonitorData()">↻ Refresh</button>
+          <div style="display:flex;gap:0.75rem;align-items:center;">
+            <button class="btn btn-primary" onclick="loadMonitorData()">↻ Refresh</button>
+            <button class="btn btn-primary"
+              style="background:linear-gradient(135deg,#3b82f6,#7c3aed);border:none;display:flex;align-items:center;gap:0.5rem;font-weight:700;letter-spacing:0.02em;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;color:white;font-size:0.9rem;"
+              onclick="openFullMonitor()">
+              ⛶ Full View
+            </button>
+          </div>
+          <script>
+            window.openFullMonitor = function() {
+              const bId = window.businessId || localStorage.getItem('businessId') || localStorage.getItem('currentBusinessId');
+              const url = '/pages/monitor-v2.html' + (bId ? '?businessId=' + encodeURIComponent(bId) : '');
+              const overlay = document.getElementById('fullMonitorOverlay');
+              const frame   = document.getElementById('fullMonitorFrame');
+              frame.src = url;
+              overlay.style.display = 'flex';
+              // Request true browser fullscreen
+              if (overlay.requestFullscreen) overlay.requestFullscreen();
+              else if (overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
+            };
+            window.closeFullMonitor = function() {
+              const overlay = document.getElementById('fullMonitorOverlay');
+              overlay.style.display = 'none';
+              document.getElementById('fullMonitorFrame').src = '';
+              if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+              else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            };
+            // Also close if user presses Escape
+            document.addEventListener('keydown', function(e) {
+              if (e.key === 'Escape') {
+                const overlay = document.getElementById('fullMonitorOverlay');
+                if (overlay && overlay.style.display !== 'none') closeFullMonitor();
+              }
+            });
+            // Sync close button with browser fullscreen exit (e.g. pressing F11)
+            ['fullscreenchange','webkitfullscreenchange'].forEach(ev => {
+              document.addEventListener(ev, () => {
+                const inFS = document.fullscreenElement || document.webkitFullscreenElement;
+                if (!inFS) {
+                  const overlay = document.getElementById('fullMonitorOverlay');
+                  if (overlay) overlay.style.display = 'none';
+                  const frame = document.getElementById('fullMonitorFrame');
+                  if (frame) frame.src = '';
+                }
+              });
+            });
+          </script>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="monitor-stats-bar">
+          <div class="monitor-stat-card sc-total">
+            <div class="msc-icon">👥</div>
+            <div><div class="msc-label">Total Staff</div><div class="msc-value" id="mStatTotal">0</div></div>
+          </div>
+          <div class="monitor-stat-card sc-in">
+            <div class="msc-icon">✓</div>
+            <div><div class="msc-label">Clocked In</div><div class="msc-value" id="mStatIn">0</div></div>
+          </div>
+          <div class="monitor-stat-card sc-out">
+            <div class="msc-icon">○</div>
+            <div><div class="msc-label">Clocked Out</div><div class="msc-value" id="mStatOut">0</div></div>
+          </div>
+          <div class="monitor-stat-card sc-rate">
+            <div class="msc-icon">📊</div>
+            <div><div class="msc-label">Attendance Rate</div><div class="msc-value" id="mStatRate">--%</div></div>
+          </div>
         </div>
 
         <!-- Debug Section -->
-        <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #ffc107;">
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <button class="btn btn-small" onclick="addTestEmployee()" style="background: #28a745; color: white;">+ Add Test Employee (IN)</button>
-            <button class="btn btn-small" onclick="addTestEmployeeOut()" style="background: #dc3545; color: white;">+ Add Test Employee (OUT)</button>
-            <button class="btn btn-small" onclick="clearAllStaff()" style="background: #6c757d; color: white;">Clear All Staff</button>
+        <div style="background: #f0fdf4; padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 1.25rem; border: 1px solid #bbf7d0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+          <span style="font-size:0.8rem;color:#166534;font-weight:600;">🧪 Test Controls</span>
+          <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+            <button class="btn btn-small" onclick="addTestEmployee()" style="background:#16a34a;color:white;border-radius:6px;padding:0.4rem 0.85rem;font-size:0.8rem;">+ IN</button>
+            <button class="btn btn-small" onclick="addTestEmployeeOut()" style="background:#dc2626;color:white;border-radius:6px;padding:0.4rem 0.85rem;font-size:0.8rem;">+ OUT</button>
+            <button class="btn btn-small" onclick="clearAllStaff()" style="background:#64748b;color:white;border-radius:6px;padding:0.4rem 0.85rem;font-size:0.8rem;">Clear</button>
           </div>
         </div>
 
-        <!-- Monitor Content -->
-        <div class="monitor-content" id="monitorContent">
-          <!-- IN Section -->
-          <div class="status-section">
-            <div class="status-header in">IN</div>
-            <div class="status-body" id="inEmployees">
-              <div class="no-employees">Loading...</div>
+        <!-- Monitor Outer Grid -->
+        <div class="monitor-outer-grid">
+
+          <!-- LEFT: IN / OUT columns + footer -->
+          <div class="monitor-left-col">
+
+            <div class="monitor-content" id="monitorContent">
+              <!-- IN Section -->
+              <div class="status-section">
+                <div class="status-header in">
+                  <span>● Clocked In</span>
+                  <span class="status-header-count" id="inHeaderCount">0</span>
+                </div>
+                <div class="status-body" id="inEmployees">
+                  <div class="no-employees"><span>✓</span><span>No employees clocked in</span></div>
+                </div>
+              </div>
+
+              <!-- OUT Section -->
+              <div class="status-section">
+                <div class="status-header out">
+                  <span>● Clocked Out</span>
+                  <span class="status-header-count" id="outHeaderCount">0</span>
+                </div>
+                <div class="status-body" id="outEmployees">
+                  <div class="no-employees"><span>○</span><span>No employees clocked out</span></div>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <!-- OUT Section -->
-          <div class="status-section">
-            <div class="status-header out">OUT</div>
-            <div class="status-body" id="outEmployees">
-              <div class="no-employees">Loading...</div>
+            <!-- Monitor Footer -->
+            <div class="monitor-footer">
+              <div class="monitor-footer-live"><span class="monitor-footer-dot"></span> Live — updates instantly</div>
+              <div>Last updated: <span class="refresh-time" id="lastUpdateTime">Just now</span></div>
             </div>
-          </div>
-        </div>
 
-        <!-- Monitor Footer -->
-        <div class="monitor-footer">
-          ⏱ Auto-refreshes every 30 seconds • Last updated: <span class="refresh-time" id="lastUpdateTime">Just now</span>
-        </div>
+          </div><!-- /monitor-left-col -->
+
+          <!-- RIGHT: Stats chart + spotlight cards -->
+          <div class="mrp-panel">
+
+            <!-- Chart card -->
+            <div class="mrp-card">
+              <div class="mrp-card-hdr">
+                <div class="mrp-card-title">📊 Employee Stats</div>
+                <div class="mrp-chart-btns">
+                  <button class="mrp-chart-btn active" onclick="setMonitorChart('bar')"     id="mcBtnBar">Bar</button>
+                  <button class="mrp-chart-btn"         onclick="setMonitorChart('horizontalBar')" id="mcBtnHBar">H-Bar</button>
+                  <button class="mrp-chart-btn"         onclick="setMonitorChart('doughnut')" id="mcBtnDnu">Donut</button>
+                  <button class="mrp-chart-btn"         onclick="setMonitorChart('pie')"     id="mcBtnPie">Pie</button>
+                </div>
+              </div>
+              <div class="mrp-chart-wrap">
+                <canvas id="monitorEmpChart" style="max-height:210px;"></canvas>
+                <div id="mrpChartEmpty" style="display:none;position:absolute;color:#cbd5e1;font-size:0.85rem;text-align:center;">
+                  <div style="font-size:2rem;opacity:0.4;">📈</div>
+                  <div>Waiting for data…</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Spotlight card -->
+            <div class="mrp-card">
+              <div class="mrp-card-hdr">
+                <div class="mrp-card-title">🌟 Spotlight</div>
+              </div>
+              <div class="mrp-spotlight-body" id="mrpSpotlightBody">
+                <div class="mrp-spotlight-row mrp-sr-none">
+                  <div class="mrp-sr-icon">⏳</div>
+                  <div><div class="mrp-sr-label">Waiting for data</div><div class="mrp-sr-name">—</div></div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /mrp-panel -->
+
+        </div><!-- /monitor-outer-grid -->
       </div>
 
       <!-- Reports View -->
@@ -3701,6 +4094,65 @@
             <strong style="color:#92400e;">⚠️ Connector not installed</strong>
             <p style="color:#92400e;font-size:0.85rem;margin-top:0.4rem;">The SmartClock Connector is not running on your local network. Without it, events missed during internet outages will not be recovered automatically.</p>
             <button onclick="switchModule('downloads')" style="margin-top:0.75rem;background:#f59e0b;color:white;border:none;border-radius:6px;padding:0.5rem 1rem;cursor:pointer;font-weight:600;font-size:0.85rem;">📥 Download Connector</button>
+          </div>
+        </div>
+
+        <!-- Live Events Feed — populated from connector_status/current.recentEventsJson -->
+        <div id="connectorLiveFeed" style="display:none;background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
+            <div>
+              <div style="font-weight:700;font-size:0.95rem;color:#1f2937;">📡 Live Events from Device</div>
+              <div style="font-size:0.8rem;color:#6b7280;margin-top:2px;">Last 20 events the connector read directly from the Hikvision device</div>
+            </div>
+            <span id="connectorLiveFeedCount" style="background:#f3f4f6;border-radius:20px;padding:0.3rem 0.9rem;font-size:0.8rem;font-weight:600;color:#374151;"></span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+              <thead>
+                <tr style="border-bottom:2px solid #f3f4f6;">
+                  <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Employee</th>
+                  <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Date &amp; Time</th>
+                  <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Type</th>
+                  <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Firestore</th>
+                </tr>
+              </thead>
+              <tbody id="connectorLiveFeedBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Browse Device Events by Date -->
+        <div id="deviceDateQueryCard" style="background:white;border:1px solid #e5e7eb;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);display:none;">
+          <div style="margin-bottom:1.25rem;">
+            <div style="font-weight:700;font-size:0.95rem;color:#1f2937;">🗓️ Browse Device Events by Date</div>
+            <div style="font-size:0.8rem;color:#6b7280;margin-top:2px;">Query the device directly, compare with Firebase, and sync any missing events</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+            <input type="date" id="deviceDateInput" style="border:1px solid #d1d5db;border-radius:8px;padding:0.55rem 0.9rem;font-size:0.9rem;color:#1f2937;outline:none;" />
+            <button onclick="queryDeviceEventsByDate()" id="deviceDateBtn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:8px;padding:0.6rem 1.4rem;font-weight:600;cursor:pointer;font-size:0.9rem;">🔍 Fetch from Device</button>
+            <span id="deviceDateStatus" style="font-size:0.85rem;color:#6b7280;"></span>
+          </div>
+          <div id="deviceDateResults" style="display:none;margin-top:1.25rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem;">
+              <span id="deviceDateResultsTitle" style="font-weight:600;color:#374151;font-size:0.9rem;"></span>
+              <div style="display:flex;align-items:center;gap:0.5rem;">
+                <span id="deviceDateResultsCount" style="background:#f3f4f6;border-radius:20px;padding:0.25rem 0.85rem;font-size:0.8rem;font-weight:600;color:#374151;"></span>
+                <button id="deviceDateSyncAll" onclick="syncAllDateEvents()" style="display:none;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:20px;padding:0.25rem 0.85rem;font-size:0.8rem;font-weight:600;cursor:pointer;">⬆ Sync All</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                <thead>
+                  <tr style="border-bottom:2px solid #f3f4f6;">
+                    <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;">Employee</th>
+                    <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Time</th>
+                    <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;">Type</th>
+                    <th style="text-align:left;padding:0.5rem 0.75rem;color:#6b7280;font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;">Firebase</th>
+                  </tr>
+                </thead>
+                <tbody id="deviceDateResultsBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -5871,12 +6323,29 @@
 
     function initConnectorStatus() {
       if (connectorStatusUnsubscribe) connectorStatusUnsubscribe();
-      const statusRef = doc(db, `businesses/${businessId}/connector_status/current`);
 
-      connectorStatusUnsubscribe = onSnapshot(statusRef, (snap) => {
-        const dot    = document.getElementById('connectorDot');
-        const label  = document.getElementById('connectorStatusLabel');
-        const detail = document.getElementById('connectorStatusDetail');
+      const BIZ = businessId;
+      const API_KEY = 'AIzaSyC6capPBwQDzIyp73i4ML0m9UwqjcfJ_WE';
+      const REST_URL = `https://firestore.googleapis.com/v1/projects/smartclock-v2-8271f/databases/(default)/documents/businesses/${BIZ}/connector_status/current?key=${API_KEY}`;
+
+      console.log('[ConnectorStatus] watching businessId:', BIZ);
+
+      // ── REST field extractor ──────────────────────────────────────────────
+      function fval(f) {
+        if (!f) return null;
+        return f.stringValue ?? f.booleanValue ?? (f.integerValue != null ? Number(f.integerValue) : null) ?? f.doubleValue ?? null;
+      }
+      function restToPlain(doc) {
+        const out = {};
+        for (const [k, v] of Object.entries(doc.fields || {})) out[k] = fval(v);
+        return out;
+      }
+
+      // ── Shared render function ────────────────────────────────────────────
+      function renderConnectorStatus(d) {
+        const dot      = document.getElementById('connectorDot');
+        const label    = document.getElementById('connectorStatusLabel');
+        const detail   = document.getElementById('connectorStatusDetail');
         const lastSync = document.getElementById('connectorLastSync');
         const deviceEl = document.getElementById('connectorDevice');
         const hostEl   = document.getElementById('connectorHost');
@@ -5884,7 +6353,7 @@
         const notInst  = document.getElementById('connectorNotInstalled');
         const syncBtn  = document.getElementById('syncNowBtn');
 
-        if (!snap.exists()) {
+        if (!d) {
           dot.style.background = '#d1d5db';
           label.textContent = 'Connector not installed';
           detail.textContent = 'Download and install the SmartClock Connector on your local network machine';
@@ -5893,26 +6362,105 @@
           return;
         }
 
-        const d = snap.data();
         notInst.style.display = 'none';
         const lastSeenMs = d.lastSeen ? Date.now() - new Date(d.lastSeen).getTime() : Infinity;
-        const isOnline   = lastSeenMs < 5 * 60 * 1000; // within 5 minutes
+        const isOnline   = lastSeenMs < 5 * 60 * 1000;
 
-        dot.style.background   = isOnline ? '#22c55e' : '#ef4444';
-        label.textContent      = isOnline ? '🟢 Connector Online' : '🔴 Connector Offline';
-        detail.textContent     = isOnline
+        dot.style.background = isOnline ? '#22c55e' : '#ef4444';
+        label.textContent    = isOnline ? '🟢 Connector Online' : '🔴 Connector Offline';
+        detail.textContent   = isOnline
           ? `Last seen ${Math.round(lastSeenMs / 1000)}s ago · syncing every 5 minutes`
           : `Last seen ${d.lastSeen ? new Date(d.lastSeen).toLocaleString() : 'never'}`;
 
-        lastSync.textContent   = d.lastSyncAt   ? new Date(d.lastSyncAt).toLocaleString() : '—';
-        deviceEl.textContent   = d.deviceIP     ? `${d.deviceIP}${d.deviceSerial ? ' · ' + d.deviceSerial : ''}` : '—';
-        hostEl.textContent     = d.hostname     || '—';
-        newEvEl.textContent    = d.lastSyncNewEvents != null ? d.lastSyncNewEvents + ' events' : '—';
-        syncBtn.disabled       = !isOnline;
+        lastSync.textContent = d.lastSyncAt ? new Date(d.lastSyncAt).toLocaleString() : '—';
+        deviceEl.textContent = d.deviceIP   ? `${d.deviceIP}${d.deviceSerial ? ' · ' + d.deviceSerial : ''}` : '—';
+        hostEl.textContent   = d.hostname   || '—';
+        newEvEl.textContent  = d.lastSyncNewEvents != null ? d.lastSyncNewEvents + ' events' : '—';
+        syncBtn.disabled     = !isOnline;
+
+        // Show/hide the browse-by-date card; pre-fill today if blank
+        const dateCard = document.getElementById('deviceDateQueryCard');
+        if (dateCard) {
+          dateCard.style.display = 'block'; // show always once connector seen
+          const dateInput = document.getElementById('deviceDateInput');
+          if (dateInput && !dateInput.value) {
+            dateInput.value = new Date().toISOString().slice(0, 10);
+          }
+          if (!isOnline) {
+            const btn = document.getElementById('deviceDateBtn');
+            if (btn) { btn.disabled = true; btn.title = 'Connector is offline'; }
+          } else {
+            const btn = document.getElementById('deviceDateBtn');
+            if (btn) { btn.disabled = false; btn.title = ''; }
+          }
+        }
+
+        // ── Live events feed ──────────────────────────────────────────────
+        const liveFeed  = document.getElementById('connectorLiveFeed');
+        const feedBody  = document.getElementById('connectorLiveFeedBody');
+        const feedCount = document.getElementById('connectorLiveFeedCount');
+        if (d.recentEventsJson) {
+          try {
+            const events = JSON.parse(d.recentEventsJson);
+            if (events.length > 0) {
+              liveFeed.style.display = 'block';
+              feedCount.textContent  = events.length + ' event' + (events.length !== 1 ? 's' : '');
+              const _liveBadgeCfg = { in:{bg:'#dcfce7',color:'#15803d'}, out:{bg:'#fef3c7',color:'#92400e'}, access:{bg:'#dbeafe',color:'#1d4ed8'}, system:{bg:'#f3f4f6',color:'#6b7280'} };
+              feedBody.innerHTML = events.map(e => {
+                const t       = String(e.type || '').toLowerCase();
+                const cfg     = _liveBadgeCfg[t] || _liveBadgeCfg.system;
+                const lbl     = e.label || (t === 'in' ? 'Clock In' : t === 'out' ? 'Clock Out' : t === 'access' ? 'Access' : 'System');
+                const dt      = new Date(e.time);
+                const timeStr = isNaN(dt.getTime()) ? (e.time || '—') : dt.toLocaleString();
+                const newBadge = e.isNew
+                  ? '<span style="color:#7c3aed;font-weight:600;font-size:0.8rem;">&#10003; Written</span>'
+                  : '<span style="color:#9ca3af;font-size:0.8rem;">Already synced</span>';
+                return `<tr style="border-bottom:1px solid #f9fafb;">
+                  <td style="padding:0.6rem 0.75rem;font-weight:500;color:#1f2937;">${e.name || (t==='system'?'<em style="color:#9ca3af">System</em>':'—')}</td>
+                  <td style="padding:0.6rem 0.75rem;color:#6b7280;white-space:nowrap;">${timeStr}</td>
+                  <td style="padding:0.6rem 0.75rem;">
+                    <span style="display:inline-block;padding:0.2rem 0.6rem;border-radius:12px;font-size:0.8rem;font-weight:600;background:${cfg.bg};color:${cfg.color};">${lbl}</span>
+                  </td>
+                  <td style="padding:0.6rem 0.75rem;">${newBadge}</td>
+                </tr>`;
+              }).join('');
+            }
+          } catch(_) { /* ignore parse errors */ }
+        }
+      }
+
+      // ── Immediate REST fetch (bypasses Firestore auth rules entirely) ─────
+      async function fetchViaRest() {
+        try {
+          const res = await fetch(REST_URL);
+          if (res.ok) {
+            const json = await res.json();
+            renderConnectorStatus(restToPlain(json));
+          } else if (res.status === 404) {
+            renderConnectorStatus(null);
+          }
+        } catch(e) {
+          console.warn('[ConnectorStatus] REST fetch error:', e.message);
+        }
+      }
+      fetchViaRest();
+
+      // ── 30-second polling fallback via REST ───────────────────────────────
+      const restPollInterval = setInterval(fetchViaRest, 30000);
+
+      // ── Firestore onSnapshot (real-time, fires if rules allow) ───────────
+      const statusRef = doc(db, `businesses/${BIZ}/connector_status/current`);
+      connectorStatusUnsubscribe = onSnapshot(statusRef, (snap) => {
+        clearInterval(restPollInterval); // SDK is working — stop the REST poller
+        if (!snap.exists()) { renderConnectorStatus(null); return; }
+        renderConnectorStatus(snap.data());
+      }, (err) => {
+        // Rules blocking SDK — REST polling already covers us, just log
+        console.warn('[ConnectorStatus] onSnapshot error (' + err.code + '):', err.message, '— falling back to REST polling');
       });
 
       // Also watch sync request doc for result feedback
-      const reqRef = doc(db, `businesses/${businessId}/connector_sync_request/current`);
+      const reqRef = doc(db, `businesses/${BIZ}/connector_sync_request/current`);
       onSnapshot(reqRef, (snap) => {
         const banner = document.getElementById('syncResultBanner');
         if (!snap.exists()) return;
@@ -5933,7 +6481,7 @@
           banner.style.color = '#dc2626';
           banner.textContent = `❌ Sync failed: ${d.error || 'unknown error'}`;
         }
-      });
+      }, () => {}); // suppress reqRef errors silently
     }
 
     async function triggerConnectorSync() {
@@ -5960,6 +6508,228 @@
       }
       setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 Sync Now'; }, 30000);
     }
+    window.triggerConnectorSync = triggerConnectorSync;
+
+    // ── Browse Device Events by Date — device-first, Firebase compare, sync ────
+    let _dateQueryEvents = []; // holds current result set for sync buttons
+
+    const _FBAPI  = 'AIzaSyC6capPBwQDzIyp73i4ML0m9UwqjcfJ_WE';
+    const _FBBASE = 'https://firestore.googleapis.com/v1/projects/smartclock-v2-8271f/databases/(default)/documents';
+
+    async function queryDeviceEventsByDate() {
+      const dateInput = document.getElementById('deviceDateInput');
+      const btn       = document.getElementById('deviceDateBtn');
+      const statusEl  = document.getElementById('deviceDateStatus');
+      const resultsEl = document.getElementById('deviceDateResults');
+      const syncAllEl = document.getElementById('deviceDateSyncAll');
+
+      const date = dateInput.value;
+      if (!date) { statusEl.textContent = 'Please select a date first.'; return; }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Fetching...';
+      statusEl.style.color = '#6b7280';
+      statusEl.textContent = 'Querying device via connector...';
+      resultsEl.style.display = 'none';
+      if (syncAllEl) syncAllEl.style.display = 'none';
+      _dateQueryEvents = [];
+
+      // ── Step 1: Get events from connector at localhost:7663 ──────────────────
+      let deviceEvents = null;
+      try {
+        const ctrl  = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        const res   = await fetch(`http://localhost:7663/api/query-events?date=${date}`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (res.ok) {
+          const json  = await res.json();
+          deviceEvents = json.events || [];
+        } else {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+      } catch (connErr) {
+        btn.disabled = false;
+        btn.textContent = '🔍 Fetch from Device';
+        statusEl.style.color = '#dc2626';
+        statusEl.textContent = connErr.name === 'AbortError'
+          ? 'Connector timed out. Make sure the SmartClock Connector is running on this machine.'
+          : `Connector not reachable: ${connErr.message}`;
+        return;
+      }
+
+      // ── Step 2: Check Firebase for same date ─────────────────────────────────
+      statusEl.textContent = `Got ${deviceEvents.length} event(s) from device — checking Firebase...`;
+      const firebaseDocIds = new Set();
+      try {
+        const slotsRes  = await fetch(
+          `${_FBBASE}/businesses/${businessId}/attendance_events/${date}:listCollectionIds?key=${_FBAPI}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+        );
+        const slotsJson = await slotsRes.json();
+        const slotIds   = slotsJson.collectionIds || [];
+        if (slotIds.length > 0) {
+          const allIds = await Promise.all(slotIds.map(slotId =>
+            fetch(`${_FBBASE}/businesses/${businessId}/attendance_events/${date}/${slotId}?key=${_FBAPI}&pageSize=200`)
+              .then(r => r.json())
+              .then(j => (j.documents || []).map(d => d.name.split('/').pop()))
+              .catch(() => [])
+          ));
+          allIds.flat().forEach(id => firebaseDocIds.add(id));
+        }
+      } catch (_) {}
+
+      // ── Step 3: Mark + render ─────────────────────────────────────────────────
+      _dateQueryEvents = deviceEvents.map(e => ({
+        ...e,
+        onFirebase: !!(e.docId && firebaseDocIds.has(e.docId))
+      }));
+
+      _renderDateEvents(date);
+      btn.disabled = false;
+      btn.textContent = '🔍 Fetch from Device';
+    }
+    window.queryDeviceEventsByDate = queryDeviceEventsByDate;
+
+    function _renderDateEvents(date) {
+      const bodyEl   = document.getElementById('deviceDateResultsBody');
+      const titleEl  = document.getElementById('deviceDateResultsTitle');
+      const countEl  = document.getElementById('deviceDateResultsCount');
+      const statusEl = document.getElementById('deviceDateStatus');
+      const resultsEl= document.getElementById('deviceDateResults');
+      const syncAllEl= document.getElementById('deviceDateSyncAll');
+
+      const events   = _dateQueryEvents;
+      // Only show meaningful events (Clock In / Clock Out) — filter out system/wake events
+      const isMeaningful = e => { const t = String(e.type||'').toLowerCase(); return t === 'in' || t === 'out'; };
+      const sorted   = [...events].map((e, i) => ({ ...e, _idx: i }))
+                                   .filter(isMeaningful)
+                                   .sort((a, b) => new Date(a.isoTs || a.time) - new Date(b.isoTs || b.time));
+      const unsynced = events.filter(e => isMeaningful(e) && !e.onFirebase && e.docId);
+
+      titleEl.textContent  = `Device events on ${date}`;
+      countEl.textContent  = sorted.length + ' event' + (sorted.length !== 1 ? 's' : '');
+
+      if (unsynced.length > 0 && syncAllEl) {
+        syncAllEl.style.display = 'inline-block';
+        syncAllEl.textContent   = `⬆ Sync All (${unsynced.length})`;
+      } else if (syncAllEl) {
+        syncAllEl.style.display = 'none';
+      }
+
+      const badgeCfg = { in:{bg:'#dcfce7',color:'#15803d'}, out:{bg:'#fef3c7',color:'#92400e'}, access:{bg:'#dbeafe',color:'#1d4ed8'}, system:{bg:'#f3f4f6',color:'#6b7280'} };
+
+      if (sorted.length === 0) {
+        bodyEl.innerHTML = '<tr><td colspan="4" style="padding:1.5rem;color:#9ca3af;text-align:center;">No events found on this date</td></tr>';
+      } else {
+        bodyEl.innerHTML = sorted.map(e => {
+          const t       = String(e.type || '').toLowerCase();
+          const cfg     = badgeCfg[t] || badgeCfg.system;
+          const lbl     = t === 'in' ? 'Clock In' : t === 'out' ? 'Clock Out' : t === 'access' ? 'Access' : (e.label || 'Event');
+          const dt      = new Date(e.isoTs || e.time || '');
+          const timeStr = isNaN(dt.getTime()) ? (e.time || '—') : dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const fbCell  = e.onFirebase
+            ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:0.18rem 0.6rem;border-radius:12px;font-size:0.75rem;font-weight:600;background:#dcfce7;color:#15803d;">✓ Saved</span>`
+            : e.docId
+              ? `<span id="fbbadge_${e._idx}" style="padding:0.18rem 0.55rem;border-radius:12px;font-size:0.75rem;font-weight:600;background:#fef9c3;color:#854d0e;">⚠ Not synced</span>
+                 <button id="syncbtn_${e._idx}" onclick="syncSingleDateEvent(${e._idx},'${date}')" style="margin-left:5px;padding:0.15rem 0.55rem;border-radius:8px;border:1px solid #667eea;background:white;color:#667eea;font-size:0.75rem;font-weight:600;cursor:pointer;">Sync</button>`
+              : `<span style="color:#9ca3af;font-size:0.75rem;">No ID</span>`;
+          return `<tr id="ddrow_${e._idx}" style="border-bottom:1px solid #f9fafb;">
+            <td style="padding:0.55rem 0.75rem;font-weight:500;color:#1f2937;">${e.name || '—'}</td>
+            <td style="padding:0.55rem 0.75rem;color:#6b7280;white-space:nowrap;">${timeStr}</td>
+            <td style="padding:0.55rem 0.75rem;"><span style="display:inline-block;padding:0.2rem 0.6rem;border-radius:12px;font-size:0.8rem;font-weight:600;background:${cfg.bg};color:${cfg.color};">${lbl}</span></td>
+            <td style="padding:0.55rem 0.75rem;">${fbCell}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      resultsEl.style.display = 'block';
+      const savedCount = sorted.filter(e => e.onFirebase).length;
+      statusEl.style.color  = unsynced.length > 0 ? '#d97706' : '#15803d';
+      statusEl.textContent  = unsynced.length > 0
+        ? `${savedCount} of ${sorted.length} events in Firebase — ${unsynced.length} not synced`
+        : sorted.length === 0 ? 'No events on this date' : `All ${sorted.length} events confirmed in Firebase ✓`;
+    }
+
+    async function _writeEventToFirebase(e, date) {
+      // Derive fields — connector now returns slot, slotNum, isoTs, docId
+      const slot    = e.slot    || '0';
+      const slotNum = e.slotNum || parseInt(slot) || 0;
+      const isoTs   = e.isoTs  || (e.time ? new Date(e.time).toISOString() : null);
+      const dateStr = e.dateStr || date;
+      const docId   = e.docId;
+      if (!docId || !isoTs) throw new Error('Missing docId or timestamp');
+      const docPath = `businesses/${businessId}/attendance_events/${dateStr}/${slotNum}/${docId}`;
+      const t       = String(e.type || '').toLowerCase();
+      const isIn    = t === 'in';
+      const isOut   = t === 'out';
+      await setDoc(doc(db, docPath), {
+        employeeId:       slot,
+        employeeName:     e.name || ('Employee ' + slot),
+        slotNumber:       slotNum,
+        time:             new Date(isoTs).toLocaleTimeString('en-US', { hour12: false }),
+        timestamp:        isoTs,
+        type:             isIn ? 'clock-in' : isOut ? 'clock-out' : t,
+        attendanceStatus: isIn ? 'in' : isOut ? 'out' : t,
+        deviceId:         'connector',
+        serialNo:         e.serialNo || null,
+        recordedAt:       new Date().toISOString(),
+        isDuplicatePunch: false,
+        isManual:         false,
+        source:           'manual-sync'
+      });
+    }
+
+    async function syncSingleDateEvent(idx, date) {
+      const e   = _dateQueryEvents[idx];
+      const btn = document.getElementById(`syncbtn_${idx}`);
+      const lbl = document.getElementById(`fbbadge_${idx}`);
+      if (!e || e.onFirebase) return;
+      if (btn) { btn.disabled = true; btn.textContent = '...'; }
+      try {
+        await _writeEventToFirebase(e, date);
+        _dateQueryEvents[idx] = { ...e, onFirebase: true };
+        if (lbl) lbl.outerHTML = `<span style="padding:0.18rem 0.6rem;border-radius:12px;font-size:0.75rem;font-weight:600;background:#dcfce7;color:#15803d;">✓ Saved</span>`;
+        if (btn) btn.remove();
+        _renderDateEvents(date); // refresh count + sync all button
+      } catch (err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Sync'; }
+        alert('Sync failed: ' + err.message);
+      }
+    }
+    window.syncSingleDateEvent = syncSingleDateEvent;
+
+    async function syncAllDateEvents() {
+      const syncAllEl = document.getElementById('deviceDateSyncAll');
+      const statusEl  = document.getElementById('deviceDateStatus');
+      const unsynced  = _dateQueryEvents.filter(e => {
+        const t = String(e.type||'').toLowerCase();
+        return (t === 'in' || t === 'out') && !e.onFirebase && e.docId;
+      });
+      if (unsynced.length === 0) return;
+
+      if (syncAllEl) { syncAllEl.disabled = true; syncAllEl.textContent = `⏳ Syncing ${unsynced.length}...`; }
+
+      const date = document.getElementById('deviceDateInput').value;
+      let written = 0, failed = 0;
+      for (const e of unsynced) {
+        try {
+          await _writeEventToFirebase(e, date);
+          const idx = _dateQueryEvents.indexOf(e);
+          if (idx >= 0) _dateQueryEvents[idx] = { ...e, onFirebase: true };
+          written++;
+          statusEl.textContent = `Syncing... ${written} done`;
+        } catch (_) { failed++; }
+      }
+
+      _renderDateEvents(date);
+      if (syncAllEl) syncAllEl.disabled = false;
+      statusEl.style.color  = failed > 0 ? '#dc2626' : '#15803d';
+      statusEl.textContent  = failed > 0
+        ? `Synced ${written}, ${failed} failed`
+        : `✓ Synced ${written} events to Firebase`;
+    }
+    window.syncAllDateEvents = syncAllDateEvents;
 
     function renderMonitorSnapshot(snapshot) {
       let inEmployees = [];
@@ -5980,27 +6750,51 @@
       inEmployees.sort(bySlot);
       outEmployees.sort(bySlot);
 
+      const total = inEmployees.length + outEmployees.length;
+      const rate  = total > 0 ? Math.round((inEmployees.length / total) * 100) : 0;
+
+      // Update stats bar
+      const mTotal = document.getElementById('mStatTotal');
+      const mIn    = document.getElementById('mStatIn');
+      const mOut   = document.getElementById('mStatOut');
+      const mRate  = document.getElementById('mStatRate');
+      if (mTotal) mTotal.textContent = total;
+      if (mIn)    mIn.textContent    = inEmployees.length;
+      if (mOut)   mOut.textContent   = outEmployees.length;
+      if (mRate)  mRate.textContent  = rate + '%';
+
+      // Update panel header counts
+      const inHC  = document.getElementById('inHeaderCount');
+      const outHC = document.getElementById('outHeaderCount');
+      if (inHC)  inHC.textContent  = inEmployees.length;
+      if (outHC) outHC.textContent = outEmployees.length;
+
+      // Helper: initials from name
+      const initials = name => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      // Helper: format time HH:MM
+      const fmtTime = ts => {
+        if (!ts) return '--:--';
+        const d = new Date(ts);
+        return isNaN(d.getTime()) ? '--:--' : d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false });
+      };
+
       // Render IN employees
       let inHtml = '';
       if (inEmployees.length === 0) {
-        inHtml = '<div class="no-employees">No employees clocked in</div>';
+        inHtml = '<div class="no-employees"><span>✓</span><span>No employees clocked in</span></div>';
       } else {
         inEmployees.forEach(emp => {
-          const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-          let lastTime = 'N/A';
-          if (emp.lastClockTime) {
-            const date = new Date(emp.lastClockTime);
-            if (!isNaN(date.getTime())) lastTime = date.toLocaleTimeString();
-          }
+          const slot = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
+          const name = emp.employeeName || `Slot ${slot}`;
           inHtml += `
             <div class="employee-item">
-              <div>
-                <div class="employee-name">${emp.employeeName}</div>
-                <div class="employee-slot">SLOT ${slotDisplay}</div>
+              <div class="emp-av">${initials(name)}</div>
+              <div class="emp-details">
+                <div class="employee-name">${name}</div>
+                <div class="employee-slot">Slot ${slot}</div>
               </div>
-              <div class="employee-time">${lastTime}</div>
-            </div>
-          `;
+              <div class="employee-time">${fmtTime(emp.lastClockTime)}</div>
+            </div>`;
         });
       }
       document.getElementById('inEmployees').innerHTML = inHtml;
@@ -6008,31 +6802,229 @@
       // Render OUT employees
       let outHtml = '';
       if (outEmployees.length === 0) {
-        outHtml = '<div class="no-employees">No employees clocked out</div>';
+        outHtml = '<div class="no-employees"><span>○</span><span>No employees clocked out</span></div>';
       } else {
         outEmployees.forEach(emp => {
-          const slotDisplay = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
-          let lastTime = 'N/A';
-          if (emp.lastClockTime) {
-            const date = new Date(emp.lastClockTime);
-            if (!isNaN(date.getTime())) lastTime = date.toLocaleTimeString();
-          }
+          const slot = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
+          const name = emp.employeeName || `Slot ${slot}`;
           outHtml += `
             <div class="employee-item">
-              <div>
-                <div class="employee-name">${emp.employeeName}</div>
-                <div class="employee-slot">SLOT ${slotDisplay}</div>
+              <div class="emp-av">${initials(name)}</div>
+              <div class="emp-details">
+                <div class="employee-name">${name}</div>
+                <div class="employee-slot">Slot ${slot}</div>
               </div>
-              <div class="employee-time">${lastTime}</div>
-            </div>
-          `;
+              <div class="employee-time">${fmtTime(emp.lastClockTime)}</div>
+            </div>`;
         });
       }
       document.getElementById('outEmployees').innerHTML = outHtml;
 
       // Update timestamp
-      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
-      document.getElementById('lastUpdateTime').textContent = timeStr;
+      document.getElementById('lastUpdateTime').textContent =
+        new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
+      // Update right panel
+      updateMonitorChart(inEmployees, outEmployees);
+      updateMonitorSpotlight(inEmployees, outEmployees);
+    }
+
+    /* ── Monitor Chart ─────────────────────────────────────── */
+    let _monitorChart     = null;
+    let _monitorChartType = 'bar';
+    let _monitorLastIn    = [];
+    let _monitorLastOut   = [];
+
+    function setMonitorChart(type) {
+      _monitorChartType = type;
+      // Toggle active button
+      ['Bar','HBar','Dnu','Pie'].forEach(k => {
+        const btn = document.getElementById('mcBtn' + k);
+        if (btn) btn.classList.remove('active');
+      });
+      const map = { bar:'Bar', horizontalBar:'HBar', doughnut:'Dnu', pie:'Pie' };
+      const activeBtn = document.getElementById('mcBtn' + map[type]);
+      if (activeBtn) activeBtn.classList.add('active');
+      updateMonitorChart(_monitorLastIn, _monitorLastOut);
+    }
+    window.setMonitorChart = setMonitorChart;
+
+    function updateMonitorChart(inList, outList) {
+      _monitorLastIn  = inList;
+      _monitorLastOut = outList;
+
+      const canvas    = document.getElementById('monitorEmpChart');
+      const emptyMsg  = document.getElementById('mrpChartEmpty');
+      if (!canvas) return;
+
+      const allEmp = [...inList, ...outList];
+      if (!allEmp.length) {
+        canvas.style.display = 'none';
+        if (emptyMsg) emptyMsg.style.display = 'flex';
+        if (_monitorChart) { _monitorChart.destroy(); _monitorChart = null; }
+        return;
+      }
+      canvas.style.display = 'block';
+      if (emptyMsg) emptyMsg.style.display = 'none';
+
+      const fmtHour = ts => {
+        if (!ts) return 0;
+        const d = new Date(ts);
+        return isNaN(d) ? 0 : parseFloat((d.getHours() + d.getMinutes()/60).toFixed(2));
+      };
+
+      const fmtTime = ts => {
+        if (!ts) return '--:--';
+        const d = new Date(ts);
+        return isNaN(d) ? '--:--' : d.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',hour12:false});
+      };
+
+      const isDoughnutOrPie = _monitorChartType === 'doughnut' || _monitorChartType === 'pie';
+
+      let config;
+
+      if (isDoughnutOrPie) {
+        config = {
+          type: _monitorChartType,
+          data: {
+            labels: ['Clocked In', 'Clocked Out'],
+            datasets: [{
+              data: [inList.length, outList.length],
+              backgroundColor: ['rgba(22,163,74,0.8)', 'rgba(220,38,38,0.75)'],
+              borderColor:     ['#16a34a', '#dc2626'],
+              borderWidth: 2,
+              hoverOffset: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12 } },
+              tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
+            }
+          }
+        };
+      } else {
+        // Bar / Horizontal Bar — arrival times per employee
+        const isHBar = _monitorChartType === 'horizontalBar';
+        const labels  = allEmp.map(e => e.employeeName || ('Slot ' + (e.slot||e.slotNumber||'?')));
+        const hours   = allEmp.map(e => e.attendanceStatus === 'in' ? fmtHour(e.lastClockTime) : 0);
+        const bgColors = allEmp.map(e => e.attendanceStatus === 'in' ? 'rgba(22,163,74,0.75)' : 'rgba(220,38,38,0.55)');
+        const bdColors = allEmp.map(e => e.attendanceStatus === 'in' ? '#16a34a' : '#dc2626');
+        const tooltipTimes = allEmp.map(e => fmtTime(e.lastClockTime));
+
+        config = {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Clock-in Time (24h)',
+              data: hours,
+              backgroundColor: bgColors,
+              borderColor: bdColors,
+              borderWidth: 1.5,
+              borderRadius: 5
+            }]
+          },
+          options: {
+            indexAxis: isHBar ? 'y' : 'x',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => {
+                    const emp = allEmp[ctx.dataIndex];
+                    const st  = emp.attendanceStatus === 'in' ? '✓ IN' : '✕ OUT';
+                    return ` ${st}  ${tooltipTimes[ctx.dataIndex]}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                display: !isHBar,
+                ticks: { font: { size: 10 }, maxRotation: 35, callback: v => v },
+                grid: { color: '#f1f5f9' }
+              },
+              y: {
+                display: !isHBar,
+                ticks: { font: { size: 9 } },
+                min: 0,
+                max: 24,
+                title: { display: true, text: 'Hour (24h)', font: { size: 9 }, color: '#94a3b8' },
+                grid: { color: '#f1f5f9' }
+              }
+            }
+          }
+        };
+
+        // Swap axes for horizontal
+        if (isHBar) {
+          config.options.scales = {
+            x: { min: 0, max: 24, ticks: { font:{size:9} }, grid:{ color:'#f1f5f9' },
+                 title:{ display:true, text:'Hour (24h)', font:{size:9}, color:'#94a3b8' } },
+            y: { ticks: { font:{size:10} }, grid:{ color:'#f1f5f9' } }
+          };
+        }
+      }
+
+      if (_monitorChart) { _monitorChart.destroy(); _monitorChart = null; }
+      _monitorChart = new Chart(canvas, config);
+    }
+
+    /* ── Monitor Spotlight ─────────────────────────────────── */
+    function updateMonitorSpotlight(inList, outList) {
+      const el = document.getElementById('mrpSpotlightBody');
+      if (!el) return;
+
+      const fmtTime = ts => {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return isNaN(d) ? '' : d.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit',hour12:false});
+      };
+
+      if (!inList.length && !outList.length) {
+        el.innerHTML = `<div class="mrp-spotlight-row mrp-sr-none"><div class="mrp-sr-icon">⏳</div><div><div class="mrp-sr-label">No data yet</div><div class="mrp-sr-name">—</div></div></div>`;
+        return;
+      }
+
+      // Top = earliest clock-in time (first to arrive)
+      const topEmp = inList.length
+        ? inList.reduce((a,b) => ((a.lastClockTime||Infinity) < (b.lastClockTime||Infinity) ? a : b))
+        : null;
+
+      // Lowest = not yet clocked in today (still out) — pick whoever has no clockTime or was latest out
+      const notIn = [...inList, ...outList].filter(e => e.attendanceStatus !== 'in');
+      const botEmp = notIn.length
+        ? notIn[0]
+        : (inList.length ? inList.reduce((a,b) => ((a.lastClockTime||0) > (b.lastClockTime||0) ? a : b)) : null);
+
+      const topName = topEmp ? (topEmp.employeeName || ('Slot '+(topEmp.slot||topEmp.slotNumber||'?'))) : '—';
+      const botName = botEmp ? (botEmp.employeeName || ('Slot '+(botEmp.slot||botEmp.slotNumber||'?'))) : '—';
+      const topTime = topEmp ? fmtTime(topEmp.lastClockTime) : '';
+      const botSt   = botEmp ? (botEmp.attendanceStatus === 'in' ? 'Latest arrival' : 'Not clocked in') : '';
+
+      el.innerHTML = `
+        <div style="font-size:0.7rem;color:#64748b;font-weight:600;padding:0 0.25rem 0.1rem;text-transform:uppercase;letter-spacing:0.06em;">🏆 First to Arrive</div>
+        <div class="mrp-spotlight-row mrp-sr-top">
+          <div class="mrp-sr-icon">🥇</div>
+          <div>
+            <div class="mrp-sr-label">Earliest Clock-In</div>
+            <div class="mrp-sr-name">${topName}</div>
+            ${topTime ? `<div class="mrp-sr-time">${topTime}</div>` : ''}
+          </div>
+        </div>
+        <div style="font-size:0.7rem;color:#64748b;font-weight:600;padding:0.5rem 0.25rem 0.1rem;text-transform:uppercase;letter-spacing:0.06em;">⚠️ Needs Attention</div>
+        <div class="mrp-spotlight-row mrp-sr-bot">
+          <div class="mrp-sr-icon">🔔</div>
+          <div>
+            <div class="mrp-sr-label">${botSt}</div>
+            <div class="mrp-sr-name">${botName}</div>
+          </div>
+        </div>`;
     }
 
     function loadMonitorData() {
@@ -12607,7 +13599,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     // ============================================
     
     async function loadDownloads() {
-      const monitorUrl = `${window.location.origin}/pages/monitor-app.html?businessId=${businessId}`;
+      const monitorUrl = `${window.location.origin}/pages/monitor-v2.html?businessId=${businessId}`;
       
       const downloadsHTML = `
         <div style="max-width: 900px; margin: 0 auto; padding: 2rem;">

@@ -5,201 +5,710 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#667eea">
-  <title>SmartClock Monitor</title>
+  <meta name="theme-color" content="#0f172a">
+  <title>SmartClock — Live Monitor</title>
   <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-base:       #0b0f1a;
+      --bg-panel:      #111827;
+      --bg-card:       #1a2235;
+      --bg-hover:      #1e2a3d;
+      --border:        rgba(255,255,255,0.07);
+      --border-bright: rgba(255,255,255,0.14);
+      --green:         #22c55e;
+      --green-dim:     rgba(34,197,94,0.15);
+      --green-glow:    rgba(34,197,94,0.4);
+      --red:           #ef4444;
+      --red-dim:       rgba(239,68,68,0.15);
+      --red-glow:      rgba(239,68,68,0.4);
+      --blue:          #3b82f6;
+      --blue-dim:      rgba(59,130,246,0.15);
+      --text-primary:  #f1f5f9;
+      --text-secondary:#94a3b8;
+      --text-muted:    #475569;
     }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      min-height: 100vh;
-      overflow-x: hidden;
+    html, body {
+      height: 100%;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      overflow: hidden;
     }
 
-    .header {
-      padding: 1.5rem;
-      text-align: center;
-      background: rgba(0, 0, 0, 0.2);
-      backdrop-filter: blur(10px);
-    }
-
-    .header h1 {
-      font-size: 1.8rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .header .status {
-      font-size: 0.9rem;
-      opacity: 0.9;
-    }
-
-    .action-buttons {
-      position: fixed;
-      bottom: 2rem;
-      right: 2rem;
+    /* ── TOP HEADER BAR ──────────────────────────────── */
+    .top-bar {
       display: flex;
-      gap: 1rem;
-      z-index: 1000;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      height: 60px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
 
-    .action-btn {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: white;
-      color: #667eea;
-      border: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      transition: all 0.3s ease;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .brand-logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #3b82f6, #7c3aed);
       display: flex;
       align-items: center;
       justify-content: center;
-    }
-
-    .action-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-    }
-
-    .action-btn:active {
-      transform: scale(0.95);
-    }
-
-    .fullscreen-btn {
-      background: #667eea;
+      font-size: 14px;
+      font-weight: 800;
       color: white;
     }
 
-    .monitor-grid {
+    .brand-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .brand-name span {
+      color: #3b82f6;
+    }
+
+    .top-bar-center {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .live-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(239,68,68,0.15);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 20px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ef4444;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: livePulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .bar-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-bright);
+      color: var(--text-primary);
+    }
+
+    /* ── MAIN LAYOUT ─────────────────────────────────── */
+    .layout {
+      display: flex;
+      height: calc(100vh - 60px);
+    }
+
+    /* ── ATTENDANCE PANELS (left + center) ──────────── */
+    .attendance-panels {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      padding: 1.5rem;
-      max-width: 1400px;
-      margin: 0 auto;
+      flex: 1;
+      min-width: 0;
+      border-right: 1px solid var(--border);
     }
 
-    .column-header {
-      font-size: 1.5rem;
-      font-weight: bold;
-      padding: 1rem;
-      text-align: center;
-      border-radius: 12px;
-      margin-bottom: 1rem;
-    }
-
-    .column-header.in {
-      background: rgba(16, 185, 129, 0.2);
-      border: 2px solid #10b981;
-    }
-
-    .column-header.out {
-      background: rgba(239, 68, 68, 0.2);
-      border: 2px solid #ef4444;
-    }
-
-    .employees-column {
+    .panel {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      overflow: hidden;
     }
 
-    .employee-card {
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      border-radius: 12px;
-      padding: 1.5rem;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
+    .panel:first-child {
+      border-right: 1px solid var(--border);
     }
 
-    .employee-card.in {
-      border-color: #10b981;
-      background: rgba(16, 185, 129, 0.2);
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      height: 52px;
+      flex-shrink: 0;
     }
 
-    .employee-card.out {
-      border-color: #ef4444;
-      background: rgba(239, 68, 68, 0.2);
+    .panel-header.in  { background: var(--green-dim); border-bottom: 2px solid var(--green); }
+    .panel-header.out { background: var(--red-dim);   border-bottom: 2px solid var(--red); }
+
+    .panel-label {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
-    .slot-number {
-      font-size: 2rem;
-      font-weight: bold;
-      margin-bottom: 0.5rem;
+    .panel-label.in  { color: var(--green); }
+    .panel-label.out { color: var(--red); }
+
+    .panel-label-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
     }
 
-    .employee-name {
-      font-size: 1.3rem;
+    .panel-label.in  .panel-label-dot { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
+    .panel-label.out .panel-label-dot { background: var(--red);   box-shadow: 0 0 8px var(--red-glow); }
+
+    .panel-count {
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 20px;
+      padding: 0.2rem 0.65rem;
+    }
+
+    .panel-count.in  { background: rgba(34,197,94,0.2);  color: var(--green); }
+    .panel-count.out { background: rgba(239,68,68,0.2);  color: var(--red); }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem 0;
+    }
+
+    /* Scrollbar */
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+
+    /* ── EMPLOYEE ROW ────────────────────────────────── */
+    .emp-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      gap: 0.75rem;
+      animation: fadeSlide 0.3s ease;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .emp-row:hover { background: var(--bg-hover); }
+    .emp-row:last-child { border-bottom: none; }
+
+    .emp-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #334155, #1e293b);
+      border: 2px solid var(--border-bright);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .emp-row.status-in  .emp-avatar { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+    .emp-row.status-out .emp-avatar { border-color: var(--red);   color: var(--red);   background: var(--red-dim); }
+
+    .emp-info { flex: 1; min-width: 0; }
+
+    .emp-name {
+      font-size: 0.95rem;
       font-weight: 600;
-      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .clock-time {
+    .emp-slot {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .emp-time {
+      font-family: 'JetBrains Mono', monospace;
       font-size: 1rem;
-      opacity: 0.9;
-      margin-top: 0.5rem;
+      font-weight: 600;
+      flex-shrink: 0;
     }
 
+    .emp-row.status-in  .emp-time { color: var(--green); }
+    .emp-row.status-out .emp-time { color: var(--red); }
+
+    /* ── EMPTY STATE ─────────────────────────────────── */
     .empty-state {
-      text-align: center;
-      padding: 3rem;
-      color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 0.75rem;
+      color: var(--text-muted);
     }
 
-    .loading {
-      text-align: center;
-      padding: 3rem;
-      font-size: 1.2rem;
+    .empty-state-icon { font-size: 2.5rem; opacity: 0.4; }
+    .empty-state-text { font-size: 0.85rem; font-weight: 500; }
+
+    /* ── RIGHT STATS PANEL ───────────────────────────── */
+    .stats-panel {
+      width: 280px;
+      min-width: 280px;
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
     }
 
-    @media (max-width: 768px) {
-      .monitor-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-        padding: 1rem;
-      }
+    .stats-panel::-webkit-scrollbar { width: 4px; }
+    .stats-panel::-webkit-scrollbar-track { background: transparent; }
+    .stats-panel::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
 
-      .employee-card {
-        padding: 1rem;
-      }
+    /* Clock block */
+    .clock-block {
+      padding: 1.5rem 1.25rem 1rem;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
 
-      .slot-number {
-        font-size: 1.5rem;
-      }
+    .clock-time-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.4rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
 
-      .employee-name {
-        font-size: 1rem;
-      }
+    .clock-date-display {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
 
-      .column-header {
-        font-size: 1.2rem;
-      }
+    /* Stats block */
+    .stat-block {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-block-title {
+      font-size: 0.67rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.75rem;
+    }
+
+    .stat-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 0.4rem;
+      background: var(--bg-card);
+    }
+
+    .stat-row:last-child { margin-bottom: 0; }
+
+    .stat-row-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .stat-row-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    /* Attendance rate gauge */
+    .rate-block {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .rate-block-title {
+      font-size: 0.67rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.85rem;
+    }
+
+    .rate-gauge-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .rate-gauge-svg { flex-shrink: 0; }
+
+    .rate-gauge-text { text-align: left; }
+
+    .rate-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .rate-label {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    /* Progress bar */
+    .progress-bar-wrap {
+      background: var(--bg-card);
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+      margin-top: 0.85rem;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--green), #4ade80);
+      transition: width 0.8s ease;
+    }
+
+    .progress-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.35rem;
+    }
+
+    .progress-bar-labels span {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    /* Activity feed */
+    .activity-block {
+      padding: 1rem 1.25rem;
+      flex: 1;
+    }
+
+    .activity-block-title {
+      font-size: 0.67rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.75rem;
+    }
+
+    .activity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.55rem 0.7rem;
+      border-radius: 8px;
+      background: var(--bg-card);
+      animation: fadeSlide 0.3s ease;
+    }
+
+    .activity-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 0.05rem;
+    }
+
+    .activity-badge.in  { background: var(--green-dim); color: var(--green); }
+    .activity-badge.out { background: var(--red-dim);   color: var(--red); }
+
+    .activity-info { flex: 1; min-width: 0; }
+
+    .activity-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .activity-meta {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .activity-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .activity-empty {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      padding: 1.5rem 0;
+    }
+
+    /* Connection badge */
+    .connection-block {
+      padding: 0.75rem 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .conn-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.73rem;
+      color: var(--text-muted);
+    }
+
+    .conn-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green-glow);
+    }
+
+    .conn-dot.disconnected {
+      background: var(--red);
+      box-shadow: 0 0 6px var(--red-glow);
+    }
+
+    /* ── LOADING / ERROR ─────────────────────────────── */
+    .full-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 1rem;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border-bright);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESPONSIVE ──────────────────────────────────── */
+    @media (max-width: 900px) {
+      .stats-panel { width: 220px; min-width: 220px; }
+    }
+
+    @media (max-width: 640px) {
+      html, body { overflow: auto; }
+      .layout { flex-direction: column; height: auto; }
+      .attendance-panels { grid-template-columns: 1fr; height: auto; }
+      .panel-body { max-height: 45vh; }
+      .stats-panel { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🔴 Live Monitor</h1>
-    <div class="status" id="headerStatus">Loading...</div>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="brand">
+      <div class="brand-logo">SC</div>
+      <div class="brand-name">Smart<span>Clock</span></div>
+    </div>
+    <div class="top-bar-center">
+      <div class="live-pill"><span class="live-dot"></span> Live</div>
+      <span class="bar-title">Attendance Monitor</span>
+    </div>
+    <div class="top-bar-right">
+      <button class="icon-btn" onclick="window.location.reload()" title="Refresh" style="font-size:1.1rem;">↻</button>
+      <button class="icon-btn" onclick="toggleFullscreen()" title="Fullscreen" id="fullscreenBtn">⛶</button>
+    </div>
   </div>
 
-  <div id="monitorGrid" class="monitor-grid">
-    <div class="loading">Loading employees...</div>
-  </div>
+  <!-- MAIN LAYOUT -->
+  <div class="layout">
 
-  <div class="action-buttons">
-    <button class="action-btn" onclick="loadMonitorData()" title="Refresh">↻</button>
-    <button class="action-btn fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen" id="fullscreenBtn">⛶</button>
+    <!-- LEFT + CENTER: IN / OUT -->
+    <div class="attendance-panels" id="attendancePanels">
+      <div class="full-loading">
+        <div class="spinner"></div>
+        <span>Connecting…</span>
+      </div>
+    </div>
+
+    <!-- RIGHT: STATS -->
+    <aside class="stats-panel">
+
+      <!-- Live Clock -->
+      <div class="clock-block">
+        <div class="clock-time-display" id="clockDisplay">--:--:--</div>
+        <div class="clock-date-display" id="dateDisplay">--</div>
+      </div>
+
+      <!-- Summary counts -->
+      <div class="stat-block">
+        <div class="stat-block-title">Today's Summary</div>
+        <div class="stat-row">
+          <div class="stat-row-label"><span class="stat-dot" style="background:var(--text-muted)"></span> Total Staff</div>
+          <div class="stat-row-value" id="statTotal" style="color:var(--text-primary)">0</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-label"><span class="stat-dot" style="background:var(--green)"></span> Clocked In</div>
+          <div class="stat-row-value" id="statIn" style="color:var(--green)">0</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-label"><span class="stat-dot" style="background:var(--red)"></span> Clocked Out</div>
+          <div class="stat-row-value" id="statOut" style="color:var(--red)">0</div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-label"><span class="stat-dot" style="background:var(--text-muted)"></span> Not Yet In</div>
+          <div class="stat-row-value" id="statOther" style="color:var(--text-muted)">0</div>
+        </div>
+      </div>
+
+      <!-- Attendance rate -->
+      <div class="rate-block">
+        <div class="rate-block-title">Attendance Rate</div>
+        <div class="rate-gauge-wrap">
+          <svg class="rate-gauge-svg" width="68" height="68" viewBox="0 0 68 68">
+            <circle cx="34" cy="34" r="28" fill="none" stroke="#1a2235" stroke-width="8"/>
+            <circle id="gaugeArc" cx="34" cy="34" r="28" fill="none"
+              stroke="#22c55e" stroke-width="8" stroke-linecap="round"
+              stroke-dasharray="175.93" stroke-dashoffset="175.93"
+              transform="rotate(-90 34 34)" style="transition: stroke-dashoffset 0.8s ease;"/>
+            <text x="34" y="38" text-anchor="middle" font-family="'JetBrains Mono', monospace"
+              font-size="13" font-weight="700" fill="#f1f5f9" id="gaugeText">0%</text>
+          </svg>
+          <div class="rate-gauge-text">
+            <div class="rate-value" id="rateValue">0%</div>
+            <div class="rate-label">Staff present<br>right now</div>
+          </div>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="progress-bar-labels">
+          <span id="progressLabelIn">0 in</span>
+          <span id="progressLabelTotal">0 total</span>
+        </div>
+      </div>
+
+      <!-- Activity feed -->
+      <div class="activity-block">
+        <div class="activity-block-title">Recent Activity</div>
+        <div class="activity-list" id="activityFeed">
+          <div class="activity-empty">No activity yet</div>
+        </div>
+      </div>
+
+      <!-- Connection status -->
+      <div class="connection-block">
+        <div class="conn-badge">
+          <span class="conn-dot" id="connDot"></span>
+          <span id="connLabel">Connecting to live data…</span>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <script type="module">
@@ -220,192 +729,211 @@
 
     let businessId = null;
     let unsubscribe = null;
+    const activityLog = []; // { name, slot, status, time }
 
-    // Get businessId from URL or localStorage
+    // ── Clock ──────────────────────────────────────────
+    function tickClock() {
+      const now = new Date();
+      document.getElementById('clockDisplay').textContent =
+        now.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      document.getElementById('dateDisplay').textContent =
+        now.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    // ── Business ID ────────────────────────────────────
     const urlParams = new URLSearchParams(window.location.search);
     businessId = urlParams.get('businessId') || localStorage.getItem('monitorBusinessId');
 
     if (businessId) {
       localStorage.setItem('monitorBusinessId', businessId);
-      console.log('Starting monitor for business:', businessId);
       startMonitoring();
     } else {
-      document.getElementById('monitorGrid').innerHTML = '<div class="empty-state">⚠️ No business ID provided. Please scan QR code or use provided link.</div>';
+      document.getElementById('attendancePanels').innerHTML = `
+        <div class="full-loading" style="grid-column:1/-1">
+          <div style="font-size:2rem">⚠️</div>
+          <span>No business ID provided.<br>Please use the link or QR code provided.</span>
+        </div>`;
+      setConnStatus(false, 'No business ID');
     }
 
+    // ── Firestore listener ─────────────────────────────
     function startMonitoring() {
       try {
-        console.log('Setting up listener for business:', businessId);
         const statusRef = collection(db, "businesses", businessId, "status");
-        
-        unsubscribe = onSnapshot(statusRef, 
-          (snapshot) => {
-            console.log('Snapshot received, docs:', snapshot.size);
+        unsubscribe = onSnapshot(statusRef,
+          snapshot => {
             const employees = [];
-            
             snapshot.forEach(doc => {
-              const data = doc.data();
-              console.log('Employee data:', data);
-              // Show all active employees, not just those with clock times
-              if (data.active || data.isActive || data.lastClockTime) {
-                employees.push({
-                  id: doc.id,
-                  ...data
-                });
+              const d = doc.data();
+              if (d.active || d.isActive || d.lastClockTime) {
+                employees.push({ id: doc.id, ...d });
               }
             });
-
-            displayEmployees(employees);
-            updateHeader(employees);
+            renderPanels(employees);
+            updateStats(employees);
+            setConnStatus(true, `Live · ${new Date().toLocaleTimeString()}`);
           },
-          (error) => {
-            console.error('Firestore error:', error);
-            document.getElementById('monitorGrid').innerHTML = `
-              <div class="empty-state">
-                <p style="font-size: 2rem; margin-bottom: 1rem;">⚠️</p>
-                <p>Error loading data: ${error.message}</p>
-                <p style="margin-top: 1rem; font-size: 0.9rem;">Please check Firestore security rules</p>
-              </div>
-            `;
+          error => {
+            console.error(error);
+            document.getElementById('attendancePanels').innerHTML = `
+              <div class="full-loading" style="grid-column:1/-1">
+                <div style="font-size:1.8rem">⚠️</div>
+                <span>Error: ${error.message}</span>
+              </div>`;
+            setConnStatus(false, 'Connection error');
           }
         );
-      } catch (error) {
-        console.error('Setup error:', error);
-        document.getElementById('monitorGrid').innerHTML = `
-          <div class="empty-state">
-            <p style="font-size: 2rem; margin-bottom: 1rem;">❌</p>
-            <p>Failed to initialize: ${error.message}</p>
-          </div>
-        `;
+      } catch (e) {
+        console.error(e);
+        setConnStatus(false, 'Failed to connect');
       }
     }
 
-    function displayEmployees(employees) {
-      const grid = document.getElementById('monitorGrid');
-      
-      if (employees.length === 0) {
-        grid.innerHTML = '<div class="empty-state">👤 No active employees found. Check staff configuration.</div>';
-        return;
-      }
-
-      // Sort by slot number
+    // ── Render IN / OUT panels ─────────────────────────
+    function renderPanels(employees) {
       employees.sort((a, b) => {
-        const slotA = a.slot || a.slotNumber || a.employeeId || parseInt(a.id) || 999;
-        const slotB = b.slot || b.slotNumber || b.employeeId || parseInt(b.id) || 999;
-        return parseInt(slotA) - parseInt(slotB);
+        const sa = parseInt(a.slot || a.slotNumber || a.employeeId || a.id) || 999;
+        const sb = parseInt(b.slot || b.slotNumber || b.employeeId || b.id) || 999;
+        return sa - sb;
       });
 
-      // Separate IN and OUT employees
-      const inEmployees = employees.filter(e => e.attendanceStatus === 'in');
-      const outEmployees = employees.filter(e => e.attendanceStatus === 'out' || !e.attendanceStatus);
+      const inList  = employees.filter(e => e.attendanceStatus === 'in');
+      const outList = employees.filter(e => e.attendanceStatus === 'out' || !e.attendanceStatus);
 
-      let html = `
-        <div class="employees-column">
-          <div class="column-header in">✅ CLOCKED IN (${inEmployees.length})</div>
-          ${inEmployees.length === 0 ? '<div style="text-align: center; padding: 2rem; opacity: 0.7;">No employees clocked in</div>' : ''}
-          ${inEmployees.map(emp => {
-            const slot = emp.slot || emp.slotNumber || emp.employeeId || emp.id || 'N/A';
-            const name = emp.employeeName || `Employee ${slot}`;
-            const time = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Ready';
+      // Detect new events for activity feed
+      employees.forEach(emp => {
+        if (!emp.lastClockTime) return;
+        const key = emp.id + ':' + emp.lastClockTime + ':' + emp.attendanceStatus;
+        if (!activityLog.find(a => a.key === key)) {
+          activityLog.unshift({
+            key,
+            name: emp.employeeName || `Slot ${emp.slot || emp.id}`,
+            slot: emp.slot || emp.slotNumber || emp.id,
+            status: emp.attendanceStatus === 'in' ? 'in' : 'out',
+            time: new Date(emp.lastClockTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+          });
+          if (activityLog.length > 20) activityLog.pop();
+          renderActivityFeed();
+        }
+      });
 
-            return `
-              <div class="employee-card in">
-                <div class="slot-number">SLOT ${slot}</div>
-                <div class="employee-name">${name}</div>
-                <div class="clock-time">⏰ ${time}</div>
-              </div>
-            `;
-          }).join('')}
+      const el = document.getElementById('attendancePanels');
+      el.innerHTML = `
+        <div class="panel">
+          <div class="panel-header in">
+            <div class="panel-label in"><span class="panel-label-dot"></span>Clocked In</div>
+            <span class="panel-count in">${inList.length}</span>
+          </div>
+          <div class="panel-body">
+            ${inList.length === 0
+              ? `<div class="empty-state"><div class="empty-state-icon">✓</div><div class="empty-state-text">No employees clocked in</div></div>`
+              : inList.map(emp => empRow(emp, 'in')).join('')}
+          </div>
         </div>
-        
-        <div class="employees-column">
-          <div class="column-header out">❌ CLOCKED OUT (${outEmployees.length})</div>
-          ${outEmployees.length === 0 ? '<div style="text-align: center; padding: 2rem; opacity: 0.7;">No employees clocked out</div>' : ''}
-          ${outEmployees.map(emp => {
-            const slot = emp.slot || emp.slotNumber || emp.employeeId || emp.id || 'N/A';
-            const name = emp.employeeName || `Employee ${slot}`;
-            const time = emp.lastClockTime ? new Date(emp.lastClockTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Ready';
 
-            return `
-              <div class="employee-card out">
-                <div class="slot-number">SLOT ${slot}</div>
-                <div class="employee-name">${name}</div>
-                <div class="clock-time">⏰ ${time}</div>
-              </div>
-            `;
-          }).join('')}
+        <div class="panel">
+          <div class="panel-header out">
+            <div class="panel-label out"><span class="panel-label-dot"></span>Clocked Out</div>
+            <span class="panel-count out">${outList.length}</span>
+          </div>
+          <div class="panel-body">
+            ${outList.length === 0
+              ? `<div class="empty-state"><div class="empty-state-icon">○</div><div class="empty-state-text">No employees clocked out</div></div>`
+              : outList.map(emp => empRow(emp, 'out')).join('')}
+          </div>
         </div>
       `;
-
-      grid.innerHTML = html;
     }
 
-    function updateHeader(employees) {
-      const inCount = employees.filter(e => e.attendanceStatus === 'in').length;
-      const outCount = employees.filter(e => e.attendanceStatus === 'out').length;
-      const total = employees.length;
-      
-      document.getElementById('headerStatus').textContent = `${inCount} IN • ${outCount} OUT • ${total} Total | Last update: ${new Date().toLocaleTimeString()}`;
+    function empRow(emp, status) {
+      const slot = emp.slot || emp.slotNumber || emp.employeeId || emp.id || '—';
+      const name = emp.employeeName || `Employee ${slot}`;
+      const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      const time = emp.lastClockTime
+        ? new Date(emp.lastClockTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+        : '--:--';
+      return `
+        <div class="emp-row status-${status}">
+          <div class="emp-avatar">${initials}</div>
+          <div class="emp-info">
+            <div class="emp-name">${name}</div>
+            <div class="emp-slot">Slot ${slot}</div>
+          </div>
+          <div class="emp-time">${time}</div>
+        </div>`;
     }
 
-    window.loadMonitorData = function() {
-      if (unsubscribe) {
-        unsubscribe();
+    // ── Stats panel ────────────────────────────────────
+    function updateStats(employees) {
+      const inCount    = employees.filter(e => e.attendanceStatus === 'in').length;
+      const outCount   = employees.filter(e => e.attendanceStatus === 'out').length;
+      const otherCount = employees.filter(e => !e.attendanceStatus || (e.attendanceStatus !== 'in' && e.attendanceStatus !== 'out')).length;
+      const total      = employees.length;
+      const rate       = total > 0 ? Math.round((inCount / total) * 100) : 0;
+      const circumference = 175.93;
+
+      document.getElementById('statTotal').textContent  = total;
+      document.getElementById('statIn').textContent     = inCount;
+      document.getElementById('statOut').textContent    = outCount;
+      document.getElementById('statOther').textContent  = otherCount;
+      document.getElementById('rateValue').textContent  = rate + '%';
+      document.getElementById('progressFill').style.width = rate + '%';
+      document.getElementById('progressLabelIn').textContent    = inCount + ' in';
+      document.getElementById('progressLabelTotal').textContent = total + ' total';
+
+      // SVG gauge
+      const offset = circumference - (rate / 100) * circumference;
+      document.getElementById('gaugeArc').style.strokeDashoffset = offset;
+      document.getElementById('gaugeArc').style.stroke = rate >= 80 ? '#22c55e' : rate >= 50 ? '#f59e0b' : '#ef4444';
+      document.getElementById('gaugeText').textContent = rate + '%';
+    }
+
+    // ── Activity feed ──────────────────────────────────
+    function renderActivityFeed() {
+      const feed = document.getElementById('activityFeed');
+      if (activityLog.length === 0) {
+        feed.innerHTML = '<div class="activity-empty">No activity yet</div>';
+        return;
       }
-      startMonitoring();
+      feed.innerHTML = activityLog.slice(0, 12).map(a => `
+        <div class="activity-item">
+          <div class="activity-badge ${a.status}">${a.status === 'in' ? 'IN' : 'OUT'}</div>
+          <div class="activity-info">
+            <div class="activity-name">${a.name}</div>
+            <div class="activity-meta">Slot ${a.slot}</div>
+          </div>
+          <div class="activity-time">${a.time}</div>
+        </div>`).join('');
+    }
+
+    // ── Connection badge ───────────────────────────────
+    function setConnStatus(connected, label) {
+      const dot = document.getElementById('connDot');
+      dot.className = 'conn-dot' + (connected ? '' : ' disconnected');
+      document.getElementById('connLabel').textContent = label;
+    }
+
+    // ── Fullscreen ─────────────────────────────────────
+    window.toggleFullscreen = function () {
+      const el = document.documentElement;
+      const inFS = document.fullscreenElement || document.webkitFullscreenElement;
+      if (!inFS) {
+        (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen).call(el);
+      } else {
+        (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen).call(document);
+      }
     };
 
-    window.toggleFullscreen = function() {
-      const elem = document.documentElement;
-      const btn = document.getElementById('fullscreenBtn');
-      
-      if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
-        if (elem.requestFullscreen) {
-          elem.requestFullscreen();
-        } else if (elem.webkitRequestFullscreen) {
-          elem.webkitRequestFullscreen();
-        } else if (elem.mozRequestFullScreen) {
-          elem.mozRequestFullScreen();
-        } else if (elem.msRequestFullscreen) {
-          elem.msRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        } else if (document.mozCancelFullScreen) {
-          document.mozCancelFullScreen();
-        } else if (document.msExitFullscreen) {
-          document.msExitFullscreen();
-        }
-      }
-    };
-
-    document.addEventListener('fullscreenchange', updateFullscreenButton);
-    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
-    document.addEventListener('mozfullscreenchange', updateFullscreenButton);
-    document.addEventListener('MSFullscreenChange', updateFullscreenButton);
-
-    function updateFullscreenButton() {
-      const btn = document.getElementById('fullscreenBtn');
-      if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement) {
-        btn.innerHTML = '✕';
-        btn.title = 'Exit Fullscreen';
-      } else {
-        btn.innerHTML = '⛶';
-        btn.title = 'Fullscreen';
-      }
-    }
-
-    setInterval(() => {
-      if (businessId && unsubscribe) {
-        const inCount = document.querySelectorAll('.employee-card.in').length;
-        const outCount = document.querySelectorAll('.employee-card.out').length;
-        const total = inCount + outCount;
-        document.getElementById('headerStatus').textContent = `${inCount} IN • ${outCount} OUT • ${total} Total | Last update: ${new Date().toLocaleTimeString()}`;
-      }
-    }, 30000);
+    ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange','MSFullscreenChange'].forEach(e => {
+      document.addEventListener(e, () => {
+        const btn = document.getElementById('fullscreenBtn');
+        const inFS = document.fullscreenElement || document.webkitFullscreenElement;
+        btn.innerHTML = inFS ? '✕' : '⛶';
+        btn.title     = inFS ? 'Exit Fullscreen' : 'Fullscreen';
+      });
+    });
   </script>
 </body>
 </html>
