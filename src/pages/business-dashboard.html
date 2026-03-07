@@ -949,6 +949,7 @@
             gap: 0;
             flex: 1;
             min-height: 0;
+            overflow: hidden;
           }
 
           .status-section {
@@ -958,7 +959,7 @@
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             border: 1px solid #f1f5f9;
             flex: 1;
-            min-width: 0;
+            min-width: 80px;
             display: flex;
             flex-direction: column;
           }
@@ -1134,7 +1135,9 @@
           /* ── Right panel ── */
           .mrp-panel { display: flex; flex-direction: column; gap: 1rem; flex-shrink: 0; width: 330px; }
           #mmOuterSpl { align-self: stretch; min-height: 80px; }
-          #mmInnerSpl { align-self: stretch; }
+          #mmInnerSpl { align-self: stretch; height: auto; }
+          /* make splitters more visible */
+          .mm-col-spl::after { background: rgba(0,0,0,0.15); width: 4px; height: 60px; }
 
           /* Zoom buttons */
           .mm-zoom-btns { display: flex; gap: 3px; flex-shrink: 0; }
@@ -17180,13 +17183,49 @@ Click "Test Connection" after starting the service.`);
         colSplitter(outerSpl, leftCol, rightPanel, 'outerCols');
       }
 
+      /* inner splitter — re-init every time so dimensions are current */
       var innerSpl = document.getElementById('mmInnerSpl');
       var inOutSecs = document.querySelectorAll('#monitorContent .status-section');
       var inSec  = inOutSecs[0];
       var outSec = inOutSecs[1];
-      if (innerSpl && inSec && outSec && !innerSpl._mmInit) {
-        innerSpl._mmInit = true;
-        colSplitter(innerSpl, inSec, outSec, 'innerCols');
+      if (innerSpl && inSec && outSec) {
+        if (innerSpl._mmHandler) {
+          innerSpl.removeEventListener('mousedown', innerSpl._mmHandler);
+        }
+        /* use a fresh colSplitter but expose handler so we can remove it */
+        innerSpl._mmHandler = null;
+        var _sv = sv, _key = 'innerCols';
+        if (_sv[_key]) {
+          inSec.style.flex  = 'none'; inSec.style.width  = _sv[_key][0];
+          outSec.style.flex = 'none'; outSec.style.width = _sv[_key][1];
+        }
+        function _innerMD(e) {
+          e.preventDefault();
+          var sx = e.clientX;
+          var slw = inSec.offsetWidth, srw = outSec.offsetWidth;
+          innerSpl.classList.add('dragging');
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+          function _mm(e2) {
+            var dx = e2.clientX - sx;
+            var lw = Math.max(80, Math.min(slw + dx, slw + srw - 80));
+            inSec.style.flex  = 'none'; inSec.style.width  = lw + 'px';
+            outSec.style.flex = 'none'; outSec.style.width = (slw + srw - lw) + 'px';
+          }
+          function _mu() {
+            document.removeEventListener('mousemove', _mm);
+            document.removeEventListener('mouseup', _mu);
+            innerSpl.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            _sv[_key] = [inSec.offsetWidth + 'px', outSec.offsetWidth + 'px'];
+            save();
+          }
+          document.addEventListener('mousemove', _mm);
+          document.addEventListener('mouseup', _mu);
+        }
+        innerSpl._mmHandler = _innerMD;
+        innerSpl.addEventListener('mousedown', _innerMD);
       }
 
       document.querySelectorAll('.mrp-card[data-mmrk]').forEach(function(card) {
@@ -17212,12 +17251,13 @@ Click "Test Connection" after starting the service.`);
     /* ── Per-panel zoom ── */
     var ZK2 = 'mm_zoom';
     var zv2 = JSON.parse(localStorage.getItem(ZK2)||'{}');
-    var ZS2 = [60,70,80,90,100,112,125,140,160];
+    var ZS2 = [0.6,0.7,0.8,0.9,1,1.12,1.25,1.4,1.6];
     function applyZoom2(id) {
       var el = document.querySelector('[data-zp="'+id+'"]');
       if (!el) return;
       var idx = Math.max(0,Math.min(8,(zv2[id]||4)));
-      el.style.fontSize = ZS2[idx]+'%';
+      el.style.zoom = ZS2[idx];
+      el.style.fontSize = '';
     }
     window.pzoom = function(id, d) {
       zv2[id] = Math.max(0, Math.min(8, (zv2[id]||4)+d));

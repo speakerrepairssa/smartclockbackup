@@ -126,9 +126,9 @@
       border-radius:14px;overflow:hidden;flex-shrink:0;display:flex;flex-direction:column;
     }
     /* LAYOUT RESIZE HANDLES */
-    .layout-col-spl{width:10px;cursor:col-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:0 3px;border-radius:4px;transition:background 0.2s;}
-    .layout-col-spl::after{content:'';width:3px;height:50px;background:rgba(255,255,255,0.08);border-radius:2px;transition:background 0.2s;}
-    .layout-col-spl:hover::after,.layout-col-spl.dragging::after{background:rgba(59,130,246,0.7);}
+    .layout-col-spl{width:14px;cursor:col-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:0 2px;border-radius:4px;transition:background 0.2s;}
+    .layout-col-spl::after{content:'';width:4px;height:60px;background:rgba(255,255,255,0.15);border-radius:2px;transition:background 0.2s;}
+    .layout-col-spl:hover::after,.layout-col-spl.dragging::after{background:rgba(59,130,246,0.8);}
     #outerColSpl{align-self:stretch;}
     #innerColSpl{align-self:stretch;}
     /* ZOOM BUTTONS */
@@ -493,12 +493,13 @@
   /* ── Per-panel zoom ── */
   var ZK = 'fv_zoom';
   var zv = JSON.parse(localStorage.getItem(ZK)||'{}');
-  var ZS = [60,70,80,90,100,112,125,140,160];
+  var ZS = [0.6,0.7,0.8,0.9,1,1.12,1.25,1.4,1.6];
   function applyZoom(id) {
     var el = document.querySelector('[data-zp="'+id+'"]');
     if (!el) return;
     var idx = Math.max(0,Math.min(8,(zv[id]||4)));
-    el.style.fontSize = ZS[idx]+'%';
+    el.style.zoom = ZS[idx];
+    el.style.fontSize = '';
   }
   window.pzoom = function(id, d) {
     zv[id] = Math.max(0, Math.min(8, (zv[id]||4)+d));
