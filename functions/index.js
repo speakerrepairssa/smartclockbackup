@@ -964,8 +964,8 @@ async function processAttendanceEvent(businessId, eventData) {
 
     await staffSlotRef.set(updatedSlotData, { merge: true });
 
-    // AUTO-SAVE FACE PHOTO from webhook multipart image (no device call needed)
-    if (faceImageBuffer && faceImageBuffer.length > 500 && !existingSlotData.facePhotoUrl) {
+    // AUTO-SAVE FACE PHOTO — always update on clock-in, same as name
+    if (faceImageBuffer && faceImageBuffer.length > 500) {
       // Run non-blocking so it never delays attendance recording
       (async () => {
         try {
@@ -7139,16 +7139,6 @@ exports.uploadEmployeePhoto = onRequest(async (req, res) => {
     }
     if (!businessId) {
       return res.status(400).json({ success: false, error: 'Missing businessId and could not resolve from deviceId' });
-    }
-
-    // Check if employee already has a photo (don't overwrite unless it's a fresh upload)
-    if (source === 'webhook-fanout') {
-      const staffDoc = await db.collection('businesses').doc(businessId)
-        .collection('staff').doc(String(employeeSlot)).get();
-      if (staffDoc.exists && staffDoc.data().facePhotoUrl) {
-        logger.info('📸 Employee already has photo, skipping auto-upload', { businessId, employeeSlot });
-        return res.json({ success: true, skipped: true, reason: 'already has photo' });
-      }
     }
 
     const imageBuffer = Buffer.from(imageBase64, 'base64');
