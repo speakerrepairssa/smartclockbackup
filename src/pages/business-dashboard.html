@@ -7940,7 +7940,7 @@
               : `<div class="emp-avatar-placeholder">${avatarInitials}</div>`;
 
             slotCards.push(`
-              <div class="employee-card ${employee.active ? '' : 'inactive'}">
+              <div class="employee-card ${employee.active ? '' : 'inactive'}" data-slot="${i}">
 
                 <!-- Face Photo Row -->
                 <div class="emp-avatar-wrap">
@@ -8094,6 +8094,24 @@
         }
 
         employeesGrid.innerHTML = slotCards.join('');
+
+        // Real-time photo listener — updates avatar the moment facePhotoUrl lands in Firestore
+        if (window._employeePhotoUnsubscribe) window._employeePhotoUnsubscribe();
+        window._employeePhotoUnsubscribe = onSnapshot(
+          collection(db, 'businesses', businessId, 'staff'),
+          snap => {
+            snap.docChanges().forEach(change => {
+              if (change.type === 'modified') {
+                const data = change.doc.data();
+                if (data.facePhotoUrl) {
+                  const slot = parseInt(data.slot || change.doc.id);
+                  const card = employeesGrid.querySelector(`[data-slot="${slot}"]`);
+                  if (card) updateCardAvatar(card, data.facePhotoUrl, data.employeeName);
+                }
+              }
+            });
+          }
+        );
 
       } catch (error) {
         console.error("Error loading employees:", error);
