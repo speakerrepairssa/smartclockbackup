@@ -15354,9 +15354,11 @@ You can output multiple TRANSACTION_SAVE lines. Only output these after the user
     // ========================================
 
     // Export module-scoped functions to window so plain scripts can use them
-    window.getRealtimeAttendanceData      = getRealtimeAttendanceData;
-    window.calculateAndCacheAttendanceData = calculateAndCacheAttendanceData;
-    window.triggerAttendanceRecalculation  = triggerAttendanceRecalculation;
+    window.getRealtimeAttendanceData       = getRealtimeAttendanceData;
+    window.calculateAndCacheAttendanceData  = calculateAndCacheAttendanceData;
+    window.triggerAttendanceRecalculation   = triggerAttendanceRecalculation;
+    window.calculateAssessmentFromAttendanceOriginal = calculateAssessmentFromAttendanceOriginal;
+    window.calculateAssessmentFromAttendance         = calculateAssessmentFromAttendanceOriginal;
     
   </script>
 
@@ -16212,8 +16214,10 @@ Click "Test Connection" after starting the service.`);
     };
     
     // Point calculateAssessmentFromAttendance at the original fallback
-    window.calculateAssessmentFromAttendance = calculateAssessmentFromAttendanceOriginal;
-    window.calculateAssessmentFromAttendanceOriginal = calculateAssessmentFromAttendanceOriginal;
+    // (these are set by the main module - safe to skip if module not yet ready)
+    if (typeof window.calculateAssessmentFromAttendanceOriginal !== 'undefined') {
+      window.calculateAssessmentFromAttendance = window.calculateAssessmentFromAttendanceOriginal;
+    }
   </script>
 
   <!-- Shift Management Module Styles -->
