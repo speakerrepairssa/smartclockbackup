@@ -2867,7 +2867,7 @@
           </div>
           <script>
             window.openFullMonitor = function() {
-              const bId = window.businessId || localStorage.getItem('businessId') || localStorage.getItem('currentBusinessId');
+              const bId = window.businessId || localStorage.getItem('monitorBusinessId') || localStorage.getItem('businessId') || localStorage.getItem('currentBusinessId');
               const url = '/pages/monitor-v2.html' + (bId ? '?businessId=' + encodeURIComponent(bId) : '');
               const overlay = document.getElementById('fullMonitorOverlay');
               const frame   = document.getElementById('fullMonitorFrame');
@@ -5619,6 +5619,7 @@
 
         businessId = authService.getBusinessId();
         window.businessId = businessId; // Expose to global scope for modules
+        localStorage.setItem('monitorBusinessId', businessId); // Persist for Full View iframe
         console.log('Business ID:', businessId);
         
         // Get user email for action tracking
@@ -6737,7 +6738,8 @@
 
       snapshot.forEach(doc => {
         const status = doc.data();
-        if (!status.lastClockTime) return; // Skip unused slots
+        // Skip completely unused slots (no clock time AND no active flag)
+        if (!status.lastClockTime && !status.active && !status.isActive && !status.employeeName) return;
         if (status.attendanceStatus === 'in') {
           inEmployees.push(status);
         } else {
@@ -6972,7 +6974,13 @@
       }
 
       if (_monitorChart) { _monitorChart.destroy(); _monitorChart = null; }
-      _monitorChart = new Chart(canvas, config);
+      try {
+        _monitorChart = new (window.Chart || Chart)(canvas, config);
+      } catch (chartErr) {
+        console.error('Monitor chart render error:', chartErr);
+        canvas.style.display = 'none';
+        if (emptyMsg) { emptyMsg.textContent = 'Chart unavailable'; emptyMsg.style.display = 'flex'; }
+      }
     }
 
     /* ── Monitor Spotlight ─────────────────────────────────── */
@@ -7034,12 +7042,25 @@
         monitorLiveUnsubscribe = null;
       }
 
-      console.log("Setting up live monitor listener for:", businessId);
-      const statusRef = collection(db, "businesses", businessId, "status");
+      // Resolve businessId from closure or window fallback
+      const bid = businessId || window.businessId;
+      const dbRef = db || window.db;
+      if (!bid || !dbRef) {
+        console.warn('loadMonitorData: businessId or db not ready, retrying in 1s...');
+        setTimeout(loadMonitorData, 1000);
+        return;
+      }
+
+      console.log("Setting up live monitor listener for:", bid);
+      const statusRef = collection(dbRef, "businesses", bid, "status");
 
       monitorLiveUnsubscribe = onSnapshot(statusRef, (snapshot) => {
         console.log("🔴 Live monitor update received -", snapshot.size, "docs");
-        renderMonitorSnapshot(snapshot);
+        try {
+          renderMonitorSnapshot(snapshot);
+        } catch (renderErr) {
+          console.error("Error rendering monitor snapshot:", renderErr);
+        }
       }, (error) => {
         console.error("Error in live monitor listener:", error);
         const errorMsg = error.code === 'permission-denied' ? 'Permission denied - check Firestore rules' : error.message;

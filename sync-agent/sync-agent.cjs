@@ -21,9 +21,19 @@ const crypto = require('crypto');
 // ── Constants ────────────────────────────────────────────────────────────────
 const CONFIG_FILE        = path.join(__dirname, 'connector-config.json');
 const LOG_FILE           = path.join(__dirname, 'connector.log');
-const FIREBASE_API_KEY   = 'AIzaSyC6capPBwQDzIyp73i4ML0m9UwqjcfJ_WE';
-const FIREBASE_PROJECT   = 'smartclock-v2-8271f';
 const AGENT_VERSION      = '1.0.0';
+
+// ── Multi-project support ─────────────────────────────────────────────────────
+// The connector tries each project in order during login so one zip works
+// for all SmartClock / AiClock deployments.
+const FIREBASE_PROJECTS = [
+  { project: 'aiclock-82608',      apiKey: 'AIzaSyBssR7qaFYd1Bcm7urHQrKfLPVvdoZJ1kw' },
+  { project: 'smartclock-v2-8271f', apiKey: 'AIzaSyC6capPBwQDzIyp73i4ML0m9UwqjcfJ_WE' },
+];
+
+// Active project — set after successful login
+let FIREBASE_API_KEY  = FIREBASE_PROJECTS[0].apiKey;
+let FIREBASE_PROJECT  = FIREBASE_PROJECTS[0].project;
 const SETUP_PORT         = 7663;
 const SYNC_INTERVAL      = 5 * 60 * 1000;   // 5 minutes
 const HEARTBEAT_INTERVAL = 60 * 1000;        // 60 seconds
@@ -220,7 +230,7 @@ function getDocByPath(docPath) {
 }
 
 // Login-specific query: uses API key directly so Firestore rules can't block it
-function loginQuery(email) {
+function loginQueryForProject(email, project, apiKey) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       structuredQuery: {
@@ -235,7 +245,7 @@ function loginQuery(email) {
     const opts = {
       hostname: 'firestore.googleapis.com',
       port: 443,
-      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery?key=${FIREBASE_API_KEY}`,
+      path: `/v1/projects/${project}/databases/(default)/documents:runQuery?key=${apiKey}`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
     };
@@ -250,6 +260,22 @@ function loginQuery(email) {
     req.write(body);
     req.end();
   });
+}
+
+// Try each Firebase project in order — returns { results, project, apiKey }
+async function loginQuery(email) {
+  for (const p of FIREBASE_PROJECTS) {
+    const results = await loginQueryForProject(email, p.project, p.apiKey);
+    const match = Array.isArray(results) && results.find(r => r.document);
+    if (match) {
+      // Switch active project to the one where account was found
+      FIREBASE_PROJECT = p.project;
+      FIREBASE_API_KEY = p.apiKey;
+      log(`[login] Account found in project: ${p.project}`);
+      return results;
+    }
+  }
+  return []; // not found in any project
 }
 
 function fv(val) {
@@ -270,11 +296,13 @@ function writeDocApiKey(docPath, fields) {
   const body = { fields: {} };
   for (const [k, v] of Object.entries(fields)) body.fields[k] = fv(v);
   const data = JSON.stringify(body);
+  // Use updateMask so we only PATCH the supplied fields and never delete others
+  const mask = Object.keys(fields).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
   return new Promise((resolve, reject) => {
     const opts = {
       hostname: 'firestore.googleapis.com',
       port: 443,
-      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${docPath}?key=${FIREBASE_API_KEY}`,
+      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${docPath}?key=${FIREBASE_API_KEY}&${mask}`,
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
     };
@@ -365,23 +393,88 @@ async function deviceRequest(ip, user, pass, body, port) {
   });
 }
 
-async function fetchAllDeviceEvents(ip, user, pass, port) {
-  port = port || 443;
+// Hikvision ACS minors we query. The device REQUIRES both major+minor, so we
+// query each combination and merge. Unknown minors return HTTP 400 (gracefully
+// skipped). major:5 = access control, minor list covers fingerprint, face,
+// card, general auth, remote open.
+const ACS_MINORS = [38, 75, 76, 63, 64, 73, 74, 193, 194]; // 38 = fingerprint/face auth (ACS mode)
+
+async function fetchEventsPage(ip, user, pass, port, cond) {
+  // Reset digest so each call gets a fresh nonce (avoids stale-nonce 401)
+  _digestChallenge = null;
+  const d = await deviceRequest(ip, user, pass, { AcsEventCond: cond }, port);
+  // Detect device-level errors (e.g. 400 MessageParametersLack parsed as JSON)
+  if (d?.statusCode && !d?.AcsEvent) {
+    throw new Error(`Device error ${d.statusCode}: ${d.statusString || ''} ${d.errorMsg || ''}`.trim());
+  }
+  return d?.AcsEvent || {};
+}
+
+async function fetchWithFilter(ip, user, pass, port, start, end, major, minor, searchPrefix) {
   const all = [];
   let pos = 0, total = null;
-  const start = '2020-01-01T00:00:00';
-  const end   = new Date().toISOString().replace(/\.\d{3}Z$/, '');
-
   while (true) {
-    const d = await deviceRequest(ip, user, pass, {
-      AcsEventCond: { searchID: 'connector_sync', searchResultPosition: pos, maxResults: 50, major: 5, minor: 75, startTime: start, endTime: end }
-    }, port);
-    const evts = d?.AcsEvent || {};
+    const evts = await fetchEventsPage(ip, user, pass, port, {
+      searchID: `${searchPrefix}_${minor}`,
+      searchResultPosition: pos,
+      maxResults: 50,
+      major,
+      minor,
+      startTime: start,
+      endTime: end
+    });
     if (total === null) total = evts.totalMatches || 0;
-    const batch = evts.InfoList || [];
+    const raw = evts.InfoList;
+    const batch = Array.isArray(raw) ? raw : (raw ? [raw] : []);
     all.push(...batch);
     pos += batch.length;
     if (batch.length === 0 || pos >= total) break;
+  }
+  return all;
+}
+
+async function fetchAllDeviceEvents(ip, user, pass, port) {
+  port = port || 443;
+  const start = '2020-01-01T00:00:00';
+  // Use tomorrow as end so we never cut off today, but stay within device limits
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const end = tomorrow.toISOString().slice(0, 10) + 'T23:59:59';
+  const seen = new Set();
+  const all  = [];
+
+  for (const minor of ACS_MINORS) {
+    try {
+      const events = await fetchWithFilter(ip, user, pass, port, start, end, 5, minor, 'sync');
+      for (const e of events) {
+        const key = `${e.serialNo || ''}|${e.time || e.dateTime || ''}|${e.employeeNoString || ''}`;
+        if (!seen.has(key)) { seen.add(key); all.push(e); }
+      }
+    } catch (err) {
+      // 400 MessageParametersLack means this minor isn't supported — skip silently
+      if (!err.message.includes('Device error')) log(`fetchAll minor:${minor} error: ${err.message}`);
+    }
+  }
+  return all;
+}
+
+async function fetchEventsForDate(ip, user, pass, port, dateStr) {
+  // The device uses local time (SAST UTC+2). Send plain local-time timestamps.
+  port = port || 443;
+  const start = `${dateStr}T00:00:00`;
+  const end   = `${dateStr}T23:59:59`;
+  const seen = new Set();
+  const all  = [];
+
+  for (const minor of ACS_MINORS) {
+    try {
+      const events = await fetchWithFilter(ip, user, pass, port, start, end, 5, minor, 'dateq');
+      for (const e of events) {
+        const key = `${e.serialNo || ''}|${e.time || e.dateTime || ''}|${e.employeeNoString || ''}`;
+        if (!seen.has(key)) { seen.add(key); all.push(e); }
+      }
+    } catch (err) {
+      if (!err.message.includes('Device error')) log(`fetchDate minor:${minor} error: ${err.message}`);
+    }
   }
   return all;
 }
@@ -527,9 +620,21 @@ async function runSync(config, onStatus) {
       }));
     }
 
+    // Build recentEvents — last 20 from the device, newest first, with a flag if they were new
+    const newPaths = new Set(toWrite.map(e => e.docPath));
+    const recentEvents = [...parsed]
+      .sort((a, b) => new Date(b.isoTs) - new Date(a.isoTs))
+      .slice(0, 20)
+      .map(e => ({
+        name:  e.empName || ('Slot ' + e.slotNum),
+        time:  e.isoTs,
+        type:  e.statusStr,   // 'in' or 'out'
+        isNew: newPaths.has(e.docPath)
+      }));
+
     log(`Sync complete: ${written} written`);
     if (onStatus) onStatus('done');
-    return { total: events.length, existing: existingSet.size, written, newEvents: toWrite.length };
+    return { total: events.length, existing: existingSet.size, written, newEvents: toWrite.length, recentEvents };
   } catch (err) {
     log(`Sync error: ${err.message}`);
     if (onStatus) onStatus('error');
@@ -570,6 +675,13 @@ async function checkSyncRequest(config) {
           newEvents:   result.written,
           total:       result.total
         });
+        // Update connector_status with fresh recentEvents so dashboard live feed updates
+        await writeDocApiKey(`businesses/${config.businessId}/connector_status/current`, {
+          lastSyncStatus:    'ok',
+          lastSyncAt:        new Date().toISOString(),
+          lastSyncNewEvents: result.written,
+          recentEventsJson:  JSON.stringify(result.recentEvents || [])
+        });
         log(`Manual sync done: ${result.written} new events`);
       } catch (err) {
         await writeDoc(`businesses/${config.businessId}/connector_sync_request/current`, {
@@ -580,6 +692,57 @@ async function checkSyncRequest(config) {
       }
     }
   } catch (_) {}
+}
+
+// ── Event Date Query Watcher ────────────────────────────────────────────────
+async function checkEventQuery(config) {
+  try {
+    const d = await firestoreRequest('GET', `businesses/${config.businessId}/connector_event_query/current`);
+    if (d?.fields?.status?.stringValue !== 'requested') return;
+    const dateStr = d.fields?.date?.stringValue;
+    if (!dateStr) return;
+
+    log(`Date query requested: ${dateStr}`);
+    await writeDocApiKey(`businesses/${config.businessId}/connector_event_query/current`, {
+      status: 'running', date: dateStr, startedAt: new Date().toISOString()
+    });
+
+    try {
+      const events = await fetchEventsForDate(config.deviceIP, config.deviceUser, config.devicePass, config.devicePort || 443, dateStr);
+      const parsed = events.map(parseDeviceEvent).filter(e => e.time);
+      await writeDocApiKey(`businesses/${config.businessId}/connector_event_query/current`, {
+        status: 'done', date: dateStr,
+        eventsJson:  JSON.stringify(parsed),
+        totalEvents: parsed.length,
+        completedAt: new Date().toISOString()
+      });
+      log(`Date query done: ${parsed.length} events on ${dateStr}`);
+    } catch (err) {
+      await writeDocApiKey(`businesses/${config.businessId}/connector_event_query/current`, {
+        status: 'error', date: dateStr, error: err.message, completedAt: new Date().toISOString()
+      });
+      log(`Date query error: ${err.message}`);
+    }
+  } catch (_) {}
+}
+
+// Parse a raw Hikvision AcsEvent into a display-friendly object.
+// Used by the date browser (shows ALL events) and checkEventQuery.
+function parseDeviceEvent(e) {
+  const slot      = String(e.employeeNoString || '').trim();
+  const empName   = (e.name || '').trim() || (slot && slot !== '0' ? 'Employee ' + slot : '');
+  const rawTime   = e.time || e.dateTime || null;
+  const rawStatus = String(e.attendanceStatus || '').toLowerCase();
+  const isIn      = rawStatus === 'checkin' || rawStatus === '5' || rawStatus === '1' || rawStatus === 'in';
+  const isOut     = rawStatus === 'checkout' || rawStatus === '6' || rawStatus === '2' || rawStatus === 'out';
+  // Determine display label from eventType, description, or major/minor hint
+  let label = e.eventDescription || e.description || e.eventType || '';
+  let type;
+  if (isIn)  { type = 'in';     label = label || 'Clock In'; }
+  else if (isOut) { type = 'out';    label = label || 'Clock Out'; }
+  else if (empName) { type = 'access';  label = label || 'Access Granted'; }
+  else { type = 'system';  label = label || ('Event ' + (e.major || '') + '/' + (e.minor || '')); }
+  return { name: empName, time: rawTime, type, label };
 }
 
 // ── Setup HTML (embedded) ─────────────────────────────────────────────────────
@@ -936,7 +1099,7 @@ function startSetupServer(onComplete) {
         } catch (_) { /* device lookup failure is non-fatal */ }
 
         res.writeHead(200);
-        res.end(JSON.stringify({ success: true, businessId: bizId, businessName: bizName, device: deviceInfo }));
+        res.end(JSON.stringify({ success: true, businessId: bizId, businessName: bizName, device: deviceInfo, project: FIREBASE_PROJECT }));
       } catch (err) {
         res.writeHead(400);
         res.end(JSON.stringify({ success: false, error: err.message }));
@@ -950,14 +1113,16 @@ function startSetupServer(onComplete) {
         const events = await fetchAllDeviceEvents(parsed.ip, parsed.user, parsed.pass, parsed.port || 443);
         // Save config
         const cfg = {
-          businessId:   parsed.businessId,
-          deviceIP:     parsed.ip,
-          devicePort:   parsed.port || 443,
-          deviceUser:   parsed.user,
-          devicePass:   parsed.pass,
-          deviceSerial: parsed.serial || '',
-          deviceModel:  parsed.model  || 'Hikvision Device',
-          setupAt:      new Date().toISOString()
+          businessId:      parsed.businessId,
+          firebaseProject: FIREBASE_PROJECT,
+          firebaseApiKey:  FIREBASE_API_KEY,
+          deviceIP:        parsed.ip,
+          devicePort:      parsed.port || 443,
+          deviceUser:      parsed.user,
+          devicePass:      parsed.pass,
+          deviceSerial:    parsed.serial || '',
+          deviceModel:     parsed.model  || 'Hikvision Device',
+          setupAt:         new Date().toISOString()
         };
         saveConfig(cfg);
         log(`Setup complete. Business: ${cfg.businessId}, Device: ${cfg.deviceIP} (${events.length} events)`);
@@ -995,11 +1160,20 @@ function startSetupServer(onComplete) {
 async function startAgent(config) {
   log(`Agent starting. Business: ${config.businessId}, Device: ${config.deviceIP}`);
 
+  // Start HTTP status server immediately so the dashboard can reach the connector
+  // even while the initial sync is still running
+  startStatusServer(config);
+
   // Initial sync + heartbeat
   await sendHeartbeat(config, { lastSyncStatus: 'starting' });
   try {
     const result = await runSync(config);
-    await sendHeartbeat(config, { lastSyncStatus: 'ok', lastSyncAt: new Date().toISOString(), lastSyncNewEvents: result.written });
+    await sendHeartbeat(config, {
+      lastSyncStatus: 'ok',
+      lastSyncAt: new Date().toISOString(),
+      lastSyncNewEvents: result.written,
+      recentEventsJson: JSON.stringify(result.recentEvents || [])
+    });
   } catch (err) {
     await sendHeartbeat(config, { lastSyncStatus: 'error', lastSyncError: err.message });
   }
@@ -1014,7 +1188,12 @@ async function startAgent(config) {
     log('Scheduled sync starting...');
     try {
       const result = await runSync(config);
-      await sendHeartbeat(config, { lastSyncStatus: 'ok', lastSyncAt: new Date().toISOString(), lastSyncNewEvents: result.written });
+      await sendHeartbeat(config, {
+        lastSyncStatus: 'ok',
+        lastSyncAt: new Date().toISOString(),
+        lastSyncNewEvents: result.written,
+        recentEventsJson: JSON.stringify(result.recentEvents || [])
+      });
     } catch (err) {
       log(`Scheduled sync failed: ${err.message}`);
       await sendHeartbeat(config, { lastSyncStatus: 'error', lastSyncError: err.message });
@@ -1024,10 +1203,10 @@ async function startAgent(config) {
   // Watch for manual sync requests every 30s
   setInterval(() => checkSyncRequest(config), POLL_INTERVAL);
 
-  log('Agent running. Press Ctrl+C to stop.');
+  // Watch for date-event queries every 5s (faster — user is waiting)
+  setInterval(() => checkEventQuery(config), 5000);
 
-  // Always serve a status page on the setup port so the browser link works
-  startStatusServer(config);
+  log('Agent running. Press Ctrl+C to stop.');
 }
 
 // ── Status Server (agent mode) ────────────────────────────────────────────────
@@ -1098,14 +1277,59 @@ async function resetConfig() {
       setTimeout(() => process.exit(0), 500); // service manager will restart
       return;
     }
+    // query-events: fetch device events for a date directly — used by dashboard when on same LAN
+    if (url === '/api/query-events' && req.method === 'GET') {
+      const qs   = new URLSearchParams(req.url.includes('?') ? req.url.slice(req.url.indexOf('?') + 1) : '');
+      const date = qs.get('date'); // 'YYYY-MM-DD'
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'application/json');
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        res.writeHead(400); res.end(JSON.stringify({ error: 'Missing or invalid date param' }));
+        return;
+      }
+      fetchEventsForDate(config.deviceIP, config.deviceUser, config.devicePass, config.devicePort || 443, date)
+        .then(rawEvents => {
+          const events = rawEvents.map(e => {
+            const slot      = String(e.employeeNoString || '').trim();
+            const slotNum   = parseInt(slot) || 0;
+            const empName   = (e.name || '').trim() || (slot && slot !== '0' ? 'Employee ' + slot : '');
+            const rawTime   = e.time || e.dateTime || null;
+            const ts        = rawTime ? new Date(rawTime) : null;
+            const isoTs     = ts && !isNaN(ts.getTime()) ? ts.toISOString() : null;
+            const dateStr   = isoTs ? isoTs.split('T')[0] : date;
+            const rawStatus = String(e.attendanceStatus || '').toLowerCase();
+            const isIn      = rawStatus === 'checkin' || rawStatus === '5' || rawStatus === '1' || rawStatus === 'in';
+            const isOut     = rawStatus === 'checkout' || rawStatus === '6' || rawStatus === '2' || rawStatus === 'out';
+            const type      = isIn ? 'in' : isOut ? 'out' : (empName ? 'access' : 'system');
+            const serialNo  = e.serialNo || null;
+            const docId     = serialNo ? `dev_${serialNo}` : (isoTs ? `dev_${ts.getTime()}_${slot}` : null);
+            return { name: empName, time: rawTime, isoTs, dateStr, type, slot, slotNum, serialNo, docId };
+          }).filter(e => e.isoTs);
+          res.writeHead(200); res.end(JSON.stringify({ date, total: events.length, events }));
+        })
+        .catch(err => { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); });
+      return;
+    }
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(STATUS_HTML);
   });
 
-  srv.listen(SETUP_PORT, '127.0.0.1', () => {
+  srv.listen(SETUP_PORT, '0.0.0.0', () => {
     log(`Status server running at http://localhost:${SETUP_PORT}`);
   });
-  srv.on('error', () => {}); // ignore if port already in use
+  srv.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      // Port busy — retry once after a short delay
+      setTimeout(() => {
+        srv.close();
+        srv.listen(SETUP_PORT, '0.0.0.0', () => {
+          log(`Status server running at http://localhost:${SETUP_PORT} (retry)`);
+        });
+      }, 3000);
+    } else {
+      log(`Status server error: ${err.message}`);
+    }
+  });
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -1113,6 +1337,13 @@ async function main() {
   log('SmartClock Connector v' + AGENT_VERSION + ' starting...');
 
   const config = loadConfig();
+
+  // Restore saved Firebase project if present (supports multi-project deployments)
+  if (config?.firebaseProject && config?.firebaseApiKey) {
+    FIREBASE_PROJECT = config.firebaseProject;
+    FIREBASE_API_KEY = config.firebaseApiKey;
+    log(`Using Firebase project: ${FIREBASE_PROJECT}`);
+  }
 
   if (!config) {
     // First run — start setup server
