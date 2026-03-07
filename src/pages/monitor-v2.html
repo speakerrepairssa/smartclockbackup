@@ -284,10 +284,16 @@
 </div>
 
 <script type="module">
-  import { db } from '../config/firebase.js';
+  import { db, app } from '../config/firebase.js';
   import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   const ini = n => (n||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  const _bucket = app.options.storageBucket;
+  const empFaceUrl = slot => {
+    const path = encodeURIComponent('businesses/' + bId + '/employee-faces/' + slot + '.jpg');
+    const bust = Math.floor(Date.now() / 300000);
+    return 'https://firebasestorage.googleapis.com/v0/b/' + _bucket + '/o/' + path + '?alt=media&t=' + bust;
+  };
   const fmt = ts => { if(!ts) return "--:--"; const d=new Date(ts); return isNaN(d)?"--:--":d.toLocaleTimeString("en-ZA",{hour:"2-digit",minute:"2-digit",hour12:false}); };
   const fmtHour = ts => { if(!ts) return 0; const d=new Date(ts); return isNaN(d)?0:parseFloat((d.getHours()+d.getMinutes()/60).toFixed(2)); };
   const now = () => new Date();
@@ -329,10 +335,11 @@
     document.getElementById("lastUpdated").textContent =
       now().toLocaleTimeString("en-ZA",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
 
-    const mkRow = (e, sec) => {
+    const mkRow = (e) => {
       const slot=e.slot||e.slotNumber||e.employeeId||e.id||"?";
       const name=e.employeeName||"Slot "+slot;
-      return `<div class="emp-item"><div class="emp-av">${ini(name)}</div><div class="emp-details"><div class="emp-name">${name}</div><div class="emp-slot">Slot ${slot}</div></div><div class="emp-time">${fmt(e.lastClockTime)}</div></div>`;
+      const av=`<div class="emp-av" style="padding:0;overflow:hidden"><img src="${empFaceUrl(slot)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='${ini(name)}'"></div>`;
+      return `<div class="emp-item">${av}<div class="emp-details"><div class="emp-name">${name}</div><div class="emp-slot">Slot ${slot}</div></div><div class="emp-time">${fmt(e.lastClockTime)}</div></div>`;
     };
 
     document.getElementById("inList").innerHTML  = inL.length  ? inL.map(e=>mkRow(e,"in")).join("")   : '<div class="no-emp"><span>&#10003;</span><span>No employees clocked in</span></div>';
