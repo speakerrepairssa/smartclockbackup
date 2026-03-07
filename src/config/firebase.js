@@ -27,8 +27,11 @@ const firebaseConfig = isLive ? {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize services
-const analytics = getAnalytics(app);
+// Initialize services (analytics only if measurementId present)
+let analytics = null;
+try {
+  if (firebaseConfig.measurementId) analytics = getAnalytics(app);
+} catch (e) { /* analytics not critical */ }
 const db = getFirestore(app);
 
 // Export initialized services
