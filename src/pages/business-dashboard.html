@@ -944,9 +944,9 @@
 
           /* Monitor columns */
           .monitor-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.25rem;
+            display: flex;
+            flex-direction: row;
+            gap: 0;
             margin-bottom: 1.25rem;
           }
 
@@ -956,7 +956,17 @@
             overflow: hidden;
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             border: 1px solid #f1f5f9;
+            flex: 1;
+            min-width: 0;
           }
+
+          /* ── Layout resize handles ── */
+          .mm-col-spl { width: 10px; cursor: col-resize; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin: 0 4px; border-radius: 4px; transition: background 0.2s; }
+          .mm-col-spl::after { content: ''; width: 3px; height: 50px; background: rgba(0,0,0,0.1); border-radius: 2px; transition: background 0.2s; }
+          .mm-col-spl:hover::after, .mm-col-spl.dragging::after { background: rgba(59,130,246,0.7); }
+          .mm-resize-hdl { height: 10px; cursor: ns-resize; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.02); transition: background 0.2s; }
+          .mm-resize-hdl::after { content: ''; width: 40px; height: 3px; background: rgba(0,0,0,0.1); border-radius: 2px; transition: background 0.2s; }
+          .mm-resize-hdl:hover::after, .mm-resize-hdl.dragging::after { background: rgba(59,130,246,0.7); }
 
           .status-header {
             padding: 0.85rem 1.25rem;
@@ -1101,22 +1111,26 @@
           @media (max-width: 768px) {
             .monitor-header { flex-direction: column; gap: 1rem; }
             .monitor-stats-bar { grid-template-columns: 1fr 1fr; }
-            .monitor-outer-grid { grid-template-columns: 1fr !important; }
-            .monitor-content { grid-template-columns: 1fr; }
+            .monitor-outer-grid { flex-direction: column !important; }
+            .monitor-outer-grid .mm-col-spl { display: none; }
+            .mrp-panel { width: auto !important; flex-shrink: 1 !important; flex-direction: row; flex-wrap: wrap; }
+            .monitor-content { flex-direction: column; }
+            .monitor-content .mm-col-spl { display: none; }
           }
 
           /* ── Monitor outer grid (left IN/OUT  +  right panel) ── */
           .monitor-outer-grid {
-            display: grid;
-            grid-template-columns: 1fr 330px;
-            gap: 1.25rem;
+            display: flex;
+            flex-direction: row;
+            gap: 0;
             align-items: start;
           }
 
-          .monitor-left-col { display: flex; flex-direction: column; gap: 1.25rem; }
+          .monitor-left-col { display: flex; flex-direction: column; gap: 1.25rem; flex: 1; min-width: 0; }
 
           /* ── Right panel ── */
-          .mrp-panel { display: flex; flex-direction: column; gap: 1rem; }
+          .mrp-panel { display: flex; flex-direction: column; gap: 1rem; flex-shrink: 0; width: 330px; }
+          #mmOuterSpl { align-self: stretch; min-height: 80px; }
 
           .mrp-card {
             background: white;
@@ -1124,6 +1138,8 @@
             box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             border: 1px solid #f1f5f9;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
           }
 
           .mrp-card-hdr {
@@ -2859,6 +2875,7 @@
           </div>
           <div style="display:flex;gap:0.75rem;align-items:center;">
             <button class="btn btn-primary" onclick="loadMonitorData()">↻ Refresh</button>
+            <button class="btn" onclick="window.resetMmLayout&&window.resetMmLayout()" title="Reset card sizes to default" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;padding:0.5rem 0.9rem;border-radius:8px;font-size:0.8rem;cursor:pointer;">⇤ Reset Layout</button>
             <button class="btn btn-primary"
               style="background:linear-gradient(135deg,#3b82f6,#7c3aed);border:none;display:flex;align-items:center;gap:0.5rem;font-weight:700;letter-spacing:0.02em;padding:0.6rem 1.2rem;border-radius:8px;cursor:pointer;color:white;font-size:0.9rem;"
               onclick="openFullMonitor()">
@@ -2954,6 +2971,8 @@
                 </div>
               </div>
 
+              <div class="mm-col-spl" id="mmInnerSpl" title="Drag to resize"></div>
+
               <!-- OUT Section -->
               <div class="status-section">
                 <div class="status-header out">
@@ -2974,11 +2993,13 @@
 
           </div><!-- /monitor-left-col -->
 
+          <div class="mm-col-spl" id="mmOuterSpl" title="Drag to resize"></div>
+
           <!-- RIGHT: Stats chart + spotlight cards -->
           <div class="mrp-panel">
 
             <!-- Chart card -->
-            <div class="mrp-card">
+            <div class="mrp-card" data-mmrk="chart">
               <div class="mrp-card-hdr">
                 <div class="mrp-card-title">📊 Employee Stats</div>
                 <div class="mrp-chart-btns">
@@ -2995,10 +3016,11 @@
                   <div>Waiting for data…</div>
                 </div>
               </div>
+              <div class="mm-resize-hdl" title="Drag to resize"></div>
             </div>
 
             <!-- Spotlight card -->
-            <div class="mrp-card">
+            <div class="mrp-card" data-mmrk="spotlight">
               <div class="mrp-card-hdr">
                 <div class="mrp-card-title">🌟 Spotlight</div>
               </div>
@@ -3008,6 +3030,7 @@
                   <div><div class="mrp-sr-label">Waiting for data</div><div class="mrp-sr-name">—</div></div>
                 </div>
               </div>
+              <div class="mm-resize-hdl" title="Drag to resize"></div>
             </div>
 
           </div><!-- /mrp-panel -->
@@ -17063,6 +17086,105 @@ Click "Test Connection" after starting the service.`);
     @keyframes aiDot { 0%,60%,100%{transform:translateY(0);opacity:.6} 30%{transform:translateY(-6px);opacity:1} }
     #aiChatLog::-webkit-scrollbar{width:4px} #aiChatLog::-webkit-scrollbar-thumb{background:#ddd;border-radius:4px}
   </style>
+
+  <script>
+  /* ── Monitor Mode Resizable Layout (saves to localStorage key: mm_layout) ── */
+  (function() {
+    var SK = 'mm_layout';
+    var sv = JSON.parse(localStorage.getItem(SK) || '{}');
+    function save() { localStorage.setItem(SK, JSON.stringify(sv)); }
+
+    function colSplitter(splEl, leftEl, rightEl, key) {
+      if (sv[key]) {
+        var p = sv[key];
+        leftEl.style.flex = 'none'; leftEl.style.width = p[0];
+        rightEl.style.flex = 'none'; rightEl.style.width = p[1];
+      }
+      var sx, slw, srw;
+      splEl.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        sx = e.clientX; slw = leftEl.offsetWidth; srw = rightEl.offsetWidth;
+        splEl.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu);
+      });
+      function mm(e) {
+        var dx = e.clientX - sx;
+        var lw = Math.max(150, Math.min(slw + dx, slw + srw - 150));
+        leftEl.style.flex = 'none'; leftEl.style.width = lw + 'px';
+        rightEl.style.flex = 'none'; rightEl.style.width = (slw + srw - lw) + 'px';
+      }
+      function mu() {
+        document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu);
+        splEl.classList.remove('dragging');
+        document.body.style.cursor = ''; document.body.style.userSelect = '';
+        sv[key] = [leftEl.offsetWidth + 'px', rightEl.offsetWidth + 'px']; save();
+      }
+    }
+
+    function cardResizer(cardEl, handleEl, key) {
+      if (sv[key]) { cardEl.style.height = sv[key]; cardEl.style.flexShrink = '0'; }
+      var sy, sh;
+      handleEl.addEventListener('mousedown', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        sy = e.clientY; sh = cardEl.offsetHeight;
+        handleEl.classList.add('dragging');
+        document.body.style.cursor = 'ns-resize'; document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu);
+      });
+      function mm(e) {
+        var h = Math.max(80, sh + (e.clientY - sy));
+        cardEl.style.height = h + 'px'; cardEl.style.flexShrink = '0';
+      }
+      function mu() {
+        document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu);
+        handleEl.classList.remove('dragging');
+        document.body.style.cursor = ''; document.body.style.userSelect = '';
+        sv[key] = cardEl.offsetHeight + 'px'; save();
+      }
+    }
+
+    /* init whenever the monitor section becomes visible */
+    function initMMResize() {
+      var outerSpl  = document.getElementById('mmOuterSpl');
+      var leftCol   = document.querySelector('.monitor-left-col');
+      var rightPanel = document.querySelector('.mrp-panel');
+      if (outerSpl && leftCol && rightPanel && !outerSpl._mmInit) {
+        outerSpl._mmInit = true;
+        colSplitter(outerSpl, leftCol, rightPanel, 'outerCols');
+      }
+
+      var innerSpl = document.getElementById('mmInnerSpl');
+      var inOutSecs = document.querySelectorAll('#monitorContent .status-section');
+      var inSec  = inOutSecs[0];
+      var outSec = inOutSecs[1];
+      if (innerSpl && inSec && outSec && !innerSpl._mmInit) {
+        innerSpl._mmInit = true;
+        colSplitter(innerSpl, inSec, outSec, 'innerCols');
+      }
+
+      document.querySelectorAll('.mrp-card[data-mmrk]').forEach(function(card) {
+        if (card._mmInit) return;
+        card._mmInit = true;
+        var h = card.querySelector('.mm-resize-hdl');
+        if (h) cardResizer(card, h, 'mmcard_' + card.dataset.mmrk);
+      });
+    }
+
+    /* run on load + watch for monitor section being switched to */
+    window.addEventListener('load', function() {
+      setTimeout(initMMResize, 500);
+      var orig = window.switchModule;
+      window.switchModule = function(m) {
+        if (typeof orig === 'function') orig.apply(this, arguments);
+        if (m === 'monitor') setTimeout(initMMResize, 300);
+      };
+    });
+
+    window.resetMmLayout = function() { localStorage.removeItem(SK); location.reload(); };
+  })();
+  </script>
 
 </body>
 </html>

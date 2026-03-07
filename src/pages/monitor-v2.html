@@ -73,13 +73,14 @@
     .sc-rate .sc-val{color:#3b82f6;font-size:1.2rem;}
 
     /* OUTER GRID */
-    .outer-grid{display:grid;grid-template-columns:1fr 340px;gap:1.1rem;flex:1;min-height:0;}
+    .outer-grid{display:flex;flex-direction:row;gap:0;flex:1;min-height:0;}
 
     /* LEFT: IN / OUT */
-    .left-col{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;min-height:0;}
+    .left-col{display:flex;flex-direction:row;gap:0;min-height:0;flex:1;min-width:0;}
     .status-section{
       background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
       border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:0;
+      flex:1;min-width:0;
     }
     .status-hdr{
       padding:0.8rem 1.2rem;color:white;font-weight:700;font-size:0.82rem;
@@ -117,13 +118,22 @@
     .no-emp span:first-child{font-size:1.8rem;}
 
     /* RIGHT PANEL */
-    .right-col{display:flex;flex-direction:column;gap:1rem;min-height:0;overflow-y:auto;}
+    .right-col{display:flex;flex-direction:column;gap:1rem;min-height:0;overflow-y:auto;flex-shrink:0;width:340px;}
     .right-col::-webkit-scrollbar{width:4px;}
     .right-col::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px;}
     .rp-card{
       background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
-      border-radius:14px;overflow:hidden;flex-shrink:0;
+      border-radius:14px;overflow:hidden;flex-shrink:0;display:flex;flex-direction:column;
     }
+    /* LAYOUT RESIZE HANDLES */
+    .layout-col-spl{width:10px;cursor:col-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:0 3px;border-radius:4px;transition:background 0.2s;}
+    .layout-col-spl::after{content:'';width:3px;height:50px;background:rgba(255,255,255,0.08);border-radius:2px;transition:background 0.2s;}
+    .layout-col-spl:hover::after,.layout-col-spl.dragging::after{background:rgba(59,130,246,0.7);}
+    #outerColSpl{align-self:stretch;}
+    #innerColSpl{align-self:stretch;}
+    .layout-resize-hdl{height:10px;cursor:ns-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);transition:background 0.2s;}
+    .layout-resize-hdl::after{content:'';width:40px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;transition:background 0.2s;}
+    .layout-resize-hdl:hover::after,.layout-resize-hdl.dragging::after{background:rgba(59,130,246,0.7);}
     .rp-hdr{
       background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
       padding:0.75rem 1rem;display:flex;align-items:center;justify-content:space-between;
@@ -173,8 +183,8 @@
     .footer-dot.off{background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,0.5);}
     .refresh-time{color:#3b82f6;font-weight:600;}
 
-    @media(max-width:1100px){.outer-grid{grid-template-columns:1fr;}.right-col{flex-direction:row;flex-wrap:wrap;overflow-y:visible;}.rp-card{flex:1;min-width:280px;}}
-    @media(max-width:700px){.left-col{grid-template-columns:1fr;}.stats-bar{grid-template-columns:1fr 1fr;}}
+    @media(max-width:1100px){.outer-grid{flex-direction:column;}.layout-col-spl[id=outerColSpl]{display:none;}.right-col{flex-direction:row;flex-wrap:wrap;overflow-y:visible;width:auto!important;flex-shrink:1!important;}.rp-card{flex:1;min-width:280px;}}
+    @media(max-width:700px){.left-col{flex-direction:column;}.layout-col-spl[id=innerColSpl]{display:none;}.stats-bar{grid-template-columns:1fr 1fr;}}
   </style>
 </head>
 <body>
@@ -190,6 +200,7 @@
     <div class="hdr-right">
       <button class="hdr-btn" onclick="window.location.reload()">&#8635; Refresh</button>
       <button class="hdr-btn" onclick="toggleFS()" id="fsBtn">&#x26F6; Fullscreen</button>
+      <button class="hdr-btn" onclick="window.resetFvLayout&&window.resetFvLayout()" title="Reset all card sizes to default" style="opacity:0.6;font-size:0.75rem;">&#8617; Reset Layout</button>
     </div>
   </div>
 
@@ -212,6 +223,7 @@
           <div class="no-emp"><span>&#10003;</span><span>Waiting for data&hellip;</span></div>
         </div>
       </div>
+      <div class="layout-col-spl" id="innerColSpl" title="Drag to resize"></div>
       <div class="status-section out-section">
         <div class="status-hdr out"><span>&#9679; Clocked Out</span><span class="status-hdr-cnt" id="outCnt">0</span></div>
         <div class="status-body" id="outList">
@@ -220,32 +232,36 @@
       </div>
     </div>
 
+    <div class="layout-col-spl" id="outerColSpl" title="Drag to resize"></div>
+
     <!-- RIGHT PANEL -->
     <div class="right-col">
 
       <!-- Chart card -->
-      <div class="rp-card">
+      <div class="rp-card" data-rk="chart">
         <div class="rp-hdr">
           <div class="rp-title">&#128202; Employee Stats</div>
           <div class="chart-btns">
-            <button class="chart-btn active" id="cBtnBar"  onclick="setChart('bar')"          >Bar</button>
+            <button class="chart-btn active" id="cBtnBar"  onclick="setChart('bar')">Bar</button>
             <button class="chart-btn"        id="cBtnHBar" onclick="setChart('horizontalBar')" >H-Bar</button>
-            <button class="chart-btn"        id="cBtnDnu"  onclick="setChart('doughnut')"      >Donut</button>
-            <button class="chart-btn"        id="cBtnPie"  onclick="setChart('pie')"           >Pie</button>
+            <button class="chart-btn"        id="cBtnDnu"  onclick="setChart('doughnut')">Donut</button>
+            <button class="chart-btn"        id="cBtnPie"  onclick="setChart('pie')">Pie</button>
           </div>
         </div>
         <div class="chart-wrap">
           <canvas id="empChart" style="max-height:210px;"></canvas>
           <div class="chart-empty" id="chartEmpty"><span>&#128200;</span>Waiting for data&hellip;</div>
         </div>
+        <div class="layout-resize-hdl" title="Drag to resize"></div>
       </div>
 
       <!-- Spotlight card -->
-      <div class="rp-card">
+      <div class="rp-card" data-rk="spotlight">
         <div class="rp-hdr"><div class="rp-title">&#127775; Spotlight</div></div>
         <div class="spotlight-body" id="spotlightBody">
           <div class="spot-row none"><div class="spot-icon">&#8987;</div><div><div class="spot-lbl">Waiting</div><div class="spot-name">&mdash;</div></div></div>
         </div>
+        <div class="layout-resize-hdl" title="Drag to resize"></div>
       </div>
 
     </div>
@@ -382,6 +398,88 @@
     else(document.exitFullscreen||document.webkitExitFullscreen).call(document);
     document.getElementById("fsBtn").textContent=inFS?"\u26F6 Fullscreen":"\u2715 Exit Full";
   };
+</script>
+
+<script>
+/* ── Resizable Layout (saves to localStorage key: fv_layout) ── */
+(function() {
+  const SK = 'fv_layout';
+  const sv = JSON.parse(localStorage.getItem(SK) || '{}');
+  function save() { localStorage.setItem(SK, JSON.stringify(sv)); }
+
+  function colSplitter(splEl, leftEl, rightEl, key) {
+    if (sv[key]) {
+      var p = sv[key];
+      leftEl.style.flex = 'none'; leftEl.style.width = p[0];
+      rightEl.style.flex = 'none'; rightEl.style.width = p[1];
+    }
+    var sx, slw, srw;
+    splEl.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      sx = e.clientX; slw = leftEl.offsetWidth; srw = rightEl.offsetWidth;
+      splEl.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu);
+    });
+    function mm(e) {
+      var dx = e.clientX - sx;
+      var lw = Math.max(150, Math.min(slw + dx, slw + srw - 150));
+      leftEl.style.flex = 'none'; leftEl.style.width = lw + 'px';
+      rightEl.style.flex = 'none'; rightEl.style.width = (slw + srw - lw) + 'px';
+    }
+    function mu() {
+      document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu);
+      splEl.classList.remove('dragging');
+      document.body.style.cursor = ''; document.body.style.userSelect = '';
+      sv[key] = [leftEl.offsetWidth + 'px', rightEl.offsetWidth + 'px']; save();
+    }
+  }
+
+  function cardResizer(cardEl, handleEl, key) {
+    if (sv[key]) { cardEl.style.height = sv[key]; cardEl.style.flexShrink = '0'; }
+    var sy, sh;
+    handleEl.addEventListener('mousedown', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      sy = e.clientY; sh = cardEl.offsetHeight;
+      handleEl.classList.add('dragging');
+      document.body.style.cursor = 'ns-resize'; document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu);
+    });
+    function mm(e) {
+      var h = Math.max(80, sh + (e.clientY - sy));
+      cardEl.style.height = h + 'px'; cardEl.style.flexShrink = '0';
+    }
+    function mu() {
+      document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu);
+      handleEl.classList.remove('dragging');
+      document.body.style.cursor = ''; document.body.style.userSelect = '';
+      sv[key] = cardEl.offsetHeight + 'px'; save();
+    }
+  }
+
+  window.addEventListener('load', function() {
+    var outerSpl = document.getElementById('outerColSpl');
+    var leftCol  = document.querySelector('.left-col');
+    var rightCol = document.querySelector('.right-col');
+    if (outerSpl && leftCol && rightCol) colSplitter(outerSpl, leftCol, rightCol, 'outerCols');
+
+    var innerSpl = document.getElementById('innerColSpl');
+    var inSec  = document.querySelector('.in-section');
+    var outSec = document.querySelector('.out-section');
+    if (innerSpl && inSec && outSec) colSplitter(innerSpl, inSec, outSec, 'innerCols');
+
+    document.querySelectorAll('.rp-card[data-rk]').forEach(function(card) {
+      var h = card.querySelector('.layout-resize-hdl');
+      if (h) cardResizer(card, h, 'card_' + card.dataset.rk);
+    });
+  });
+
+  /* expose reset so it can be wired to a button if needed */
+  window.resetFvLayout = function() {
+    localStorage.removeItem(SK); location.reload();
+  };
+})();
 </script>
 </body>
 </html>
