@@ -10885,192 +10885,132 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     }
 
     function renderAssessmentTable(employeeAssessments, display) {
-      const totalEmployees = employeeAssessments.length;
-      const totalHours = employeeAssessments.reduce((sum, emp) => sum + (emp.currentHours || 0), 0);
-      const totalHoursShort = employeeAssessments.reduce((sum, emp) => sum + (emp.hoursShort || 0), 0);
-      const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + (emp.currentIncomeDue || 0), 0);
-      const totalPotentialIncome = employeeAssessments.reduce((sum, emp) => sum + (emp.potentialIncome || 0), 0);
+      var totalEmployees = employeeAssessments.length;
+      var totalHours = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.currentHours)||0); }, 0);
+      var totalHoursShort = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.hoursShort)||0); }, 0);
+      var totalIncomeDue = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.currentIncomeDue)||0); }, 0);
+      var totalPotentialIncome = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.potentialIncome)||0); }, 0);
+      var avgAtt = totalEmployees > 0 ? ((totalHours/(totalEmployees*176))*100).toFixed(1) : '0.0';
 
-      // Attendance standing helper
-      function attStatus(currentHours, requiredHours) {
-        const rate = requiredHours > 0 ? (currentHours / requiredHours) * 100 : 0;
-        if (rate >= 90) return { label: 'Good Standing', bg: '#28a745', rate };
-        if (rate >= 80) return { label: 'Fair', bg: '#0d6efd', rate };
-        return { label: 'Critical Issue', bg: '#dc3545', rate };
+      function attSt(ch, rh) {
+        var c = parseFloat(ch)||0, r = parseFloat(rh)||176;
+        var rate = r>0 ? (c/r)*100 : 0;
+        if (rate>=90) return {label:'Good Standing', bg:'#28a745', rate:rate};
+        if (rate>=80) return {label:'Fair', bg:'#0d6efd', rate:rate};
+        return {label:'Critical Issue', bg:'#dc3545', rate:rate};
       }
 
-      const standings = employeeAssessments.map(emp => ({
-        ...emp,
-        _att: attStatus(emp.currentHours || 0, emp.requiredHours || 176)
-      }));
-      const goodCount = standings.filter(e => e._att.label === 'Good Standing').length;
-      const fairCount = standings.filter(e => e._att.label === 'Fair').length;
-      const criticalCount = standings.filter(e => e._att.label === 'Critical Issue').length;
+      var standings = employeeAssessments.map(function(emp){ return Object.assign({}, emp, {_att: attSt(emp.currentHours, emp.requiredHours)}); });
+      var goodCount = standings.filter(function(e){ return e._att.label==='Good Standing'; }).length;
+      var fairCount = standings.filter(function(e){ return e._att.label==='Fair'; }).length;
+      var critCount = standings.filter(function(e){ return e._att.label==='Critical Issue'; }).length;
+      var lateRanking = employeeAssessments.slice().sort(function(a,b){ return (parseFloat(b.hoursShort)||0)-(parseFloat(a.hoursShort)||0); });
+      var maxHs = lateRanking.length>0 ? Math.max(parseFloat(lateRanking[0].hoursShort)||0, 1) : 1;
+      var anyLate = lateRanking.some(function(e){ return (parseFloat(e.hoursShort)||0)>0; });
 
-      const lateRanking = [...employeeAssessments].sort((a, b) => (b.hoursShort || 0) - (a.hoursShort || 0));
-      const maxHs = lateRanking.length > 0 ? Math.max(lateRanking[0].hoursShort || 0, 1) : 1;
-      const noLate = lateRanking.filter(emp => (emp.hoursShort || 0) > 0).length === 0;
-      const avgAtt = totalEmployees > 0 ? ((totalHours / (totalEmployees * 176)) * 100).toFixed(1) : '0.0';
+      var insightHTML = '';
 
-      // Pre-build HTML snippets (string concat to avoid nested template literal issues)
-      const tableRowsHtml = standings.map((emp, index) => {
-        const att = emp._att;
-        const bg = index % 2 === 0 ? 'background:#f8f9fa;' : '';
-        return '<tr style="border-bottom:1px solid #e9ecef;' + bg + '">' +
-          '<td style="padding:0.75rem;font-weight:600;color:#495057;">' + emp.index + '</td>' +
-          '<td style="padding:0.75rem;font-weight:600;color:#2c3e50;">' + emp.name + '</td>' +
-          '<td style="padding:0.75rem;color:#7f8c8d;font-style:italic;">' + (emp.shiftName || '—') + '</td>' +
-          '<td style="padding:0.75rem;text-align:center;color:#495057;">' + emp.requiredHours + '</td>' +
-          '<td style="padding:0.75rem;text-align:center;color:' + (emp.currentHours > 0 ? '#28a745' : '#6c757d') + ';font-weight:' + (emp.currentHours > 0 ? '600' : 'normal') + ';">' + (emp.currentHours || 0).toFixed(1) + '</td>' +
-          '<td style="padding:0.75rem;text-align:center;color:' + (emp.hoursShort > 0 ? '#dc3545' : '#28a745') + ';font-weight:600;">' + (emp.hoursShort || 0).toFixed(1) + '</td>' +
-          '<td style="padding:0.75rem;text-align:center;font-weight:600;color:' + (att.rate >= 90 ? '#28a745' : att.rate >= 80 ? '#0d6efd' : '#dc3545') + ';">' + att.rate.toFixed(1) + '%</td>' +
-          '<td style="padding:0.75rem;text-align:center;"><span style="background:' + att.bg + ';color:white;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;white-space:nowrap;">' + att.label + '</span></td>' +
-          '<td style="padding:0.75rem;text-align:center;color:#495057;">R' + (emp.payRate || 0).toFixed(2) + '</td>' +
-          '<td style="padding:0.75rem;text-align:center;color:#495057;font-weight:600;">R' + (emp.currentIncomeDue || 0).toFixed(2) + '</td>' +
-          '<td style="padding:0.75rem;text-align:center;color:#28a745;font-weight:600;">R' + (emp.potentialIncome || 0).toFixed(2) + '</td>' +
-          '<td style="padding:0.75rem;text-align:center;"><span style="background:' + emp.statusColor + ';color:white;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">' + emp.status + '</span></td>' +
-          '</tr>';
-      }).join('');
+      // INSIGHT CARD 1: Attendance Standings
+      insightHTML += '<div style="background:white;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:1.5rem;margin-bottom:1.5rem;">';
+      insightHTML += '<h3 style="margin:0 0 1rem;font-size:1.05rem;color:#2c3e50;font-weight:700;border-bottom:3px solid #667eea;padding-bottom:0.5rem;">&#128202; Assessment #1 &#8212; Attendance Standing</h3>';
+      insightHTML += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1rem;">';
+      insightHTML += '<div style="text-align:center;padding:1.2rem;background:#d4edda;border-radius:10px;border:2px solid #28a745;">';
+      insightHTML += '<div style="font-size:2.5rem;font-weight:700;color:#155724;">'+goodCount+'</div>';
+      insightHTML += '<div style="font-size:0.85rem;font-weight:700;color:#155724;margin-top:4px;">&#128994; Good Standing</div>';
+      insightHTML += '<div style="font-size:0.75rem;color:#155724;opacity:0.8;">90 &#8211; 100% attendance</div></div>';
+      insightHTML += '<div style="text-align:center;padding:1.2rem;background:#cce5ff;border-radius:10px;border:2px solid #0d6efd;">';
+      insightHTML += '<div style="font-size:2.5rem;font-weight:700;color:#004085;">'+fairCount+'</div>';
+      insightHTML += '<div style="font-size:0.85rem;font-weight:700;color:#004085;margin-top:4px;">&#128309; Fair</div>';
+      insightHTML += '<div style="font-size:0.75rem;color:#004085;opacity:0.8;">80 &#8211; 90% attendance</div></div>';
+      insightHTML += '<div style="text-align:center;padding:1.2rem;background:#f8d7da;border-radius:10px;border:2px solid #dc3545;">';
+      insightHTML += '<div style="font-size:2.5rem;font-weight:700;color:#721c24;">'+critCount+'</div>';
+      insightHTML += '<div style="font-size:0.85rem;font-weight:700;color:#721c24;margin-top:4px;">&#128308; Critical Issue</div>';
+      insightHTML += '<div style="font-size:0.75rem;color:#721c24;opacity:0.8;">Below 80% attendance</div></div></div>';
+      insightHTML += '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;">';
+      standings.forEach(function(emp){
+        var a = emp._att;
+        insightHTML += '<div style="display:flex;align-items:center;gap:0.4rem;background:#f8f9fa;border-radius:8px;padding:0.35rem 0.7rem;border-left:4px solid '+a.bg+';">';
+        insightHTML += '<span style="font-weight:600;font-size:0.82rem;color:#2c3e50;">'+(emp.name||'?')+'</span>';
+        insightHTML += '<span style="background:'+a.bg+';color:white;padding:2px 6px;border-radius:10px;font-size:0.7rem;font-weight:700;">'+a.rate.toFixed(1)+'%</span>';
+        insightHTML += '</div>';
+      });
+      insightHTML += '</div></div>';
 
-      const standingsChipsHtml = standings.map(emp => {
-        const att = emp._att;
-        return '<div style="display:flex;align-items:center;gap:0.5rem;background:#f8f9fa;border-radius:8px;padding:0.4rem 0.75rem;border-left:4px solid ' + att.bg + ';">' +
-          '<span style="font-weight:600;font-size:0.85rem;color:#2c3e50;">' + emp.name + '</span>' +
-          '<span style="background:' + att.bg + ';color:white;padding:2px 7px;border-radius:10px;font-size:0.7rem;font-weight:600;">' + att.rate.toFixed(1) + '%</span>' +
-          '</div>';
-      }).join('');
+      // INSIGHT CARD 2: Most Late Employee
+      insightHTML += '<div style="background:white;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:1.5rem;margin-bottom:1.5rem;">';
+      insightHTML += '<h3 style="margin:0 0 1rem;font-size:1.05rem;color:#2c3e50;font-weight:700;border-bottom:3px solid #dc3545;padding-bottom:0.5rem;">&#9201; Assessment #2 &#8212; Most Late Employee (Hours Short)</h3>';
+      if (!anyLate) {
+        insightHTML += '<div style="text-align:center;padding:1.5rem;color:#28a745;font-size:1rem;font-weight:600;">&#10003; All employees on track &#8212; no hours short this month!</div>';
+      } else {
+        lateRanking.forEach(function(emp, i){
+          var hs = parseFloat(emp.hoursShort)||0;
+          var barW = Math.min(100, (hs/maxHs*100)).toFixed(1);
+          var medal = i===0?'#1':i===1?'#2':i===2?'#3':(i+1)+'.';
+          var barC = hs>40?'#dc3545':hs>20?'#fd7e14':hs>0?'#ffc107':'#28a745';
+          insightHTML += '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;padding:0.5rem 0.75rem;background:'+(i%2===0?'#f8f9fa':'white')+';border-radius:8px;">';
+          insightHTML += '<div style="min-width:2rem;text-align:center;font-weight:700;font-size:0.9rem;color:#667eea;">'+medal+'</div>';
+          insightHTML += '<div style="min-width:140px;font-weight:700;font-size:0.9rem;color:#2c3e50;">'+(emp.name||'?')+'</div>';
+          insightHTML += '<div style="flex:1;background:#e9ecef;border-radius:6px;height:20px;overflow:hidden;">';
+          insightHTML += '<div style="width:'+barW+'%;background:'+barC+';height:100%;border-radius:6px;"></div></div>';
+          insightHTML += '<div style="min-width:90px;text-align:right;font-weight:700;font-size:0.88rem;color:'+(hs>0?barC:'#28a745')+';">'+(hs>0?hs.toFixed(1)+' hrs':'On Track')+'</div>';
+          insightHTML += '</div>';
+        });
+      }
+      insightHTML += '</div>';
 
-      const lateRankingHtml = lateRanking.map((emp, i) => {
-        const hs = emp.hoursShort || 0;
-        const barWidth = (hs / maxHs * 100).toFixed(1);
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.';
-        const barColor = hs > 40 ? '#dc3545' : hs > 20 ? '#fd7e14' : hs > 0 ? '#ffc107' : '#28a745';
-        return '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">' +
-          '<div style="min-width:2rem;text-align:center;font-size:1rem;">' + medal + '</div>' +
-          '<div style="min-width:130px;font-weight:600;font-size:0.85rem;color:#2c3e50;">' + emp.name + '</div>' +
-          '<div style="flex:1;background:#e9ecef;border-radius:4px;height:18px;overflow:hidden;">' +
-            '<div style="width:' + barWidth + '%;background:' + barColor + ';height:100%;border-radius:4px;"></div>' +
-          '</div>' +
-          '<div style="min-width:70px;text-align:right;font-weight:700;font-size:0.85rem;color:' + (hs > 0 ? barColor : '#28a745') + ';">' + (hs > 0 ? hs.toFixed(1) + ' hrs' : 'On Track') + '</div>' +
-          '</div>';
-      }).join('');
+      var tableRows = '';
+      standings.forEach(function(emp, idx){
+        var a = emp._att;
+        var bgRow = idx%2===0?'background:#f8f9fa;':'';
+        var ch = parseFloat(emp.currentHours)||0;
+        var hs = parseFloat(emp.hoursShort)||0;
+        tableRows += '<tr style="border-bottom:1px solid #e9ecef;'+bgRow+'">';
+        tableRows += '<td style="padding:0.75rem;font-weight:600;color:#495057;">'+(emp.index||idx+1)+'</td>';
+        tableRows += '<td style="padding:0.75rem;font-weight:600;color:#2c3e50;">'+(emp.name||'?')+'</td>';
+        tableRows += '<td style="padding:0.75rem;color:#7f8c8d;font-style:italic;">'+(emp.shiftName||'&#8212;')+'</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;">'+(emp.requiredHours||176)+'</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;color:'+(ch>0?'#28a745':'#6c757d')+';font-weight:'+(ch>0?'600':'normal')+';">'+ch.toFixed(1)+'</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;color:'+(hs>0?'#dc3545':'#28a745')+';font-weight:600;">'+hs.toFixed(1)+'</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;font-weight:600;color:'+(a.rate>=90?'#28a745':a.rate>=80?'#0d6efd':'#dc3545')+';">'+a.rate.toFixed(1)+'%</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;"><span style="background:'+a.bg+';color:white;padding:3px 9px;border-radius:12px;font-size:0.75rem;font-weight:700;">'+a.label+'</span></td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;">R'+(parseFloat(emp.payRate)||0).toFixed(2)+'</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;font-weight:600;">R'+(parseFloat(emp.currentIncomeDue)||0).toFixed(2)+'</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;color:#28a745;font-weight:600;">R'+(parseFloat(emp.potentialIncome)||0).toFixed(2)+'</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;"><span style="background:'+(emp.statusColor||'#999')+';color:white;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">'+(emp.status||'?')+'</span></td>';
+        tableRows += '</tr>';
+      });
 
-      display.innerHTML = `
-        <!-- Top Stats -->
-        <div class="assessment-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;">
-          <div style="background:white;padding:1rem;border-radius:8px;border-left:4px solid #667eea;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-            <div style="font-size:0.85rem;color:#6c757d;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Total Employees</div>
-            <div style="font-size:1.8rem;font-weight:700;color:#2c3e50;">${totalEmployees}</div>
-          </div>
-          <div style="background:white;padding:1rem;border-radius:8px;border-left:4px solid #48bb78;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-            <div style="font-size:0.85rem;color:#6c757d;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Total Hours Worked</div>
-            <div style="font-size:1.8rem;font-weight:700;color:#2c3e50;">${totalHours.toFixed(1)}</div>
-          </div>
-          <div style="background:white;padding:1rem;border-radius:8px;border-left:4px solid ${totalHoursShort > 0 ? '#dc3545' : '#28a745'};box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-            <div style="font-size:0.85rem;color:#6c757d;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Total Hours Short</div>
-            <div style="font-size:1.8rem;font-weight:700;color:${totalHoursShort > 0 ? '#dc3545' : '#28a745'};">${totalHoursShort.toFixed(1)}</div>
-          </div>
-          <div style="background:white;padding:1rem;border-radius:8px;border-left:4px solid #667eea;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-            <div style="font-size:0.85rem;color:#6c757d;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Total Income Due</div>
-            <div style="font-size:1.8rem;font-weight:700;color:#2c3e50;">R${totalIncomeDue.toFixed(2)}</div>
-          </div>
-        </div>
+      var tableHTML = '<div style="background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow:hidden;overflow-x:auto;margin-bottom:1.5rem;">'
+        + '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:980px;">'
+        + '<thead><tr style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;">'
+        + '<th style="padding:0.75rem;">#</th><th style="padding:0.75rem;">Employee</th>'
+        + '<th style="padding:0.75rem;">Shift</th><th style="padding:0.75rem;text-align:center;">Req. Hrs</th>'
+        + '<th style="padding:0.75rem;text-align:center;">Curr. Hrs</th><th style="padding:0.75rem;text-align:center;">Hrs Short</th>'
+        + '<th style="padding:0.75rem;text-align:center;">Att. %</th><th style="padding:0.75rem;text-align:center;">Standing</th>'
+        + '<th style="padding:0.75rem;text-align:center;">Pay Rate</th><th style="padding:0.75rem;text-align:center;">Income Due</th>'
+        + '<th style="padding:0.75rem;text-align:center;">Potential</th><th style="padding:0.75rem;text-align:center;">Status</th>'
+        + '</tr></thead><tbody>'+tableRows+'</tbody></table></div>';
 
-        <!-- Assessment Table with Attendance Standing column -->
-        <div style="background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow:hidden;overflow-x:auto;margin-bottom:1.5rem;">
-          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:960px;">
-            <thead>
-              <tr style="background:#667eea;color:white;">
-                <th style="padding:0.75rem;text-align:left;font-weight:600;font-size:0.8rem;">#</th>
-                <th style="padding:0.75rem;text-align:left;font-weight:600;font-size:0.8rem;">Employee</th>
-                <th style="padding:0.75rem;text-align:left;font-weight:600;font-size:0.8rem;">Shift</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Req. Hrs</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Curr. Hrs</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Hrs Short</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Att. %</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Standing</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Rate</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Income Due</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Potential</th>
-                <th style="padding:0.75rem;text-align:center;font-weight:600;font-size:0.8rem;">Status</th>
-              </tr>
-            </thead>
-            <tbody>${tableRowsHtml}</tbody>
-          </table>
-        </div>
+      function gc(grad, label, value, sub) {
+        return '<div style="text-align:center;padding:1.5rem;background:'+grad+';color:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);">'
+          + '<div style="font-size:0.8rem;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem;">'+label+'</div>'
+          + '<div style="font-size:2.4rem;font-weight:700;">'+value+'</div>'
+          + (sub ? '<div style="font-size:0.75rem;opacity:0.8;margin-top:2px;">'+sub+'</div>' : '')
+          + '</div>';
+      }
+      var summaryHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-top:0.5rem;">'
+        + gc('linear-gradient(135deg,#4285f4,#34a853)', 'Total Employees', totalEmployees, '')
+        + gc('linear-gradient(135deg,#ff9800,#ff5722)', 'Total Hours Worked', totalHours.toFixed(1), '')
+        + gc('linear-gradient(135deg,#e91e63,#9c27b0)', 'Total Hours Short', totalHoursShort.toFixed(1), '')
+        + gc('linear-gradient(135deg,#4caf50,#2196f3)', 'Total Amount Due', 'R'+totalIncomeDue.toFixed(2), '')
+        + gc('linear-gradient(135deg,#673ab7,#3f51b5)', 'Potential Payroll', 'R'+totalPotentialIncome.toFixed(2), '')
+        + gc('linear-gradient(135deg,#00bcd4,#009688)', 'Avg Attendance', avgAtt+'%', '')
+        + gc('linear-gradient(135deg,#28a745,#218838)', 'Good Standing', goodCount, '90&#8211;100% att.')
+        + gc('linear-gradient(135deg,#0d6efd,#0056b3)', 'Fair Standing', fairCount, '80&#8211;90% att.')
+        + gc('linear-gradient(135deg,#dc3545,#c82333)', 'Critical Issue', critCount, '&lt;80% att.')
+        + '</div>';
 
-        <!-- Attendance Standings Overview -->
-        <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:1.5rem;margin-bottom:1.5rem;">
-          <h3 style="margin:0 0 1rem;font-size:1rem;color:#2c3e50;font-weight:700;border-bottom:2px solid #667eea;padding-bottom:0.5rem;">📊 Attendance Standings</h3>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem;">
-            <div style="text-align:center;padding:1rem;background:#d4edda;border-radius:8px;border:2px solid #28a745;">
-              <div style="font-size:2rem;font-weight:700;color:#155724;">${goodCount}</div>
-              <div style="font-size:0.8rem;font-weight:600;color:#155724;">🟢 Good Standing (90–100%)</div>
-            </div>
-            <div style="text-align:center;padding:1rem;background:#cce5ff;border-radius:8px;border:2px solid #0d6efd;">
-              <div style="font-size:2rem;font-weight:700;color:#004085;">${fairCount}</div>
-              <div style="font-size:0.8rem;font-weight:600;color:#004085;">🔵 Fair (80–90%)</div>
-            </div>
-            <div style="text-align:center;padding:1rem;background:#f8d7da;border-radius:8px;border:2px solid #dc3545;">
-              <div style="font-size:2rem;font-weight:700;color:#721c24;">${criticalCount}</div>
-              <div style="font-size:0.8rem;font-weight:600;color:#721c24;">🔴 Critical Issue (&lt;80%)</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">${standingsChipsHtml}</div>
-        </div>
-
-        <!-- Most Late / Hours Short Ranking -->
-        <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:1.5rem;margin-bottom:1.5rem;">
-          <h3 style="margin:0 0 1rem;font-size:1rem;color:#2c3e50;font-weight:700;border-bottom:2px solid #dc3545;padding-bottom:0.5rem;">⏱ Most Late — Hours Short Ranking</h3>
-          ${noLate
-            ? '<div style="text-align:center;padding:1.5rem;color:#28a745;font-weight:600;">✅ All employees on track — no hours short this month!</div>'
-            : '<div>' + lateRankingHtml + '</div>'
-          }
-        </div>
-
-        <!-- Bottom Summary Cards -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-top:1.5rem;">
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#4285f4,#34a853);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(66,133,244,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Total Employees</div>
-            <div style="font-size:2.5rem;font-weight:700;">${totalEmployees}</div>
-          </div>
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#ff9800,#ff5722);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(255,152,0,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Total Hours Worked</div>
-            <div style="font-size:2.5rem;font-weight:700;">${totalHours.toFixed(1)}</div>
-          </div>
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#e91e63,#9c27b0);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(233,30,99,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Total Hours Short</div>
-            <div style="font-size:2.5rem;font-weight:700;">${totalHoursShort.toFixed(1)}</div>
-          </div>
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#4caf50,#2196f3);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(76,175,80,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Total Amount Due</div>
-            <div style="font-size:2.5rem;font-weight:700;">R${totalIncomeDue.toFixed(2)}</div>
-          </div>
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#673ab7,#3f51b5);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(103,58,183,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Potential Payroll</div>
-            <div style="font-size:2.5rem;font-weight:700;">R${totalPotentialIncome.toFixed(2)}</div>
-          </div>
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#00bcd4,#009688);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,188,212,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Avg Attendance</div>
-            <div style="font-size:2.5rem;font-weight:700;">${avgAtt}%</div>
-          </div>
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#28a745,#218838);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(40,167,69,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Good Standing</div>
-            <div style="font-size:2.5rem;font-weight:700;">${goodCount}</div>
-            <div style="font-size:0.75rem;opacity:0.8;">90–100% att.</div>
-          </div>
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#0d6efd,#0056b3);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(13,110,253,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Fair Standing</div>
-            <div style="font-size:2.5rem;font-weight:700;">${fairCount}</div>
-            <div style="font-size:0.75rem;opacity:0.8;">80–90% att.</div>
-          </div>
-          <div style="text-align:center;padding:1.5rem;background:linear-gradient(135deg,#dc3545,#c82333);color:white;border-radius:12px;box-shadow:0 4px 12px rgba(220,53,69,0.3);">
-            <div style="font-size:0.85rem;opacity:0.9;margin-bottom:0.5rem;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Critical Issue</div>
-            <div style="font-size:2.5rem;font-weight:700;">${criticalCount}</div>
-            <div style="font-size:0.75rem;opacity:0.8;">&lt;80% att.</div>
-          </div>
-        </div>
-      `;
+      display.innerHTML = insightHTML + tableHTML + summaryHTML;
     }
 
     async function printAssessment() {
