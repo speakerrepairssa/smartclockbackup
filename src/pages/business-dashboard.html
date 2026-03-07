@@ -5631,6 +5631,7 @@
     let pollingInterval = null;
     let statusUnsubscribe = null;
     let eventListenersSetup = false; // Prevent duplicate event listener setup
+    window._staffPhotoMap = new Map(); // slot (string) → facePhotoUrl
 
     // Placeholder functions for global access
     window.loadModuleData = async function(module) {
@@ -6199,6 +6200,15 @@
       const staffRef = collection(db, "businesses", businessId, "staff");
       const staffUnsubscribe = onSnapshot(staffRef, (snapshot) => {
         console.log("👥 Employee data change detected - refreshing Realtime Database cache");
+
+        // Update staff photo map for Monitor Mode avatars
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const slot = String(d.slot || d.slotNumber || doc.id);
+          if (d.facePhotoUrl) {
+            window._staffPhotoMap.set(slot, d.facePhotoUrl);
+          }
+        });
         
         // Trigger background cache refresh when employee data changes
         setTimeout(async () => {
@@ -6896,9 +6906,13 @@
         inEmployees.forEach(emp => {
           const slot = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
           const name = emp.employeeName || `Slot ${slot}`;
+          const _photoIn = (window._staffPhotoMap || new Map()).get(String(slot));
+          const _avIn = _photoIn
+            ? `<div class="emp-av" style="padding:0;overflow:hidden"><img src="${_photoIn}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='${initials(name)}'"></div>`
+            : `<div class="emp-av">${initials(name)}</div>`;
           inHtml += `
             <div class="employee-item">
-              <div class="emp-av">${initials(name)}</div>
+              ${_avIn}
               <div class="emp-details">
                 <div class="employee-name">${name}</div>
                 <div class="employee-slot">Slot ${slot}</div>
@@ -6917,9 +6931,13 @@
         outEmployees.forEach(emp => {
           const slot = emp.slot || emp.slotNumber || emp.employeeId || 'N/A';
           const name = emp.employeeName || `Slot ${slot}`;
+          const _photoOut = (window._staffPhotoMap || new Map()).get(String(slot));
+          const _avOut = _photoOut
+            ? `<div class="emp-av" style="padding:0;overflow:hidden"><img src="${_photoOut}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='${initials(name)}'"></div>`
+            : `<div class="emp-av">${initials(name)}</div>`;
           outHtml += `
             <div class="employee-item">
-              <div class="emp-av">${initials(name)}</div>
+              ${_avOut}
               <div class="emp-details">
                 <div class="employee-name">${name}</div>
                 <div class="employee-slot">Slot ${slot}</div>
