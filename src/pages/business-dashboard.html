@@ -947,7 +947,6 @@
             display: flex;
             flex-direction: row;
             gap: 0;
-            margin-bottom: 1.25rem;
           }
 
           .status-section {
@@ -1182,14 +1181,16 @@
           .mrp-chart-wrap {
             padding: 1rem;
             position: relative;
-            min-height: 210px;
             display: flex;
             align-items: center;
             justify-content: center;
+            flex: 1;
+            overflow: hidden;
+            min-height: 80px;
           }
 
           /* Spotlight card */
-          .mrp-spotlight-body { padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+          .mrp-spotlight-body { padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; flex: 1; overflow-y: auto; min-height: 60px; }
 
           .mrp-spotlight-row {
             display: flex;
@@ -3010,7 +3011,7 @@
                 </div>
               </div>
               <div class="mrp-chart-wrap">
-                <canvas id="monitorEmpChart" style="max-height:210px;"></canvas>
+                <canvas id="monitorEmpChart" style="width:100%;height:100%;"></canvas>
                 <div id="mrpChartEmpty" style="display:none;position:absolute;color:#cbd5e1;font-size:0.85rem;text-align:center;">
                   <div style="font-size:2rem;opacity:0.4;">📈</div>
                   <div>Waiting for data…</div>
@@ -6923,7 +6924,7 @@
           },
           options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
               legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12 } },
               tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
@@ -6955,7 +6956,7 @@
           options: {
             indexAxis: isHBar ? 'y' : 'x',
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
               legend: { display: false },
               tooltip: {
@@ -6999,6 +7000,7 @@
       if (_monitorChart) { _monitorChart.destroy(); _monitorChart = null; }
       try {
         _monitorChart = new (window.Chart || Chart)(canvas, config);
+        window._mmChart = _monitorChart;
       } catch (chartErr) {
         console.error('Monitor chart render error:', chartErr);
         canvas.style.display = 'none';
@@ -17142,6 +17144,7 @@ Click "Test Connection" after starting the service.`);
         handleEl.classList.remove('dragging');
         document.body.style.cursor = ''; document.body.style.userSelect = '';
         sv[key] = cardEl.offsetHeight + 'px'; save();
+        if (window._mmChart) { try { window._mmChart.resize(); } catch(e){} }
       }
     }
 

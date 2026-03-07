@@ -147,8 +147,9 @@
     }
     .chart-btn.active,.chart-btn:hover{background:rgba(59,130,246,0.45);border-color:rgba(59,130,246,0.6);color:white;}
     .chart-wrap{
-      padding:0.9rem;position:relative;min-height:200px;
+      padding:0.9rem;position:relative;
       display:flex;align-items:center;justify-content:center;
+      flex:1;overflow:hidden;min-height:120px;
     }
     .chart-empty{
       position:absolute;color:#334155;font-size:0.82rem;
@@ -157,7 +158,7 @@
     .chart-empty span{font-size:2rem;opacity:0.35;}
 
     /* Spotlight */
-    .spotlight-body{padding:0.8rem 1rem;display:flex;flex-direction:column;gap:0.5rem;}
+    .spotlight-body{padding:0.8rem 1rem;display:flex;flex-direction:column;gap:0.5rem;flex:1;overflow-y:auto;min-height:80px;}
     .spot-section-lbl{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#475569;padding:0 0.1rem 0.1rem;}
     .spot-row{display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.8rem;border-radius:10px;}
     .spot-row.top {background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);}
@@ -249,7 +250,7 @@
           </div>
         </div>
         <div class="chart-wrap">
-          <canvas id="empChart" style="max-height:210px;"></canvas>
+          <canvas id="empChart" style="width:100%;height:100%;"></canvas>
           <div class="chart-empty" id="chartEmpty"><span>&#128200;</span>Waiting for data&hellip;</div>
         </div>
         <div class="layout-resize-hdl" title="Drag to resize"></div>
@@ -352,7 +353,7 @@
     const isDPie=_chartType==="doughnut"||_chartType==="pie";
     let config;
     if(isDPie){
-      config={type:_chartType,data:{labels:["Clocked In","Clocked Out"],datasets:[{data:[inL.length,outL.length],backgroundColor:["rgba(34,197,94,0.75)","rgba(239,68,68,0.65)"],borderColor:["#22c55e","#ef4444"],borderWidth:2,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:"bottom",labels:{color:"#94a3b8",font:{size:11},padding:12}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}`}}}}};
+      config={type:_chartType,data:{labels:["Clocked In","Clocked Out"],datasets:[{data:[inL.length,outL.length],backgroundColor:["rgba(34,197,94,0.75)","rgba(239,68,68,0.65)"],borderColor:["#22c55e","#ef4444"],borderWidth:2,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#94a3b8",font:{size:11},padding:12}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}`}}}}};
     } else {
       const isH=_chartType==="horizontalBar";
       const labels=all.map(e=>e.employeeName||("Slot "+(e.slot||e.slotNumber||"?")));
@@ -362,10 +363,11 @@
       const times=all.map(e=>fmt(e.lastClockTime));
       const scalesH={x:{min:0,max:24,ticks:{color:"#475569",font:{size:9}},grid:{color:"rgba(255,255,255,0.05)"},title:{display:true,text:"Hour (24h)",color:"#475569",font:{size:9}}},y:{ticks:{color:"#94a3b8",font:{size:10}},grid:{color:"rgba(255,255,255,0.05)"}}};
       const scalesV={x:{ticks:{color:"#94a3b8",font:{size:10},maxRotation:35},grid:{color:"rgba(255,255,255,0.05)"}},y:{min:0,max:24,ticks:{color:"#475569",font:{size:9}},grid:{color:"rgba(255,255,255,0.05)"},title:{display:true,text:"Hour (24h)",color:"#475569",font:{size:9}}}};
-      config={type:"bar",data:{labels,datasets:[{label:"Clock-in time",data:hours,backgroundColor:bgC,borderColor:bdC,borderWidth:1.5,borderRadius:5}]},options:{indexAxis:isH?"y":"x",responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>{const e=all[ctx.dataIndex];return ` ${e.attendanceStatus==="in"?"&#10003; IN":"&#10005; OUT"}  ${times[ctx.dataIndex]}`;} }}},scales:isH?scalesH:scalesV}};
+      config={type:"bar",data:{labels,datasets:[{label:"Clock-in time",data:hours,backgroundColor:bgC,borderColor:bdC,borderWidth:1.5,borderRadius:5}]},options:{indexAxis:isH?"y":"x",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:(ctx)=>{const e=all[ctx.dataIndex];return ` ${e.attendanceStatus==="in"?"&#10003; IN":"&#10005; OUT"}  ${times[ctx.dataIndex]}`;} }}},scales:isH?scalesH:scalesV}};
     }
     if(_chart){_chart.destroy();_chart=null;}
     _chart=new Chart(canvas,config);
+    window._fvChart = _chart;
   }
 
   function updateSpotlight(inL, outL) {
@@ -455,6 +457,7 @@
       handleEl.classList.remove('dragging');
       document.body.style.cursor = ''; document.body.style.userSelect = '';
       sv[key] = cardEl.offsetHeight + 'px'; save();
+      if (window._fvChart) { try { window._fvChart.resize(); } catch(e){} }
     }
   }
 
