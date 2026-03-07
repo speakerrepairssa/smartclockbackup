@@ -10888,12 +10888,12 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
                   <td style="padding: 0.75rem; font-weight: 600; color: #2c3e50;">${emp.name}</td>
                   <td style="padding: 0.75rem; color: #7f8c8d; font-style: italic;">${emp.shiftName || 'No Shift Assigned'}</td>
                   <td style="padding: 0.75rem; text-align: center; color: #495057;">${emp.requiredHours}</td>
-                  <td style="padding: 0.75rem; text-align: center; color: ${emp.currentHours > 0 ? '#28a745' : '#6c757d'}; font-weight: ${emp.currentHours > 0 ? '600' : 'normal'};">${emp.currentHours.toFixed(1)}</td>
+                  <td style="padding: 0.75rem; text-align: center; color: ${emp.currentHours > 0 ? '#28a745' : '#6c757d'}; font-weight: ${emp.currentHours > 0 ? '600' : 'normal'};">${(emp.currentHours || 0).toFixed(1)}</td>
                   <td style="padding: 0.75rem; text-align: center; color: #6c757d;">${emp.pastDueHours}</td>
-                  <td style="padding: 0.75rem; text-align: center; color: ${emp.hoursShort > 0 ? '#dc3545' : '#28a745'}; font-weight: 600;">${emp.hoursShort.toFixed(1)}</td>
-                  <td style="padding: 0.75rem; text-align: center; color: #495057;">R${emp.payRate.toFixed(2)}</td>
-                  <td style="padding: 0.75rem; text-align: center; color: #495057; font-weight: 600;">R${emp.currentIncomeDue.toFixed(2)}</td>
-                  <td style="padding: 0.75rem; text-align: center; color: #28a745; font-weight: 600;">R${emp.potentialIncome.toFixed(2)}</td>
+                  <td style="padding: 0.75rem; text-align: center; color: ${emp.hoursShort > 0 ? '#dc3545' : '#28a745'}; font-weight: 600;">${(emp.hoursShort || 0).toFixed(1)}</td>
+                  <td style="padding: 0.75rem; text-align: center; color: #495057;">R${(emp.payRate || 0).toFixed(2)}</td>
+                  <td style="padding: 0.75rem; text-align: center; color: #495057; font-weight: 600;">R${(emp.currentIncomeDue || 0).toFixed(2)}</td>
+                  <td style="padding: 0.75rem; text-align: center; color: #28a745; font-weight: 600;">R${(emp.potentialIncome || 0).toFixed(2)}</td>
                   <td style="padding: 0.75rem; text-align: center;">
                     <span style="background-color: ${emp.statusColor}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
                       ${emp.status}
@@ -16151,9 +16151,9 @@ Click "Test Connection" after starting the service.`);
                   <td style="padding: 1rem; text-align: center; font-weight: 600; color: #1e88e5;">${emp.currentHours}</td>
                   <td style="padding: 1rem; text-align: center; color: #ff9800;">${emp.pastDueHours}</td>
                   <td style="padding: 1rem; text-align: center; color: ${emp.hoursShort > 0 ? '#f44336' : '#4caf50'};">${emp.hoursShort}</td>
-                  <td style="padding: 1rem; text-align: center; color: #333;">R${emp.payRate.toFixed(2)}</td>
-                  <td style="padding: 1rem; text-align: center; font-weight: 600; color: #4caf50;">R${emp.currentIncomeDue.toFixed(2)}</td>
-                  <td style="padding: 1rem; text-align: center; font-weight: 600; color: #28a745;">R${emp.potentialIncome.toFixed(2)}</td>
+                  <td style="padding: 1rem; text-align: center; color: #333;">R${(emp.payRate || 0).toFixed(2)}</td>
+                  <td style="padding: 1rem; text-align: center; font-weight: 600; color: #4caf50;">R${(emp.currentIncomeDue || 0).toFixed(2)}</td>
+                  <td style="padding: 1rem; text-align: center; font-weight: 600; color: #28a745;">R${(emp.potentialIncome || 0).toFixed(2)}</td>
                   <td style="padding: 1rem; text-align: center;">
                     <span style="background: ${emp.statusColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem; font-weight: 500;">${emp.status}</span>
                   </td>
