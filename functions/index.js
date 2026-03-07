@@ -6758,3 +6758,230 @@ exports.importHistoricalEvents = onRequest(async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// ─────────────────────────────────────────────────────────────
+// 📸 SYNC EMPLOYEE FACE PHOTO FROM HIKVISION DEVICE
+// Fetches the enrolled face photo from the device, uploads it to
+// Firebase Storage and saves the public URL to the staff doc.
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Scan a buffer for a JPEG (FF D8 FF … FF D9) and return it.
+ * Works regardless of multipart boundaries or surrounding XML.
+ */
+function extractJpegFromBuffer(buffer) {
+  for (let i = 0; i < buffer.length - 3; i++) {
+    if (buffer[i] === 0xFF && buffer[i + 1] === 0xD8 && buffer[i + 2] === 0xFF) {
+      // Found SOI — search for EOI (FF D9)
+      for (let j = i + 2; j < buffer.length - 1; j++) {
+        if (buffer[j] === 0xFF && buffer[j + 1] === 0xD9) {
+          return buffer.slice(i, j + 2);
+        }
+      }
+      // EOI not found — take everything from SOI to end
+      return buffer.slice(i);
+    }
+  }
+  return null;
+}
+
+exports.syncEmployeeFacePhoto = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+
+  try {
+    const { businessId, employeeSlot, employeeNo } = req.body;
+
+    if (!businessId || !employeeSlot || !employeeNo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: businessId, employeeSlot, employeeNo'
+      });
+    }
+
+    // ── Load device credentials from Firestore ──────────────
+    const bizDoc = await db.collection('businesses').doc(businessId).get();
+    if (!bizDoc.exists) {
+      return res.status(404).json({ success: false, error: 'Business not found' });
+    }
+    const biz = bizDoc.data();
+    const deviceIp       = biz.deviceIp;
+    const deviceUsername = biz.deviceUsername || 'admin';
+    const devicePassword = biz.devicePassword || '';
+
+    if (!deviceIp) {
+      return res.status(400).json({ success: false, error: 'No device IP configured for this business' });
+    }
+
+    const axios = require('axios');
+    const https = require('https');
+    const { getStorage } = require('firebase-admin/storage');
+
+    const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    const auth = Buffer.from(`${deviceUsername}:${devicePassword}`).toString('base64');
+    const baseHeaders = { 'Authorization': `Basic ${auth}` };
+
+    let imageBuffer = null;
+
+    // ── Attempt 1: FDSearch (returns multipart/mixed with embedded JPEG) ──
+    try {
+      logger.info('📸 Trying FDSearch for employeeNo:', employeeNo);
+      const searchPayload = JSON.stringify({
+        FDSearchDescription: {
+          searchID: '1',
+          maxResults: 1,
+          searchResultPosition: 0,
+          EmployeeNoList: [{ employeeNo: String(employeeNo) }]
+        }
+      });
+      const r = await axios({
+        method: 'POST',
+        url: `http://${deviceIp}/ISAPI/Intelligent/FDLib/FDSearch?format=json`,
+        headers: { ...baseHeaders, 'Content-Type': 'application/json', 'Accept': '*/*' },
+        data: searchPayload,
+        responseType: 'arraybuffer',
+        timeout: 15000,
+        httpsAgent
+      });
+      const buf = Buffer.from(r.data);
+      imageBuffer = extractJpegFromBuffer(buf);
+      if (imageBuffer) logger.info('✅ FDSearch JPEG found, size:', imageBuffer.length);
+    } catch (e) {
+      logger.warn('FDSearch failed:', e.message);
+    }
+
+    // ── Attempt 2: FaceDataRecord list ──────────────────────
+    if (!imageBuffer) {
+      try {
+        logger.info('📸 Trying FaceDataRecord list...');
+        const r = await axios({
+          method: 'GET',
+          url: `http://${deviceIp}/ISAPI/Intelligent/FDLib/FaceDataRecord?searchResultPosition=0&maxResults=100`,
+          headers: { ...baseHeaders, 'Accept': '*/*' },
+          responseType: 'arraybuffer',
+          timeout: 15000,
+          httpsAgent
+        });
+        const buf = Buffer.from(r.data);
+        imageBuffer = extractJpegFromBuffer(buf);
+        if (imageBuffer) logger.info('✅ FaceDataRecord JPEG found, size:', imageBuffer.length);
+      } catch (e) {
+        logger.warn('FaceDataRecord list failed:', e.message);
+      }
+    }
+
+    // ── Attempt 3: Direct picture URL by employee number ────
+    if (!imageBuffer) {
+      const picUrls = [
+        `http://${deviceIp}/ISAPI/Intelligent/FDLib/FaceDataRecord/${employeeNo}`,
+        `http://${deviceIp}/ISAPI/Intelligent/personInfoPic/${employeeNo}`,
+        `http://${deviceIp}/doc/page/face/${employeeNo}.jpg`
+      ];
+      for (const url of picUrls) {
+        try {
+          logger.info('📸 Trying direct URL:', url);
+          const r = await axios({
+            method: 'GET', url,
+            headers: { ...baseHeaders, 'Accept': 'image/*' },
+            responseType: 'arraybuffer',
+            timeout: 10000,
+            httpsAgent
+          });
+          const buf = Buffer.from(r.data);
+          const jpeg = extractJpegFromBuffer(buf);
+          if (jpeg && jpeg.length > 500) {
+            imageBuffer = jpeg;
+            logger.info('✅ Direct URL JPEG found:', url, 'size:', imageBuffer.length);
+            break;
+          }
+        } catch (e) {
+          logger.warn('Direct URL failed:', url, e.message);
+        }
+      }
+    }
+
+    if (!imageBuffer || imageBuffer.length < 500) {
+      return res.status(404).json({
+        success: false,
+        error: 'No face photo found on device for employee ' + employeeNo + '. Make sure the employee is enrolled with a face on the device.'
+      });
+    }
+
+    // ── Upload to Firebase Storage ───────────────────────────
+    const bucket   = getStorage().bucket();
+    const filePath = `businesses/${businessId}/employee-faces/${employeeSlot}.jpg`;
+    const file     = bucket.file(filePath);
+
+    await file.save(imageBuffer, {
+      metadata: { contentType: 'image/jpeg' },
+      resumable: false
+    });
+    await file.makePublic();
+
+    const photoUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+    // ── Persist URL to Firestore staff doc ───────────────────
+    await db.collection('businesses').doc(businessId)
+      .collection('staff').doc(employeeSlot)
+      .update({
+        facePhotoUrl: photoUrl,
+        facePhotoSyncedAt: FieldValue.serverTimestamp()
+      });
+
+    logger.info('✅ Face photo synced', { businessId, employeeSlot, employeeNo, photoUrl });
+    return res.json({ success: true, photoUrl });
+
+  } catch (err) {
+    logger.error('❌ syncEmployeeFacePhoto error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// 📤 UPLOAD EMPLOYEE PHOTO (manual upload via base64)
+// Accepts base64 image data, uploads to Firebase Storage and
+// saves the URL to staff doc.
+// ─────────────────────────────────────────────────────────────
+exports.uploadEmployeePhoto = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+
+  try {
+    const { businessId, employeeSlot, imageBase64, mimeType } = req.body;
+
+    if (!businessId || !employeeSlot || !imageBase64) {
+      return res.status(400).json({ success: false, error: 'Missing businessId, employeeSlot, or imageBase64' });
+    }
+
+    const { getStorage } = require('firebase-admin/storage');
+
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+    const ext         = (mimeType || 'image/jpeg').includes('png') ? 'png' : 'jpg';
+    const bucket      = getStorage().bucket();
+    const filePath    = `businesses/${businessId}/employee-faces/${employeeSlot}.${ext}`;
+    const file        = bucket.file(filePath);
+
+    await file.save(imageBuffer, {
+      metadata: { contentType: mimeType || 'image/jpeg' },
+      resumable: false
+    });
+    await file.makePublic();
+
+    const photoUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+    await db.collection('businesses').doc(businessId)
+      .collection('staff').doc(employeeSlot)
+      .update({ facePhotoUrl: photoUrl, facePhotoUpdatedAt: FieldValue.serverTimestamp() });
+
+    logger.info('✅ Employee photo uploaded', { businessId, employeeSlot, photoUrl });
+    return res.json({ success: true, photoUrl });
+
+  } catch (err) {
+    logger.error('❌ uploadEmployeePhoto error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});

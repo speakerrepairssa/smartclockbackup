@@ -1278,6 +1278,65 @@
             opacity: 0.7;
           }
 
+          /* ── Face Photo Avatar ───────────── */
+          .emp-avatar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+          }
+
+          .emp-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+            flex-shrink: 0;
+            background: #f0f4ff;
+          }
+
+          .emp-avatar-placeholder {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+            border: 3px solid #667eea;
+          }
+
+          .emp-avatar-info { flex: 1; min-width: 0; }
+          .emp-avatar-info h3 { margin: 0 0 0.2rem 0; font-size: 1rem; }
+
+          .emp-photo-actions {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+          }
+
+          .btn-photo-upload, .btn-photo-sync {
+            font-size: 0.72rem;
+            padding: 0.25rem 0.55rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+          }
+
+          .btn-photo-upload { background: #e8f4fd; color: #1a7abf; }
+          .btn-photo-upload:hover { background: #cce5f7; }
+          .btn-photo-sync   { background: #e8f8f0; color: #1a7a4a; }
+          .btn-photo-sync:hover   { background: #c8f0da; }
+
           .employee-header {
             display: flex;
             justify-content: space-between;
@@ -7874,15 +7933,37 @@
               }
             }
             
+            const avatarInitials = (employee.employeeName || 'U').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+            const avatarHtml = employee.facePhotoUrl
+              ? `<img class="emp-avatar" src="${employee.facePhotoUrl}" alt="${employee.employeeName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                 <div class="emp-avatar-placeholder" style="display:none">${avatarInitials}</div>`
+              : `<div class="emp-avatar-placeholder">${avatarInitials}</div>`;
+
             slotCards.push(`
               <div class="employee-card ${employee.active ? '' : 'inactive'}">
-                <div class="employee-header">
-                  <div class="employee-info">
+
+                <!-- Face Photo Row -->
+                <div class="emp-avatar-wrap">
+                  ${avatarHtml}
+                  <div class="emp-avatar-info">
                     <h3>${employee.employeeName || 'Unnamed Employee'}</h3>
                     <div class="employee-status ${statusClass}">${statusText}</div>
+                    <div class="emp-photo-actions">
+                      <label class="btn-photo-upload" title="Upload a photo from your device">
+                        📷 Upload Photo
+                        <input type="file" accept="image/*" style="display:none"
+                          onchange="handleEmployeePhotoUpload(event, '${employee.id}', ${i}, '${employee.employeeName}')"
+                        >
+                      </label>
+                      <button class="btn-photo-sync" title="Pull face photo stored on the clock device"
+                        onclick="syncEmployeePhotoFromDevice('${employee.id}', '${employee.badgeNumber || employee.employeeId || i}', '${employee.employeeName}')"
+                      >🔄 Sync from Device</button>
+                    </div>
                   </div>
-                  <span class="employee-slot-badge">SLOT ${i}</span>
+                  <span class="employee-slot-badge" style="align-self:flex-start">SLOT ${i}</span>
                 </div>
+
+                <div class="employee-header" style="display:none"><!-- kept for legacy --></div>
                 
                 <div class="employee-details">
                   <div class="employee-detail-row">
@@ -9333,6 +9414,117 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
 
     // ========== END SLOT MANAGEMENT FUNCTIONS ==========
 
+    // ── Employee Face Photo – Upload ─────────────────────────────────────────
+    async function handleEmployeePhotoUpload(event, slotId, slotNum, empName) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const maxBytes = 3 * 1024 * 1024; // 3 MB
+      if (file.size > maxBytes) {
+        alert('Photo is too large (max 3 MB). Please choose a smaller image.');
+        return;
+      }
+
+      // Show inline progress on the card
+      const card = event.target.closest('.employee-card');
+      const syncBtn = card ? card.querySelector('.btn-photo-sync') : null;
+      const uploadLabel = card ? card.querySelector('.btn-photo-upload') : null;
+      if (uploadLabel) uploadLabel.textContent = '⏳ Uploading…';
+
+      try {
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve, reject) => {
+          reader.onload  = e => resolve(e.target.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const resp = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/uploadEmployeePhoto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businessId,
+            employeeSlot: slotId,
+            imageBase64: base64,
+            mimeType: file.type
+          })
+        });
+        const data = await resp.json();
+
+        if (!data.success) throw new Error(data.error || 'Upload failed');
+
+        // Swap avatar on the card immediately
+        updateCardAvatar(card, data.photoUrl, empName);
+        console.log('✅ Photo uploaded:', data.photoUrl);
+
+      } catch (err) {
+        alert('Photo upload failed: ' + err.message);
+      } finally {
+        if (uploadLabel) uploadLabel.textContent = '📷 Upload Photo';
+      }
+    }
+
+    // ── Employee Face Photo – Sync from Hikvision device ────────────────────
+    async function syncEmployeePhotoFromDevice(slotId, employeeNo, empName) {
+      const cards = document.querySelectorAll('.employee-card');
+      let card = null;
+      cards.forEach(c => {
+        if (c.querySelector('.btn-photo-sync') &&
+            c.querySelector('.btn-photo-sync').getAttribute('onclick') &&
+            c.querySelector('.btn-photo-sync').getAttribute('onclick').includes("'" + slotId + "'")) {
+          card = c;
+        }
+      });
+
+      const syncBtn = card ? card.querySelector('.btn-photo-sync') : null;
+      if (syncBtn) { syncBtn.textContent = '⏳ Syncing…'; syncBtn.disabled = true; }
+
+      try {
+        const resp = await fetch('https://us-central1-aiclock-82608.cloudfunctions.net/syncEmployeeFacePhoto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ businessId, employeeSlot: slotId, employeeNo: String(employeeNo) })
+        });
+        const data = await resp.json();
+
+        if (!data.success) throw new Error(data.error || 'Sync failed');
+
+        if (card) updateCardAvatar(card, data.photoUrl, empName);
+        console.log('✅ Face photo synced from device:', data.photoUrl);
+
+      } catch (err) {
+        alert('Sync from device failed: ' + err.message + '\n\nMake sure the employee is enrolled with a face photo on the Hikvision device.');
+      } finally {
+        if (syncBtn) { syncBtn.textContent = '🔄 Sync from Device'; syncBtn.disabled = false; }
+      }
+    }
+
+    // ── Helper: update avatar image in-place without reloading the whole grid ─
+    function updateCardAvatar(card, photoUrl, empName) {
+      if (!card) return;
+      const wrap = card.querySelector('.emp-avatar-wrap');
+      if (!wrap) return;
+
+      const initials = (empName || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      const existing = wrap.querySelector('.emp-avatar');
+      const placeholder = wrap.querySelector('.emp-avatar-placeholder');
+
+      if (existing) {
+        existing.src = photoUrl;
+        existing.style.display = '';
+        if (placeholder) placeholder.style.display = 'none';
+      } else if (placeholder) {
+        // Replace placeholder with real image
+        const img = document.createElement('img');
+        img.className = 'emp-avatar';
+        img.src       = photoUrl;
+        img.alt       = empName;
+        img.onerror   = () => { img.style.display = 'none'; placeholder.style.display = 'flex'; };
+        wrap.insertBefore(img, placeholder);
+        placeholder.style.display = 'none';
+      }
+    }
+
     // Make functions globally available
     window.editEmployee = editEmployee;
     window.saveEmployee = saveEmployee;
@@ -9343,6 +9535,8 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     window.saveNewEmployee = saveNewEmployee;
     window.saveSlotEmployee = saveSlotEmployee;
     window.initializeEmployeeSlot = initializeEmployeeSlot;
+    window.handleEmployeePhotoUpload = handleEmployeePhotoUpload;
+    window.syncEmployeePhotoFromDevice = syncEmployeePhotoFromDevice;
 
     // ============================================
     // TIMECARD MODULE FUNCTIONS
