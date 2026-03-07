@@ -22,35 +22,36 @@ const server = http.createServer((req, res) => {
 
   // Handle POST webhooks
   if (req.method === 'POST') {
-    let body = '';
-    
+    // Collect as binary Buffer so multipart images are NOT corrupted
+    const chunks = [];
+
     req.on('data', chunk => {
-      body += chunk.toString();
+      chunks.push(chunk);
     });
 
     req.on('end', () => {
+      const bodyBuffer = Buffer.concat(chunks);
       console.log('✅ Webhook received:', req.url);
-      console.log('Body length:', body.length);
-      
-      // Simple forward to Firebase
-      const postData = JSON.stringify({
-        deviceId: 'fc4349999',
-        timestamp: new Date().toISOString(),
-        rawData: body,
-        source: 'relay'
-      });
+      console.log('Body length:', bodyBuffer.length, 'Content-Type:', req.headers['content-type']);
 
-      const options = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData)
-        }
+      // Parse the URL for the Firebase function
+      const url = new URL(FIREBASE_URL);
+
+      // Forward the original Content-Type so multipart boundaries are preserved
+      const forwardHeaders = {
+        'Content-Type': req.headers['content-type'] || 'application/octet-stream',
+        'Content-Length': bodyBuffer.length
       };
 
-      const firebaseReq = https.request(FIREBASE_URL, options, (firebaseRes) => {
+      const options = {
+        hostname: url.hostname,
+        path: url.pathname + (url.search || ''),
+        method: 'POST',
+        headers: forwardHeaders
+      };
+
+      const firebaseReq = https.request(options, (firebaseRes) => {
         console.log('Firebase response status:', firebaseRes.statusCode);
-        
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       });
@@ -61,7 +62,7 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: error.message }));
       });
 
-      firebaseReq.write(postData);
+      firebaseReq.write(bodyBuffer);
       firebaseReq.end();
     });
 
