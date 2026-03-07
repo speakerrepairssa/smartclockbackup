@@ -5498,10 +5498,10 @@
     import authService from '../modules/auth/auth.service.js';
     import { doc, getDoc, collection, getDocs, addDoc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, updateDoc, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getDatabase, ref, get, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-    import { db } from '../config/firebase.js';
+    import { db, app } from '../config/firebase.js';
 
-    // Initialize Realtime Database
-    const rtdb = getDatabase();
+    // Initialize Realtime Database — use explicit app to match the correct project
+    const rtdb = getDatabase(app);
     
     // Make db and Firebase functions globally accessible for Assessment module
     window.db = db;
@@ -5747,7 +5747,7 @@
         // Get business plan limits
         const businessRef = doc(db, "businesses", businessId);
         const businessDoc = await getDoc(businessRef);
-        const businessData = businessDoc.data();
+        const businessData = businessDoc.exists() ? businessDoc.data() : {};
         
         const planLimits = {
           'Basic': 5,
@@ -15352,6 +15352,11 @@ You can output multiple TRANSACTION_SAVE lines. Only output these after the user
     // ========================================
     // END OF EMPLOYEE STATS MODULE
     // ========================================
+
+    // Export module-scoped functions to window so plain scripts can use them
+    window.getRealtimeAttendanceData      = getRealtimeAttendanceData;
+    window.calculateAndCacheAttendanceData = calculateAndCacheAttendanceData;
+    window.triggerAttendanceRecalculation  = triggerAttendanceRecalculation;
     
   </script>
 
@@ -16192,30 +16197,22 @@ Click "Test Connection" after starting the service.`);
       window.print();
     }
 
-    // 🚀 NEW: Make attendance functions globally available
-    window.getRealtimeAttendanceData = getRealtimeAttendanceData;
-    window.calculateAndCacheAttendanceData = calculateAndCacheAttendanceData;
-    window.triggerAttendanceRecalculation = triggerAttendanceRecalculation;
-    
-    // 🔧 DEBUG: Manual attendance refresh function
+    // � DEBUG: Manual attendance refresh function
     window.refreshAttendanceNow = async function() {
       console.log('🔄 Manual attendance refresh triggered...');
-      const result = await calculateAndCacheAttendanceData(businessId);
-      console.log('✅ Manual refresh completed:', result);
-      return result;
+      const fn = window.calculateAndCacheAttendanceData;
+      if (fn) { const result = await fn(window.businessId); console.log('✅ Manual refresh completed:', result); return result; }
     };
     
-    // 🚀 NEW: Function to refresh cache when employee data changes
+    // 🚀 Function to refresh cache when employee data changes
     window.refreshEmployeeCache = async function() {
       console.log('👥 Employee data changed - refreshing Realtime Database cache...');
-      const result = await calculateAndCacheAttendanceData(businessId);
-      console.log('✅ Employee cache refresh completed:', result);
-      return result;
+      const fn = window.calculateAndCacheAttendanceData;
+      if (fn) { const result = await fn(window.businessId); console.log('✅ Employee cache refresh completed:', result); return result; }
     };
     
-    // 🚀 NEW: Make Realtime DB assessment function the default
-    window.calculateAssessmentFromAttendance = calculateAssessmentFromRealtimeDB;
-    window.calculateAssessmentFromRealtimeDB = calculateAssessmentFromRealtimeDB;
+    // Point calculateAssessmentFromAttendance at the original fallback
+    window.calculateAssessmentFromAttendance = calculateAssessmentFromAttendanceOriginal;
     window.calculateAssessmentFromAttendanceOriginal = calculateAssessmentFromAttendanceOriginal;
   </script>
 
