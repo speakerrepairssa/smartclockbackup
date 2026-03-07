@@ -3,6 +3,7 @@ const { onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/
 const { logger } = require("firebase-functions");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 // Derive storage bucket from the project this function is deployed to,
 // so the same code works on smartclock-v2-8271f (test) AND aiclock-82608 (prod)
 const STORAGE_BUCKET = `${process.env.GCLOUD_PROJECT || 'aiclock-82608'}.firebasestorage.app`;
