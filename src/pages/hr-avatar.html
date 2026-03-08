@@ -612,7 +612,7 @@
       </div>
 
       <div class="input-row">
-        <button class="btn-mic" id="btnMic" onclick="toggleMic()" title="Voice input">🎤</button>
+        <button class="btn-mic" id="btnMic" onclick="toggleMic()" title="Mute microphone">🎤</button>
         <textarea class="chat-input" id="chatInput" placeholder="Type your question…" rows="1"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
         <button class="btn-send" onclick="sendMessage()" title="Send">➤</button>
@@ -624,6 +624,7 @@
   <script type="module">
     import { db, app } from '../config/firebase.js';
     import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { Conversation } from 'https://esm.sh/@elevenlabs/client';
 
     // ── Auth check ─────────────────────────────────────────────────────────────
     const userRole   = sessionStorage.getItem('userRole');
@@ -631,9 +632,7 @@
     const empName    = sessionStorage.getItem('employeeName') || sessionStorage.getItem('empName') || 'Employee';
     const empId      = sessionStorage.getItem('employeeId')   || sessionStorage.getItem('slotId');
 
-    // Allow management too (userRole = 'admin' or 'manager')
     if (!businessId) {
-      // Redirect to login but still allow testing with query param
       const params = new URLSearchParams(location.search);
       if (!params.get('biz')) {
         alert('Please log in to access the HR Assistant.');
@@ -644,70 +643,13 @@
     const resolvedBusinessId = businessId || new URLSearchParams(location.search).get('biz');
     document.getElementById('topUserName').textContent = empName !== 'Employee' ? empName : '';
 
-    // ── Load HR Avatar config ──────────────────────────────────────────────────
-    let _cfg = {};
-    let _conversationHistory = [];
-
-    async function loadConfig() {
-      try {
-        const snap = await getDoc(doc(db, 'businesses', resolvedBusinessId, 'settings', 'hr_avatar'));
-        if (snap.exists()) _cfg = snap.data();
-      } catch(e) { console.warn('Config load failed:', e.message); }
-
-      // Apply persona
-      const name    = _cfg.avatarName || 'Lerato';
-      const tagline = _cfg.tagline    || 'Your friendly HR assistant';
-      const skin    = _cfg.skinTone   || '#E8A87C';
-
-      document.getElementById('hrAvatarDisplayName').textContent    = name;
-      document.getElementById('hrAvatarDisplayTagline').textContent = tagline;
-      document.title = name + ' · HR Assistant';
-
-      // Apply skin tone — update gradient stops so depth/shading is preserved
-      const svg = document.getElementById('hrAvatarSvg');
-      if (svg && skin && skin !== '#E8A87C') {
-        // Compute lighter/darker tones relative to chosen skin
-        document.getElementById('avrBlinkL').setAttribute('fill', skin);
-        document.getElementById('avrBlinkR').setAttribute('fill', skin);
-        // Apply a subtle brightness filter to all skin elements
-        ['avrHead','avrNeck'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.style.filter = 'none'; // gradient handles shading
-        });
-      }
-
-      // Opening greeting
-      const greeting = `Hi ${empName !== 'Employee' ? empName.split(' ')[0] : 'there'}! I'm ${name}, your HR assistant. How can I help you today?`;
-      await speak(greeting, true);
-      addMessage('hr', greeting);
-
-      // Seed conversation with greeting
-      _conversationHistory.push({ role: 'assistant', content: greeting });
-    }
-
-    loadConfig();
-
-    // ── System prompt builder ──────────────────────────────────────────────────
-    function buildSystemPrompt() {
-      const name    = _cfg.avatarName || 'Lerato';
-      const company = resolvedBusinessId ? resolvedBusinessId.replace(/_/g,' ').replace(/biz /i,'').trim() : 'this company';
-      const parts   = [
-        `You are ${name}, a warm, professional and empathetic HR assistant for ${company}.`,
-        `You help employees with HR-related questions: leave, sick leave, cashadvances, payslips, attendance, disciplinary processes, and general company policies.`,
-        `Always be friendly, clear, and concise. Use simple language. If unsure, say so and suggest contacting management.`,
-        `Do NOT answer questions unrelated to HR or the workplace — politely redirect. Do NOT perform tasks outside your HR scope.`,
-        `Keep responses under 160 words unless the question genuinely requires more. Avoid bullet overload — prefer short paragraphs.`
-      ];
-      if (_cfg.policyLeave)  parts.push(`LEAVE POLICY: ${_cfg.policyLeave}`);
-      if (_cfg.policyCash)   parts.push(`CASH ADVANCE POLICY: ${_cfg.policyCash}`);
-      if (_cfg.policyHours)  parts.push(`WORKING HOURS POLICY: ${_cfg.policyHours}`);
-      if (_cfg.policyOther)  parts.push(`COMPANY RULES: ${_cfg.policyOther}`);
-      if (empName) parts.push(`The employee you are speaking to is: ${empName}.`);
-      return parts.join('\n\n');
-    }
+    // ── State ──────────────────────────────────────────────────────────────────
+    let _cfg          = {};
+    let _elevenSession = null;
+    let _micMuted     = false;
 
     // ── Chat helpers ───────────────────────────────────────────────────────────
-    function addMessage(role, text, extra) {
+    function addMessage(role, text) {
       const win = document.getElementById('chatWindow');
       const div = document.createElement('div');
       div.className = 'msg ' + role;
@@ -718,6 +660,7 @@
     }
 
     function showTyping() {
+      if (document.getElementById('typingDot')) return;
       const win = document.getElementById('chatWindow');
       const dot = document.createElement('div');
       dot.className = 'typing'; dot.id = 'typingDot';
@@ -737,77 +680,29 @@
       if (pill) pill.className = 'status-pill' + (mode ? ' ' + mode : '');
     }
 
-    // ── Send message ───────────────────────────────────────────────────────────
-    window.sendMessage = async function() {
-      const input = document.getElementById('chatInput');
-      const msg   = input.value.trim();
-      if (!msg) return;
-      input.value = ''; input.style.height = '';
-
-      addMessage('user', msg);
-      _conversationHistory.push({ role: 'user', content: msg });
-
-      const apiKey = _cfg.openAiKey;
-      if (!apiKey) {
-        addMessage('error', '⚠️ No API key configured yet. Please ask management to set up the HR Avatar in the business dashboard.');
-        return;
-      }
-
-      setStatus('Thinking…', 'thinking');
-      document.getElementById('frameBadge').textContent = '💭 Thinking…';
-      document.getElementById('avatarGlow').classList.add('speaking');
-      showTyping();
-
-      try {
-        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + apiKey
-          },
-          body: JSON.stringify({
-            model: _cfg.aiModel || 'gpt-4o-mini',
-            messages: [
-              { role: 'system', content: buildSystemPrompt() },
-              ..._conversationHistory.slice(-10)   // keep last 10 for context
-            ],
-            max_tokens: 450,
-            temperature: 0.7
-          })
-        });
-
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({}));
-          throw new Error(err.error?.message || 'API error ' + resp.status);
-        }
-
-        const data  = await resp.json();
-        const reply = data.choices?.[0]?.message?.content || 'Sorry, I couldn\'t generate a reply.';
-
-        hideTyping();
-        _conversationHistory.push({ role: 'assistant', content: reply });
-
-        addMessage('hr', reply);
-        await speak(reply, false);
-
-      } catch(err) {
-        hideTyping();
-        addMessage('error', '⚠️ ' + err.message);
-        setStatus('Ready to help', '');
-        document.getElementById('frameBadge').textContent = 'HR · Live';
-        document.getElementById('avatarGlow').classList.remove('speaking');
-        _stopAvatarAnim();
-      }
-    };
-
-    window.sendHint = function(el) {
-      document.getElementById('chatInput').value = el.textContent;
-      sendMessage();
-    };
+    // ── System prompt (injected as override into ElevenLabs agent) ─────────────
+    function buildSystemPrompt() {
+      const name    = _cfg.avatarName || 'Lerato';
+      const company = resolvedBusinessId
+        ? resolvedBusinessId.replace(/_/g,' ').replace(/biz /i,'').trim()
+        : 'this company';
+      const parts = [
+        `You are ${name}, a warm, professional and empathetic HR assistant for ${company}.`,
+        `You help employees with HR-related questions: leave, sick leave, cash advances, payslips, attendance, disciplinary processes, and general company policies.`,
+        `Always be friendly, clear, and concise. Use simple language. If unsure, say so and suggest contacting management.`,
+        `Do NOT answer questions unrelated to HR or the workplace — politely redirect.`,
+        `Keep responses under 160 words unless the question genuinely requires more.`
+      ];
+      if (_cfg.policyLeave)  parts.push(`LEAVE POLICY: ${_cfg.policyLeave}`);
+      if (_cfg.policyCash)   parts.push(`CASH ADVANCE POLICY: ${_cfg.policyCash}`);
+      if (_cfg.policyHours)  parts.push(`WORKING HOURS POLICY: ${_cfg.policyHours}`);
+      if (_cfg.policyOther)  parts.push(`COMPANY RULES: ${_cfg.policyOther}`);
+      if (empName && empName !== 'Employee') parts.push(`The employee you are speaking to is: ${empName}.`);
+      return parts.join('\n\n');
+    }
 
     // ── TTS + avatar animation ─────────────────────────────────────────────────
     let _animFrame = null;
-
     const _MOUTH_REST = 'M165,240 Q200,262 235,240 Q220,254 200,256 Q180,254 165,240 Z';
 
     function _stopAvatarAnim() {
@@ -818,6 +713,7 @@
     }
 
     function _startAvatarAnim() {
+      if (_animFrame) return; // already running
       let t = 0;
       function step() {
         t += 0.14;
@@ -846,76 +742,179 @@
     }
     startBlink();
 
-    async function speak(text, immediate) {
-      return new Promise(resolve => {
-        if (!window.speechSynthesis) { resolve(); return; }
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.rate  = 0.93;
-        utt.pitch = 1.12;
+    // ── ElevenLabs session ─────────────────────────────────────────────────────
+    async function startElevenSession(agentId) {
+      setStatus('Connecting…', 'thinking');
+      document.getElementById('frameBadge').textContent = '⏳ Connecting';
 
-        function trySpeak() {
-          const voices = speechSynthesis.getVoices();
-          const femVoice = voices.find(v =>
-            /samantha|victoria|zira|karen|google uk english female|female/i.test(v.name)
-          );
-          if (femVoice) utt.voice = femVoice;
+      try {
+        _elevenSession = await Conversation.startSession({
+          agentId,
 
-          setStatus('Speaking…', 'speaking');
-          document.getElementById('avatarGlow').classList.add('speaking');
-          _startAvatarAnim();
-          document.getElementById('frameBadge').textContent = '🎙 Speaking';
+          // Inject business-specific system prompt + employee greeting
+          overrides: {
+            agent: {
+              prompt: { prompt: buildSystemPrompt() },
+              firstMessage: `Hi ${empName !== 'Employee' ? empName.split(' ')[0] : 'there'}! I'm ${_cfg.avatarName || 'Lerato'}, your HR assistant. How can I help you today?`
+            }
+          },
 
-          utt.onend  = () => { _stopAvatarAnim(); document.getElementById('avatarGlow').classList.remove('speaking'); document.getElementById('frameBadge').textContent = 'HR · Live'; setStatus('Ready to help', ''); resolve(); };
-          utt.onerror = () => { _stopAvatarAnim(); document.getElementById('avatarGlow').classList.remove('speaking'); document.getElementById('frameBadge').textContent = 'HR · Live'; setStatus('Ready to help', ''); resolve(); };
-          speechSynthesis.speak(utt);
-        }
+          // ── Connection events ──────────────────────────────────────────────
+          onConnect: () => {
+            setStatus('Ready to help', '');
+            document.getElementById('frameBadge').textContent = 'HR · Live';
+          },
 
-        if (speechSynthesis.getVoices().length === 0) {
-          speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
-        } else {
-          trySpeak();
-        }
-      });
+          onDisconnect: () => {
+            _elevenSession = null;
+            _stopAvatarAnim();
+            document.getElementById('avatarGlow').classList.remove('speaking');
+            document.getElementById('frameBadge').textContent = 'HR · Live';
+            setStatus('Disconnected — refresh to reconnect', '');
+          },
+
+          // ── Incoming messages ──────────────────────────────────────────────
+          onMessage: ({ source, message }) => {
+            hideTyping();
+            if (source === 'ai') {
+              addMessage('hr', message);
+            } else if (source === 'user') {
+              // Voice-spoken user message surfaced as text
+              addMessage('user', message);
+            }
+          },
+
+          // ── Speaking / listening mode ──────────────────────────────────────
+          onModeChange: ({ mode }) => {
+            if (mode === 'speaking') {
+              setStatus('Speaking…', 'speaking');
+              document.getElementById('frameBadge').textContent = '🎙 Speaking';
+              document.getElementById('avatarGlow').classList.add('speaking');
+              _startAvatarAnim();
+            } else {
+              // 'listening' or 'processing'
+              setStatus('Listening…', 'listening');
+              document.getElementById('frameBadge').textContent = '🎤 Listening';
+              document.getElementById('avatarGlow').classList.remove('speaking');
+              _stopAvatarAnim();
+            }
+          },
+
+          onError: (msg) => {
+            console.error('ElevenLabs error:', msg);
+            addMessage('error', '⚠️ Voice error — ' + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
+            setStatus('Ready to help', '');
+            _stopAvatarAnim();
+            document.getElementById('avatarGlow').classList.remove('speaking');
+          }
+        });
+
+      } catch (err) {
+        console.error('ElevenLabs session failed:', err);
+        addMessage('error', '⚠️ Could not start voice session: ' + err.message + '. Check the Agent ID in your dashboard.');
+        setStatus('Text-only mode', '');
+        document.getElementById('frameBadge').textContent = 'HR · Live';
+      }
     }
 
-    // ── Voice input (Web Speech API) ───────────────────────────────────────────
-    let _recognition = null;
-    let _micActive   = false;
+    // ── Load config + kick off ElevenLabs ─────────────────────────────────────
+    async function loadConfig() {
+      try {
+        const snap = await getDoc(doc(db, 'businesses', resolvedBusinessId, 'settings', 'hr_avatar'));
+        if (snap.exists()) _cfg = snap.data();
+      } catch(e) { console.warn('Config load failed:', e.message); }
 
+      // Apply persona display
+      const name    = _cfg.avatarName || 'Lerato';
+      const tagline = _cfg.tagline    || 'Your friendly HR assistant';
+      const skin    = _cfg.skinTone   || '#E8A87C';
+
+      document.getElementById('hrAvatarDisplayName').textContent    = name;
+      document.getElementById('hrAvatarDisplayTagline').textContent = tagline;
+      document.title = name + ' · HR Assistant';
+
+      // Apply skin tone to blink overlays
+      if (skin && skin !== '#E8A87C') {
+        document.getElementById('avrBlinkL').setAttribute('fill', skin);
+        document.getElementById('avrBlinkR').setAttribute('fill', skin);
+      }
+
+      // Start ElevenLabs session
+      const agentId = _cfg.elevenLabsAgentId;
+      if (!agentId) {
+        addMessage('system', `👋 Hi ${empName !== 'Employee' ? empName.split(' ')[0] : 'there'}! I'm ${name}, your HR assistant.`);
+        addMessage('error', '⚠️ Voice not configured — please ask your admin to add the ElevenLabs Agent ID in Settings → HR Avatar.');
+        setStatus('Text offline', '');
+        return;
+      }
+
+      await startElevenSession(agentId);
+    }
+
+    loadConfig();
+
+    // ── Send text message ──────────────────────────────────────────────────────
+    window.sendMessage = async function() {
+      const input = document.getElementById('chatInput');
+      const msg   = input.value.trim();
+      if (!msg) return;
+      input.value = ''; input.style.height = '';
+
+      addMessage('user', msg);
+
+      if (!_elevenSession) {
+        addMessage('error', '⚠️ Voice session not connected. Please refresh the page.');
+        return;
+      }
+
+      setStatus('Thinking…', 'thinking');
+      document.getElementById('frameBadge').textContent = '💭 Thinking…';
+      showTyping();
+
+      try {
+        _elevenSession.sendUserMessage(msg);
+      } catch(err) {
+        hideTyping();
+        addMessage('error', '⚠️ ' + err.message);
+        setStatus('Ready to help', '');
+        document.getElementById('frameBadge').textContent = 'HR · Live';
+      }
+    };
+
+    window.sendHint = function(el) {
+      document.getElementById('chatInput').value = el.textContent;
+      sendMessage();
+    };
+
+    // ── Mic mute/unmute (session is always listening — mic btn controls mute) ──
     window.toggleMic = function() {
-      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRec) {
-        alert('Voice input is not supported in this browser. Please use Chrome.');
+      if (!_elevenSession) {
+        addMessage('error', '⚠️ Voice session not connected. Please refresh.');
         return;
       }
-      if (_micActive) {
-        _recognition?.stop();
-        return;
-      }
-      _recognition = new SpeechRec();
-      _recognition.lang = 'en-ZA';
-      _recognition.interimResults = false;
-
-      _recognition.onstart = () => {
-        _micActive = true;
-        document.getElementById('btnMic').classList.add('active');
+      _micMuted = !_micMuted;
+      _elevenSession.setInputAudioMuted(_micMuted);
+      const btn = document.getElementById('btnMic');
+      if (_micMuted) {
+        btn.classList.add('active');
+        btn.title = 'Unmute microphone';
+        setStatus('Muted', 'listening');
+      } else {
+        btn.classList.remove('active');
+        btn.title = 'Mute microphone';
         setStatus('Listening…', 'listening');
-      };
-      _recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        document.getElementById('chatInput').value = transcript;
-        sendMessage();
-      };
-      _recognition.onerror  = () => { _micActive = false; document.getElementById('btnMic').classList.remove('active'); setStatus('Ready to help',''); };
-      _recognition.onend    = () => { _micActive = false; document.getElementById('btnMic').classList.remove('active'); setStatus('Ready to help',''); };
-
-      _recognition.start();
+      }
     };
 
     // ── Auto-resize textarea ───────────────────────────────────────────────────
     document.getElementById('chatInput').addEventListener('input', function() {
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    // ── Clean up on page unload ────────────────────────────────────────────────
+    window.addEventListener('beforeunload', () => {
+      _elevenSession?.endSession();
     });
   </script>
 </body>
