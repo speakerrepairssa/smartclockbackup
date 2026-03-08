@@ -10889,6 +10889,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
             // Use cached employee data with proper field mapping
             employeeAssessments = (cacheData.employees || []).map(emp => ({
               index: emp.employeeIndex || emp.index,
+              employeeId: emp.employeeId || emp.id || String(emp.employeeIndex || emp.index),
               name: emp.employeeName || emp.name,
               shiftName: emp.shiftName || 'No Shift Assigned',
               requiredHours: emp.requiredHours || 176,
@@ -10939,6 +10940,34 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         }
 
         // Render assessment table
+        // --- Fetch approved cash advances for this month and attach to employees ---
+        try {
+          const monthStart = new Date(parseInt(year), parseInt(monthNum) - 1, 1).getTime();
+          const monthEnd   = new Date(parseInt(year), parseInt(monthNum), 1).getTime();
+          const appsRef  = collection(db, 'businesses', businessId, 'applications');
+          const appsSnap = await getDocs(query(appsRef, where('type', '==', 'cashadvance'), where('status', '==', 'approved')));
+          // Build loanMap: employeeId → total approved cash advances in selected month
+          const loanMap = {};
+          appsSnap.forEach(d => {
+            const a = d.data();
+            const ts = a.actionDate || a.submittedAt || a.submittedDate || a.createdAt || 0;
+            const t  = typeof ts === 'number' ? ts : new Date(ts).getTime();
+            if (t >= monthStart && t < monthEnd) {
+              const eid = String(a.employeeId || '');
+              loanMap[eid] = (loanMap[eid] || 0) + parseFloat(a.amount || 0);
+            }
+          });
+          // Attach loanAmount to each employee — match by employeeId, slot index, or employeeSlot fallback
+          employeeAssessments.forEach(emp => {
+            const byId    = loanMap[String(emp.employeeId    || '')] || 0;
+            const byIndex = loanMap[String(emp.employeeIndex || '')] || 0;
+            emp.loanAmount = byId || byIndex;
+          });
+        } catch(loanErr) {
+          console.warn('Loan fetch failed (non-critical):', loanErr.message);
+          employeeAssessments.forEach(emp => { emp.loanAmount = 0; });
+        }
+
         renderAssessmentTable(employeeAssessments, display);
         
       } catch (error) {
@@ -11114,6 +11143,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       var totalHoursShort = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.hoursShort)||0); }, 0);
       var totalIncomeDue = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.currentIncomeDue)||0); }, 0);
       var totalPotentialIncome = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.potentialIncome)||0); }, 0);
+      var totalLoans = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.loanAmount)||0); }, 0);
       var avgAtt = totalEmployees > 0 ? ((totalHours/(totalEmployees*176))*100).toFixed(1) : '0.0';
 
       function attSt(ch, rh) {
@@ -11199,6 +11229,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         tableRows += '<td style="padding:0.75rem;text-align:center;"><span style="background:'+a.bg+';color:white;padding:3px 9px;border-radius:12px;font-size:0.75rem;font-weight:700;">'+a.label+'</span></td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;">R'+(parseFloat(emp.payRate)||0).toFixed(2)+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;font-weight:600;">R'+(parseFloat(emp.currentIncomeDue)||0).toFixed(2)+'</td>';
+        tableRows += '<td style="padding:0.75rem;text-align:center;color:'+(parseFloat(emp.loanAmount||0)>0?'#dc3545':'#28a745')+';font-weight:600;">'+( parseFloat(emp.loanAmount||0)>0 ? '-R'+(parseFloat(emp.loanAmount)||0).toFixed(2) : 'R0.00' )+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;color:#28a745;font-weight:600;">R'+(parseFloat(emp.potentialIncome)||0).toFixed(2)+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;"><span style="background:'+(emp.statusColor||'#999')+';color:white;padding:3px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">'+(emp.status||'?')+'</span></td>';
         tableRows += '</tr>';
@@ -11212,6 +11243,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         + '<th style="padding:0.75rem;text-align:center;">Curr. Hrs</th><th style="padding:0.75rem;text-align:center;">Hrs Short</th>'
         + '<th style="padding:0.75rem;text-align:center;">Att. %</th><th style="padding:0.75rem;text-align:center;">Standing</th>'
         + '<th style="padding:0.75rem;text-align:center;">Pay Rate</th><th style="padding:0.75rem;text-align:center;">Income Due</th>'
+        + '<th style="padding:0.75rem;text-align:center;">Loans</th>'
         + '<th style="padding:0.75rem;text-align:center;">Potential</th><th style="padding:0.75rem;text-align:center;">Status</th>'
         + '</tr></thead><tbody>'+tableRows+'</tbody></table></div>';
 
@@ -11227,6 +11259,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         + gc('linear-gradient(135deg,#ff9800,#ff5722)', 'Total Hours Worked', totalHours.toFixed(1), '')
         + gc('linear-gradient(135deg,#e91e63,#9c27b0)', 'Total Hours Short', totalHoursShort.toFixed(1), '')
         + gc('linear-gradient(135deg,#4caf50,#2196f3)', 'Total Amount Due', 'R'+totalIncomeDue.toFixed(2), '')
+        + gc('linear-gradient(135deg,#e53935,#b71c1c)', 'Total Loans', 'R'+totalLoans.toFixed(2), 'Cash Advances Approved')
         + gc('linear-gradient(135deg,#673ab7,#3f51b5)', 'Potential Payroll', 'R'+totalPotentialIncome.toFixed(2), '')
         + gc('linear-gradient(135deg,#00bcd4,#009688)', 'Avg Attendance', avgAtt+'%', '')
         + gc('linear-gradient(135deg,#28a745,#218838)', 'Good Standing', goodCount, '90&#8211;100% att.')
