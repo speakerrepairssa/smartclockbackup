@@ -2,6 +2,9 @@ node_modules/
 functions/node_modules/
 sql-service/node_modules/
 .DS_Store
+# Secret env files — never commit real keys
+.env
+vps/**/.env
 .firebase/
 *.tar.gz
 *.gz
