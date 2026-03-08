@@ -758,7 +758,7 @@
 
       try {
         const qs  = new URLSearchParams({ businessId: bizId || '', employeeName: employeeName || 'Employee', employeeId: employeeId || '' });
-        const resp = await fetch(`${TOKEN_SERVER}/token?${qs}`);
+        const resp = await fetch(`${TOKEN_SERVER}/hrAvatarToken?${qs}`);
         if (!resp.ok) throw new Error(`Token server returned ${resp.status}`);
         const { serverUrl, participantToken } = await resp.json();
 
