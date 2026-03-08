@@ -1,0 +1,17 @@
+[project]
+name = "smartclock-hr-avatar-agent"
+version = "1.0.0"
+description = "SmartClock HR Avatar Agent — LiveKit + Beyond Presence"
+requires-python = ">=3.11"
+dependencies = [
+    "livekit-agents[openai,bey,silero,turn-detector]~=1.4",
+    "livekit-plugins-noise-cancellation~=0.2",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+dev-dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

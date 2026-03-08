@@ -575,6 +575,10 @@
         </svg>
         <!-- /SVG -->
 
+        <!-- LiveKit / Beyond Presence photorealistic video (hidden until livekit-bey mode) -->
+        <video id="avatarVideo" autoplay playsinline
+               style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:3;display:none;border-radius:inherit;"></video>
+
         <div class="avatar-overlay">
           <div class="avatar-name-row">
             <div>
@@ -625,6 +629,7 @@
     import { db, app } from '../config/firebase.js';
     import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { Conversation } from 'https://esm.sh/@elevenlabs/client';
+    import { Room, RoomEvent, Track } from 'https://esm.sh/livekit-client@2';
 
     // ── Auth check ─────────────────────────────────────────────────────────────
     const userRole   = sessionStorage.getItem('userRole');
@@ -646,6 +651,7 @@
     // ── State ──────────────────────────────────────────────────────────────────
     let _cfg          = {};
     let _elevenSession = null;
+    let _livekitRoom   = null;
     let _micMuted     = false;
 
     // ── Chat helpers ───────────────────────────────────────────────────────────
@@ -741,6 +747,84 @@
       _blinkTimer = setTimeout(doBlink, 1500);
     }
     startBlink();
+
+    // ── LiveKit + Beyond Presence session ────────────────────────────────────────
+    const TOKEN_SERVER = 'http://69.62.109.168:7680';
+
+    async function startLiveKitSession(bizId, employeeName, employeeId) {
+      setStatus('Connecting…', 'thinking');
+      document.getElementById('frameBadge').textContent = '⏳ Connecting';
+
+      try {
+        const qs  = new URLSearchParams({ businessId: bizId || '', employeeName: employeeName || 'Employee', employeeId: employeeId || '' });
+        const resp = await fetch(`${TOKEN_SERVER}/token?${qs}`);
+        if (!resp.ok) throw new Error(`Token server returned ${resp.status}`);
+        const { serverUrl, participantToken } = await resp.json();
+
+        _livekitRoom = new Room({ adaptiveStream: true, dynacast: true });
+
+        const videoEl = document.getElementById('avatarVideo');
+        const svgEl   = document.getElementById('hrAvatarSvg');
+
+        _livekitRoom.on(RoomEvent.TrackSubscribed, (track, _pub, _participant) => {
+          if (track.kind === Track.Kind.Video) {
+            track.attach(videoEl);
+            videoEl.style.display = 'block';
+            if (svgEl) svgEl.style.display = 'none';
+          } else if (track.kind === Track.Kind.Audio) {
+            const audioEl = track.attach();
+            document.body.appendChild(audioEl);
+          }
+        });
+
+        _livekitRoom.on(RoomEvent.TrackUnsubscribed, (track) => {
+          track.detach();
+          if (track.kind === Track.Kind.Video) {
+            videoEl.style.display = 'none';
+            if (svgEl) svgEl.style.display = 'block';
+          }
+        });
+
+        _livekitRoom.on(RoomEvent.Disconnected, () => {
+          _livekitRoom = null;
+          videoEl.style.display = 'none';
+          if (svgEl) svgEl.style.display = 'block';
+          _stopAvatarAnim();
+          document.getElementById('avatarGlow').classList.remove('speaking');
+          document.getElementById('frameBadge').textContent = 'HR · Live';
+          setStatus('Disconnected — refresh to reconnect', '');
+        });
+
+        _livekitRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+          const agentSpeaking = speakers.some(p => p.identity.startsWith('agent-'));
+          if (agentSpeaking) {
+            setStatus('Speaking…', 'speaking');
+            document.getElementById('frameBadge').textContent = '🎙 Speaking';
+            document.getElementById('avatarGlow').classList.add('speaking');
+            _startAvatarAnim();
+          } else {
+            setStatus('Listening…', 'listening');
+            document.getElementById('frameBadge').textContent = '🎤 Listening';
+            document.getElementById('avatarGlow').classList.remove('speaking');
+            _stopAvatarAnim();
+          }
+        });
+
+        await _livekitRoom.connect(serverUrl, participantToken);
+        await _livekitRoom.localParticipant.setMicrophoneEnabled(true);
+
+        setStatus('Ready to help', '');
+        document.getElementById('frameBadge').textContent = 'HR · Live';
+        const avatarName = _cfg.avatarName || 'Lerato';
+        addMessage('system', `👋 Hi ${empName !== 'Employee' ? empName.split(' ')[0] : 'there'}! I'm ${avatarName} — your photorealistic HR assistant. The agent will speak to you directly.`);
+
+      } catch (err) {
+        console.error('LiveKit session failed:', err);
+        addMessage('error', '⚠️ Could not start avatar session: ' + err.message);
+        setStatus('Text-only mode', '');
+        document.getElementById('frameBadge').textContent = 'HR · Live';
+      }
+    }
 
     // ── ElevenLabs session ─────────────────────────────────────────────────────
     async function startElevenSession(agentId) {
@@ -839,16 +923,20 @@
         document.getElementById('avrBlinkR').setAttribute('fill', skin);
       }
 
-      // Start ElevenLabs session
-      const agentId = _cfg.elevenLabsAgentId;
-      if (!agentId) {
-        addMessage('system', `👋 Hi ${empName !== 'Employee' ? empName.split(' ')[0] : 'there'}! I'm ${name}, your HR assistant.`);
-        addMessage('error', '⚠️ Voice not configured — please ask your admin to add the ElevenLabs Agent ID in Settings → HR Avatar.');
-        setStatus('Text offline', '');
-        return;
+      // Start voice session based on mode
+      const mode = _cfg.hrVoiceMode || 'elevenlabs';
+      if (mode === 'livekit-bey') {
+        await startLiveKitSession(resolvedBusinessId, empName, empId);
+      } else {
+        const agentId = _cfg.elevenLabsAgentId;
+        if (!agentId) {
+          addMessage('system', `👋 Hi ${empName !== 'Employee' ? empName.split(' ')[0] : 'there'}! I'm ${name}, your HR assistant.`);
+          addMessage('error', '⚠️ Voice not configured — please ask your admin to add the ElevenLabs Agent ID in Settings → HR Avatar.');
+          setStatus('Text offline', '');
+          return;
+        }
+        await startElevenSession(agentId);
       }
-
-      await startElevenSession(agentId);
     }
 
     loadConfig();
@@ -861,6 +949,40 @@
       input.value = ''; input.style.height = '';
 
       addMessage('user', msg);
+
+      const mode = _cfg.hrVoiceMode || 'elevenlabs';
+
+      if (mode === 'livekit-bey') {
+        if (!_livekitRoom) {
+          addMessage('error', '⚠️ Avatar not connected. Please refresh the page.');
+          return;
+        }
+        setStatus('Thinking…', 'thinking');
+        document.getElementById('frameBadge').textContent = '💭 Thinking…';
+        showTyping();
+        try {
+          const agentParticipant = [..._livekitRoom.remoteParticipants.values()]
+            .find(p => p.identity.startsWith('agent-'));
+          if (agentParticipant) {
+            await _livekitRoom.localParticipant.performRpc({
+              destinationIdentity: agentParticipant.identity,
+              method: 'agent.chat',
+              payload: JSON.stringify({ text: msg })
+            });
+          } else {
+            hideTyping();
+            addMessage('error', '⚠️ Agent not yet joined the room. Please wait a moment.');
+            setStatus('Ready to help', '');
+            document.getElementById('frameBadge').textContent = 'HR · Live';
+          }
+        } catch(err) {
+          hideTyping();
+          addMessage('error', '⚠️ ' + err.message);
+          setStatus('Ready to help', '');
+          document.getElementById('frameBadge').textContent = 'HR · Live';
+        }
+        return;
+      }
 
       if (!_elevenSession) {
         addMessage('error', '⚠️ Voice session not connected. Please refresh the page.');
@@ -887,13 +1009,25 @@
     };
 
     // ── Mic mute/unmute (session is always listening — mic btn controls mute) ──
-    window.toggleMic = function() {
-      if (!_elevenSession) {
-        addMessage('error', '⚠️ Voice session not connected. Please refresh.');
-        return;
+    window.toggleMic = async function() {
+      const mode = _cfg.hrVoiceMode || 'elevenlabs';
+
+      if (mode === 'livekit-bey') {
+        if (!_livekitRoom) {
+          addMessage('error', '⚠️ Avatar not connected. Please refresh.');
+          return;
+        }
+        _micMuted = !_micMuted;
+        await _livekitRoom.localParticipant.setMicrophoneEnabled(!_micMuted);
+      } else {
+        if (!_elevenSession) {
+          addMessage('error', '⚠️ Voice session not connected. Please refresh.');
+          return;
+        }
+        _micMuted = !_micMuted;
+        _elevenSession.setInputAudioMuted(_micMuted);
       }
-      _micMuted = !_micMuted;
-      _elevenSession.setInputAudioMuted(_micMuted);
+
       const btn = document.getElementById('btnMic');
       if (_micMuted) {
         btn.classList.add('active');
@@ -915,6 +1049,7 @@
     // ── Clean up on page unload ────────────────────────────────────────────────
     window.addEventListener('beforeunload', () => {
       _elevenSession?.endSession();
+      _livekitRoom?.disconnect();
     });
   </script>
 </body>

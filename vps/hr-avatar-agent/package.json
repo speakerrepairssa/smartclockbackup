@@ -1,0 +1,17 @@
+{
+  "name": "smartclock-hr-token-server",
+  "version": "1.0.0",
+  "description": "LiveKit token server for SmartClock HR Avatar",
+  "main": "token-server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node token-server.js",
+    "dev":   "node token-server.js"
+  },
+  "dependencies": {
+    "livekit-server-sdk": "^2.6.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

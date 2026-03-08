@@ -5657,10 +5657,25 @@
                 <option value="#C68642">Brown</option>
               </select>
             </div>
-            <div style="margin-bottom:1.25rem;">
-              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">ElevenLabs Agent ID <span style="color:#dc3545">*</span></label>
+            <!-- Voice Mode Select -->
+            <div style="margin-bottom:1rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Voice Mode</label>
+              <select id="hrVoiceMode" onchange="toggleHrVoiceMode()" style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;">
+                <option value="elevenlabs">ElevenLabs (Voice only)</option>
+                <option value="livekit-bey">LiveKit + Beyond Presence (Photorealistic avatar)</option>
+              </select>
+            </div>
+            <!-- ElevenLabs section -->
+            <div id="hrElevenSection" style="margin-bottom:1.25rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">ElevenLabs Agent ID</label>
               <input id="hrElevenLabsAgentId" type="text" placeholder="e.g. abc123xyz" style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;box-sizing:border-box;font-family:monospace;">
-              <p style="margin:0.25rem 0 0;font-size:0.78rem;color:#6c757d;">Get your Agent ID from <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" style="color:#667eea;">elevenlabs.io → Conversational AI</a>. The agent is managed under the SmartClock account.</p>
+              <p style="margin:0.25rem 0 0;font-size:0.78rem;color:#6c757d;">Get your Agent ID from <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" style="color:#667eea;">elevenlabs.io → Conversational AI</a>.</p>
+            </div>
+            <!-- Beyond Presence section -->
+            <div id="hrBeySection" style="margin-bottom:1.25rem;display:none;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Beyond Presence Avatar ID</label>
+              <input id="hrBeyAvatarId" type="text" placeholder="e.g. b9be11b8-89fb-4227-8f86-4a881393cbdb" style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;box-sizing:border-box;font-family:monospace;">
+              <p style="margin:0.25rem 0 0;font-size:0.78rem;color:#6c757d;">Get your Avatar ID from <a href="https://app.beyondpresence.ai" target="_blank" style="color:#667eea;">beyondpresence.ai</a> dashboard. Promo code: <b>Beychat12</b></p>
             </div>
             <button onclick="saveHrAvatarSettings()" style="width:100%;padding:0.75rem;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
               💾 Save Persona Settings
@@ -8383,6 +8398,9 @@
           if (d.tagline)      document.getElementById('hrAvatarTagline').value  = d.tagline;
           if (d.skinTone)     document.getElementById('hrAvatarSkin').value     = d.skinTone;
           if (d.elevenLabsAgentId) document.getElementById('hrElevenLabsAgentId').value = d.elevenLabsAgentId;
+          if (d.hrVoiceMode)    document.getElementById('hrVoiceMode').value       = d.hrVoiceMode;
+          if (d.beyAvatarId)    document.getElementById('hrBeyAvatarId').value      = d.beyAvatarId;
+          toggleHrVoiceMode();
           if (d.policyLeave)  document.getElementById('hrPolicyLeave').value    = d.policyLeave;
           if (d.policyCash)   document.getElementById('hrPolicyCash').value     = d.policyCash;
           if (d.policyHours)  document.getElementById('hrPolicyHours').value    = d.policyHours;
@@ -8405,6 +8423,8 @@
           tagline:            document.getElementById('hrAvatarTagline').value.trim(),
           skinTone:           document.getElementById('hrAvatarSkin').value,
           elevenLabsAgentId:  document.getElementById('hrElevenLabsAgentId').value.trim(),
+          hrVoiceMode:        document.getElementById('hrVoiceMode').value,
+          beyAvatarId:        document.getElementById('hrBeyAvatarId').value.trim(),
           updatedAt:          new Date().toISOString()
         };
         await setDoc(doc(db, 'businesses', businessId, 'settings', 'hr_avatar'), data, { merge: true });
@@ -8415,6 +8435,12 @@
         if (head) head.setAttribute('fill', data.skinTone);
         alert('✅ Persona settings saved!');
       } catch(e) { alert('❌ Error saving: ' + e.message); }
+    };
+
+    window.toggleHrVoiceMode = function() {
+      const mode = document.getElementById('hrVoiceMode').value;
+      document.getElementById('hrElevenSection').style.display = mode === 'elevenlabs' ? '' : 'none';
+      document.getElementById('hrBeySection').style.display    = mode === 'livekit-bey' ? '' : 'none';
     };
 
     window.saveHrKnowledgeBase = async function() {
