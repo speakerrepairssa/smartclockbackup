@@ -749,7 +749,8 @@
     startBlink();
 
     // ── LiveKit + Beyond Presence session ────────────────────────────────────────
-    const TOKEN_SERVER = 'http://69.62.109.168:7680';
+    // Firebase Cloud Function — fully HTTPS, no mixed-content issues
+    const TOKEN_SERVER = 'https://us-central1-smartclock-v2-8271f.cloudfunctions.net';
 
     async function startLiveKitSession(bizId, employeeName, employeeId) {
       setStatus('Connecting…', 'thinking');

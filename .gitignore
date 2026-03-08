@@ -5,6 +5,7 @@ sql-service/node_modules/
 # Secret env files — never commit real keys
 .env
 vps/**/.env
+functions/.env.*
 .firebase/
 *.tar.gz
 *.gz
