@@ -4749,10 +4749,23 @@
       <!-- Settings View -->
       <!-- Applications View -->
       <div class="view-section" id="applicationsView">
-        <h2 class="section-title">📝 Employee Applications</h2>
-        <p class="section-description">Review and manage employee leave requests, sick leave, cash advances, and other applications</p>
-        
-        <div class="applications-filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+          <div>
+            <h2 class="section-title" style="margin-bottom: 0.25rem;">📝 Employee Applications</h2>
+            <p class="section-description" style="margin: 0;">Review and manage employee leave requests, sick leave, cash advances, and other applications</p>
+          </div>
+          <button onclick="openAddApplicationModal()" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg,#667eea,#764ba2); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 0.95rem; white-space: nowrap; box-shadow: 0 4px 12px rgba(102,126,234,0.4);">
+            ➕ New Application
+          </button>
+        </div>
+
+        <!-- View mode toggle -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem;">
+          <button id="viewModeCards" onclick="setAppViewMode('cards')" style="padding: 0.5rem 1.25rem; border-radius: 8px; border: 2px solid #667eea; background: #667eea; color: white; cursor: pointer; font-weight: 600; font-size: 0.85rem;">🗂 Cards</button>
+          <button id="viewModeEmployee" onclick="setAppViewMode('employee')" style="padding: 0.5rem 1.25rem; border-radius: 8px; border: 2px solid #dee2e6; background: white; color: #495057; cursor: pointer; font-weight: 600; font-size: 0.85rem;">👥 By Employee</button>
+        </div>
+
+        <div id="appCardFilters" class="applications-filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
           <div class="filter-group">
             <label style="font-weight: 600; color: #495057; margin-right: 0.5rem;">Status:</label>
             <select id="filterStatus" onchange="loadApplications()" style="padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
@@ -4789,6 +4802,74 @@
           </div>
         </div>
       </div>
+
+      <!-- ===== ADD APPLICATION MODAL ===== -->
+      <div id="addApplicationModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center; overflow-y:auto; padding: 1rem;">
+        <div style="background:white; border-radius:16px; padding:2rem; width:100%; max-width:560px; margin:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+            <h3 style="margin:0; color:#212529; font-size:1.25rem;">➕ New Application (Management)</h3>
+            <button onclick="closeAddApplicationModal()" style="background:none; border:none; font-size:1.75rem; cursor:pointer; color:#6c757d; line-height:1;">&times;</button>
+          </div>
+
+          <form id="manualAppForm" onsubmit="submitManualApplication(event)">
+            <!-- Employee -->
+            <div style="margin-bottom:1.25rem;">
+              <label style="display:block; font-weight:600; color:#495057; margin-bottom:0.4rem;">Employee <span style="color:red">*</span></label>
+              <select id="manualAppEmployee" required style="width:100%; padding:0.65rem 1rem; border-radius:8px; border:1px solid #ced4da; font-size:1rem;">
+                <option value="">— Select Employee —</option>
+              </select>
+            </div>
+
+            <!-- Type -->
+            <div style="margin-bottom:1.25rem;">
+              <label style="display:block; font-weight:600; color:#495057; margin-bottom:0.4rem;">Application Type <span style="color:red">*</span></label>
+              <select id="manualAppType" required onchange="onManualAppTypeChange()" style="width:100%; padding:0.65rem 1rem; border-radius:8px; border:1px solid #ced4da; font-size:1rem;">
+                <option value="">— Select Type —</option>
+                <option value="leave">🏖️ Leave Request</option>
+                <option value="sickleave">🤒 Sick Leave</option>
+                <option value="cashadvance">💵 Cash Advance</option>
+                <option value="other">📋 Other</option>
+              </select>
+            </div>
+
+            <!-- Dynamic fields -->
+            <div id="manualAppDynamic"></div>
+
+            <!-- Reason / Notes -->
+            <div style="margin-bottom:1.25rem;">
+              <label style="display:block; font-weight:600; color:#495057; margin-bottom:0.4rem;">Reason / Notes</label>
+              <textarea id="manualAppReason" rows="3" style="width:100%; padding:0.65rem 1rem; border-radius:8px; border:1px solid #ced4da; font-size:1rem; resize:vertical;" placeholder="Reason or additional notes..."></textarea>
+            </div>
+
+            <!-- Document upload -->
+            <div style="margin-bottom:1.25rem;">
+              <label style="display:block; font-weight:600; color:#495057; margin-bottom:0.4rem;">📎 Attach Documents (optional)</label>
+              <input type="file" id="manualAppDocs" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="width:100%; padding:0.65rem; border-radius:8px; border:1px dashed #ced4da; background:#f8f9fa; font-size:0.9rem;">
+              <p style="margin:0.25rem 0 0; font-size:0.8rem; color:#6c757d;">Accepted: PDF, JPG, PNG, DOC</p>
+            </div>
+
+            <!-- Initial status -->
+            <div style="margin-bottom:1.5rem;">
+              <label style="display:block; font-weight:600; color:#495057; margin-bottom:0.4rem;">Initial Status</label>
+              <select id="manualAppStatus" style="width:100%; padding:0.65rem 1rem; border-radius:8px; border:1px solid #ced4da; font-size:1rem;">
+                <option value="pending">⏳ Pending (employee to confirm)</option>
+                <option value="approved">✅ Pre-Approved by Management</option>
+              </select>
+            </div>
+
+            <!-- Submit -->
+            <div style="display:flex; gap:0.75rem;">
+              <button type="submit" id="manualAppSubmitBtn" style="flex:1; padding:0.85rem; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;">
+                💾 Submit Application
+              </button>
+              <button type="button" onclick="closeAddApplicationModal()" style="padding:0.85rem 1.25rem; background:#f8f9fa; color:#495057; border:1px solid #dee2e6; border-radius:10px; font-weight:600; cursor:pointer;">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <!-- ===== END ADD APPLICATION MODAL ===== -->
 
       <div class="view-section" id="settingsView">
         <h2 class="section-title">Business Settings</h2>
@@ -7427,6 +7508,11 @@
     // ========== APPLICATIONS MODULE ==========
     
     async function loadApplications() {
+      // Delegate to employee-grouped view if that mode is active
+      if (typeof _appViewMode !== 'undefined' && _appViewMode === 'employee') {
+        await loadApplicationsByEmployee();
+        return;
+      }
       try {
         const container = document.getElementById('applicationsContainer');
         const filterStatus = document.getElementById('filterStatus').value;
@@ -7853,6 +7939,314 @@
     window.approveApplication = approveApplication;
     window.rejectApplication = rejectApplication;
     window.requestDocuments = requestDocuments;
+
+    // ========== APPLICATION VIEW MODE ==========
+    let _appViewMode = 'cards'; // 'cards' | 'employee'
+
+    window.setAppViewMode = function(mode) {
+      _appViewMode = mode;
+      const filtersDiv = document.getElementById('appCardFilters');
+      const btnCards   = document.getElementById('viewModeCards');
+      const btnEmp     = document.getElementById('viewModeEmployee');
+      if (mode === 'cards') {
+        filtersDiv.style.display = 'flex';
+        btnCards.style.background = '#667eea'; btnCards.style.color = 'white'; btnCards.style.borderColor = '#667eea';
+        btnEmp.style.background = 'white'; btnEmp.style.color = '#495057'; btnEmp.style.borderColor = '#dee2e6';
+      } else {
+        filtersDiv.style.display = 'none';
+        btnEmp.style.background = '#667eea'; btnEmp.style.color = 'white'; btnEmp.style.borderColor = '#667eea';
+        btnCards.style.background = 'white'; btnCards.style.color = '#495057'; btnCards.style.borderColor = '#dee2e6';
+      }
+      loadApplications();
+    };
+
+    async function loadApplicationsByEmployee() {
+      const container = document.getElementById('applicationsContainer');
+      container.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><p>Loading…</p></div>`;
+      try {
+        const appsRef = collection(db, 'businesses', businessId, 'applications');
+        const snap    = await getDocs(appsRef);
+        let all = [];
+        snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+        all.sort((a,b) => {
+          const ta = a.timestamp || new Date(a.submittedAt||0).getTime();
+          const tb = b.timestamp || new Date(b.submittedAt||0).getTime();
+          return tb - ta;
+        });
+        if (all.length === 0) {
+          container.innerHTML = `<div style="text-align:center;padding:3rem;color:#666"><div style="font-size:3rem">📝</div><h3>No applications found</h3><p>No applications have been submitted yet.</p></div>`;
+          return;
+        }
+        // Group by employeeId
+        const groups = {};
+        all.forEach(app => {
+          const key = app.employeeId || app.employeeName || 'unknown';
+          if (!groups[key]) groups[key] = { name: app.employeeName || `Employee ${key}`, slot: app.employeeSlot || key, apps: [] };
+          groups[key].apps.push(app);
+        });
+        let html = '';
+        Object.entries(groups).forEach(([empKey, group]) => {
+          const total    = group.apps.length;
+          const pending  = group.apps.filter(a => a.status === 'pending' || a.status === 'documents_requested').length;
+          const approved = group.apps.filter(a => a.status === 'approved').length;
+          const rejected = group.apps.filter(a => a.status === 'rejected').length;
+          const badgeHtml = [
+            pending  > 0 ? `<span style="background:#fff3cd;color:#856404;padding:0.2rem 0.6rem;border-radius:12px;font-size:0.75rem;font-weight:700;">${pending} pending</span>` : '',
+            approved > 0 ? `<span style="background:#d4edda;color:#155724;padding:0.2rem 0.6rem;border-radius:12px;font-size:0.75rem;font-weight:700;">${approved} approved</span>` : '',
+            rejected > 0 ? `<span style="background:#f8d7da;color:#721c24;padding:0.2rem 0.6rem;border-radius:12px;font-size:0.75rem;font-weight:700;">${rejected} rejected</span>` : ''
+          ].filter(Boolean).join(' ');
+          const sectionId = 'empApps_' + empKey.replace(/[^a-z0-9]/gi,'_');
+          html += `
+            <div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:1rem;overflow:hidden;">
+              <div onclick="toggleEmpApps('${sectionId}')" style="padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:linear-gradient(135deg,#f8f9fa,#ffffff);border-bottom:2px solid #e9ecef;">
+                <div style="display:flex;align-items:center;gap:1rem;">
+                  <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.1rem;">
+                    ${(group.name||'?').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style="font-weight:700;font-size:1rem;color:#212529;">${group.name}</div>
+                    <div style="font-size:0.8rem;color:#6c757d;">Slot ${group.slot} · ${total} application${total!==1?'s':''}</div>
+                  </div>
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">${badgeHtml}</div>
+                </div>
+                <span id="${sectionId}_arrow" style="font-size:1.25rem;color:#6c757d;transition:transform 0.2s;">▼</span>
+              </div>
+              <div id="${sectionId}" style="display:block;">
+                <div style="padding:1rem 1.5rem;display:grid;gap:0.75rem;">
+                  ${group.apps.map(app => renderEmployeeGroupedCard(app)).join('')}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch(e) {
+        console.error('Error in by-employee view:', e);
+        container.innerHTML = `<div style="text-align:center;padding:2rem;color:#dc3545"><p>Error loading applications: ${e.message}</p></div>`;
+      }
+    }
+
+    window.toggleEmpApps = function(sectionId) {
+      const el    = document.getElementById(sectionId);
+      const arrow = document.getElementById(sectionId + '_arrow');
+      if (!el) return;
+      const open = el.style.display !== 'none';
+      el.style.display    = open ? 'none' : 'block';
+      arrow.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+    };
+
+    function renderEmployeeGroupedCard(app) {
+      const statusColors = {
+        pending: { bg: '#fff3cd', border: '#ffc107', text: '#856404' },
+        documents_requested: { bg: '#e7f1ff', border: '#0d6efd', text: '#084298' },
+        approved: { bg: '#d4edda', border: '#28a745', text: '#155724' },
+        rejected: { bg: '#f8d7da', border: '#dc3545', text: '#721c24' }
+      };
+      const typeEmojis  = { leave: '🏖️', sickleave: '🤒', cashadvance: '💵', other: '📋' };
+      const typeLabels  = { leave: 'Leave Request', sickleave: 'Sick Leave', cashadvance: 'Cash Advance', other: 'Other' };
+      const status  = app.status || 'pending';
+      const colors  = statusColors[status] || statusColors.pending;
+      const emoji   = typeEmojis[app.type] || '📋';
+      const label   = typeLabels[app.type] || 'Application';
+      const subDate = app.submittedAt || app.submittedDate || app.createdAt || '';
+      const dateStr = subDate ? new Date(subDate).toLocaleDateString() : 'N/A';
+      const statusLabel = status === 'documents_requested' ? 'DOCS NEEDED' : status.toUpperCase();
+      // Extra detail
+      let extraHtml = '';
+      if (app.type === 'cashadvance' && app.amount) {
+        extraHtml = `<span style="font-weight:700;color:#28a745;">R${parseFloat(app.amount).toFixed(2)}</span> · `;
+      } else if ((app.type === 'leave' || app.type === 'sickleave') && app.startDate) {
+        extraHtml = `<span>${app.startDate} → ${app.endDate||'?'}</span> · `;
+      }
+      // Reason
+      const reason = app.reason || app.description || '';
+      // Documents
+      let docsHtml = '';
+      if (app.documents && app.documents.length > 0) {
+        docsHtml = `<div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.4rem;">` +
+          app.documents.map((d, i) => `<a href="${d.url}" target="_blank" style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;background:#e7f1ff;border:1px solid #b6d4fe;border-radius:20px;text-decoration:none;color:#084298;font-size:0.8rem;font-weight:600;">📎 ${d.name||'Doc '+(i+1)}</a>`).join('') +
+          `</div>`;
+      }
+      // Action row for pending
+      let actionsHtml = '';
+      const isManageable = (status === 'pending' || status === 'documents_requested');
+      if (isManageable) {
+        actionsHtml = `
+          <div style="display:flex;gap:0.4rem;margin-top:0.75rem;flex-wrap:wrap;">
+            <button onclick="approveApplication('${app.id}','${app.type}')" style="padding:0.4rem 0.9rem;background:#28a745;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;">✓ Approve</button>
+            <button onclick="requestDocuments('${app.id}')" style="padding:0.4rem 0.9rem;background:#ffc107;color:#000;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;">📎 Docs</button>
+            <button onclick="rejectApplication('${app.id}')" style="padding:0.4rem 0.9rem;background:#dc3545;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;">✗ Reject</button>
+          </div>`;
+      } else {
+        const actionDate = app.actionDate ? new Date(app.actionDate).toLocaleDateString() : 'N/A';
+        const actionBy   = app.actionBy || 'N/A';
+        actionsHtml = `<div style="margin-top:0.5rem;font-size:0.8rem;color:#6c757d;">${statusLabel === 'APPROVED' ? 'Approved' : 'Rejected'} by <strong>${actionBy}</strong> · ${actionDate}${app.rejectionReason ? ' · <em>'+app.rejectionReason+'</em>' : ''}</div>`;
+      }
+      // Admin/management note
+      const adminNote = app.adminNote ? `<div style="margin-top:0.5rem;font-size:0.8rem;background:#fff3cd;border-radius:6px;padding:0.4rem 0.75rem;color:#856404;">📌 Note: ${app.adminNote}</div>` : '';
+      return `
+        <div style="background:#f8f9fa;border-radius:8px;padding:1rem;border-left:4px solid ${colors.border};">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <span style="font-size:1.2rem;">${emoji}</span>
+                <strong style="color:#212529;">${label}</strong>
+                <span style="font-size:0.8rem;color:#6c757d;">· ${extraHtml}submitted ${dateStr}</span>
+                ${app.submittedByManagement ? '<span style="background:#e7f1ff;color:#084298;padding:0.15rem 0.5rem;border-radius:10px;font-size:0.7rem;font-weight:700;">MANUAL</span>' : ''}
+              </div>
+              ${reason ? `<div style="font-size:0.85rem;color:#6c757d;margin-top:0.35rem;">${reason}</div>` : ''}
+              ${adminNote}
+              ${docsHtml}
+              ${actionsHtml}
+            </div>
+            <div style="background:${colors.bg};color:${colors.text};padding:0.3rem 0.75rem;border-radius:14px;font-size:0.75rem;font-weight:700;white-space:nowrap;border:1px solid ${colors.border};">
+              ${statusLabel}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ========== ADD APPLICATION MODAL ==========
+    window.openAddApplicationModal = async function() {
+      const modal = document.getElementById('addApplicationModal');
+      modal.style.display = 'flex';
+      document.getElementById('manualAppForm').reset();
+      document.getElementById('manualAppDynamic').innerHTML = '';
+      // Populate employee dropdown
+      const empSel = document.getElementById('manualAppEmployee');
+      empSel.innerHTML = '<option value="">— Select Employee —</option>';
+      try {
+        const snap = await getDocs(collection(db, 'businesses', businessId, 'staff'));
+        snap.forEach(d => {
+          const s = d.data();
+          const name = s.employeeName || s.name || `Slot ${d.id}`;
+          if (name && name !== 'Empty' && name !== 'Available') {
+            const opt = document.createElement('option');
+            opt.value = d.id;
+            opt.dataset.name = name;
+            opt.dataset.slot  = d.id;
+            opt.textContent = name + ` (Slot ${d.id})`;
+            empSel.appendChild(opt);
+          }
+        });
+      } catch(e) { console.warn('Could not load staff for modal', e); }
+    };
+
+    window.closeAddApplicationModal = function() {
+      document.getElementById('addApplicationModal').style.display = 'none';
+    };
+
+    window.onManualAppTypeChange = function() {
+      const type = document.getElementById('manualAppType').value;
+      const dyn  = document.getElementById('manualAppDynamic');
+      if (type === 'leave' || type === 'sickleave') {
+        dyn.innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;">
+            <div>
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.4rem;">Start Date <span style="color:red">*</span></label>
+              <input type="date" id="manualAppStart" required style="width:100%;padding:0.65rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;">
+            </div>
+            <div>
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.4rem;">End Date <span style="color:red">*</span></label>
+              <input type="date" id="manualAppEnd" required style="width:100%;padding:0.65rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;">
+            </div>
+          </div>
+        `;
+      } else if (type === 'cashadvance') {
+        dyn.innerHTML = `
+          <div style="margin-bottom:1.25rem;">
+            <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.4rem;">Amount (R) <span style="color:red">*</span></label>
+            <input type="number" id="manualAppAmount" required min="0.01" step="0.01" placeholder="0.00" style="width:100%;padding:0.65rem 1rem;border-radius:8px;border:1px solid #ced4da;font-size:1.1rem;">
+          </div>
+        `;
+      } else {
+        dyn.innerHTML = '';
+      }
+    };
+
+    window.submitManualApplication = async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('manualAppSubmitBtn');
+      btn.disabled = true; btn.textContent = '⏳ Saving…';
+      try {
+        const empSel  = document.getElementById('manualAppEmployee');
+        const empOpt  = empSel.options[empSel.selectedIndex];
+        const empId   = empSel.value;
+        const empName = empOpt ? (empOpt.dataset.name || empOpt.textContent.split('(')[0].trim()) : 'Unknown';
+        const empSlot = empOpt ? (empOpt.dataset.slot || empId) : empId;
+        const type    = document.getElementById('manualAppType').value;
+        const reason  = document.getElementById('manualAppReason').value.trim();
+        const status  = document.getElementById('manualAppStatus').value;
+        const filesInput = document.getElementById('manualAppDocs');
+
+        const appData = {
+          employeeId: empId,
+          employeeName: empName,
+          employeeSlot: empSlot,
+          businessId: businessId,
+          type: type,
+          status: status,
+          reason: reason,
+          submittedAt: new Date().toISOString(),
+          timestamp: Date.now(),
+          submittedByManagement: true,
+          submittedBy: userEmail || 'admin',
+          adminNote: reason || ''
+        };
+
+        if (status === 'approved') {
+          appData.actionDate = new Date().toISOString();
+          appData.actionBy   = userEmail || 'admin';
+        }
+
+        // Type-specific fields
+        if ((type === 'leave' || type === 'sickleave')) {
+          const s = document.getElementById('manualAppStart');
+          const end = document.getElementById('manualAppEnd');
+          if (s) appData.startDate = s.value;
+          if (end) appData.endDate = end.value;
+        } else if (type === 'cashadvance') {
+          const amt = document.getElementById('manualAppAmount');
+          if (amt) appData.amount = parseFloat(amt.value) || 0;
+        }
+
+        // Save application doc first
+        const docRef = await addDoc(collection(db, 'businesses', businessId, 'applications'), appData);
+
+        // Upload documents if any
+        const files = filesInput ? Array.from(filesInput.files) : [];
+        if (files.length > 0) {
+          btn.textContent = '⏳ Uploading docs…';
+          try {
+            const { getStorage, ref: storRef, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+            const stor = getStorage(app);
+            const uploadedDocs = [];
+            for (const file of files) {
+              const path    = `businesses/${businessId}/application-docs/${docRef.id}/${file.name}`;
+              const fileRef = storRef(stor, path);
+              await uploadBytes(fileRef, file);
+              const url = await getDownloadURL(fileRef);
+              uploadedDocs.push({ name: file.name, url: url, uploadedAt: new Date().toISOString() });
+            }
+            await updateDoc(doc(db, 'businesses', businessId, 'applications', docRef.id), { documents: uploadedDocs });
+          } catch(uploadErr) {
+            console.warn('Document upload failed (non-critical):', uploadErr.message);
+          }
+        }
+
+        closeAddApplicationModal();
+        await loadApplications();
+        alert(`✅ Application submitted successfully for ${empName}!`);
+      } catch(err) {
+        console.error('Error submitting manual application:', err);
+        alert('❌ Error: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 Submit Application';
+      }
+    };
+
+    window.renderEmployeeGroupedCard = renderEmployeeGroupedCard;
     
     // ========== END APPLICATIONS MODULE ==========
 
