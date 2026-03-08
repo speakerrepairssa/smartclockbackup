@@ -10,7 +10,7 @@ import os
 
 from dotenv import load_dotenv
 from livekit import agents, rtc
-from livekit.agents import AgentSession, Agent, RoomInputOptions, JobContext, RpcInvocationData
+from livekit.agents import AgentServer, AgentSession, Agent, room_io, JobContext, RpcInvocationData
 from livekit.plugins import openai, noise_cancellation, bey
 
 from prompts import DEFAULT_HR_PROMPT, build_system_prompt
@@ -26,6 +26,10 @@ class HRAssistant(Agent):
         super().__init__(instructions=instructions)
 
 
+server = AgentServer()
+
+
+@server.rtc_session(agent_name="smartclock-hr-agent")
 async def entrypoint(ctx: JobContext):
     # ── Read business config from room metadata ─────────────────────────────
     try:
@@ -87,8 +91,14 @@ async def entrypoint(ctx: JobContext):
     await session.start(
         room=ctx.room,
         agent=HRAssistant(instructions=instructions),
-        room_input_options=RoomInputOptions(
-            noise_cancellation=noise_cancellation.BVC(),
+        room_options=room_io.RoomOptions(
+            audio_input=room_io.AudioInputOptions(
+                noise_cancellation=lambda params: (
+                    noise_cancellation.BVCTelephony()
+                    if params.participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
+                    else noise_cancellation.BVC()
+                ),
+            ),
         ),
     )
 
@@ -103,9 +113,4 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    agents.cli.run_app(
-        agents.WorkerOptions(
-            entrypoint_fnc=entrypoint,
-            agent_name="smartclock-hr-agent",
-        )
-    )
+    agents.cli.run_app(server)
