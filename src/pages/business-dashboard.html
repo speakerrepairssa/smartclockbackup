@@ -703,6 +703,7 @@
         <li><a href="whatsapp-settings.html" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📱 WhatsApp</button></a></li>
         <li><a href="#" id="whatsappLogsLink" style="display: block; color: inherit; text-decoration: none;"><button class="menu-btn">📊 WhatsApp Logs</button></a></li>
         <li><button class="menu-btn" data-module="business-tracker" onclick="switchModule('business-tracker')">📊 Business Tracker</button></li>
+        <li><button class="menu-btn" data-module="hr-avatar" onclick="switchModule('hr-avatar')">🤖 HR Avatar</button></li>
         <li><button class="menu-btn" data-module="settings" onclick="switchModule('settings')">⚙️ Settings</button></li>
       </ul>
       <div class="sidebar-footer">
@@ -5622,6 +5623,128 @@
         </div>
       </div>
 
+      <!-- ===== HR AVATAR MODULE ===== -->
+      <div class="view-section" id="hrAvatarView">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;">
+          <div>
+            <h2 class="section-title" style="margin-bottom:0.25rem;">🤖 HR Avatar Settings</h2>
+            <p class="section-description" style="margin:0;">Configure your AI HR assistant — the avatar employees can talk to about HR topics</p>
+          </div>
+          <a href="/pages/hr-avatar.html" target="_blank" style="padding:0.75rem 1.5rem;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:10px;text-decoration:none;font-weight:700;font-size:0.95rem;white-space:nowrap;box-shadow:0 4px 12px rgba(102,126,234,0.4);display:inline-block;">
+            🚀 Open Employee Portal
+          </a>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1.5rem;">
+
+          <!-- Persona Card -->
+          <div style="background:white;border-radius:14px;padding:1.75rem;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+            <h3 style="margin:0 0 1.25rem;color:#212529;font-size:1.05rem;">👩‍💼 Avatar Persona</h3>
+            <div style="margin-bottom:1rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Avatar Name</label>
+              <input id="hrAvatarName" type="text" value="Lerato" placeholder="e.g. Lerato" style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:1rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Tagline / Role Description</label>
+              <input id="hrAvatarTagline" type="text" value="Your friendly HR assistant" placeholder="Your friendly HR assistant" style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:1rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Avatar Skin Tone</label>
+              <select id="hrAvatarSkin" style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;">
+                <option value="#FDBCB4">Light</option>
+                <option value="#E8A87C" selected>Medium</option>
+                <option value="#8D5524">Dark</option>
+                <option value="#C68642">Brown</option>
+              </select>
+            </div>
+            <div style="margin-bottom:1rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">OpenAI API Key <span style="color:#dc3545">*</span></label>
+              <div style="position:relative;">
+                <input id="hrOpenAiKey" type="password" placeholder="sk-..." style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;box-sizing:border-box;padding-right:3rem;">
+                <button onclick="toggleHrKeyVisibility()" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;">👁</button>
+              </div>
+              <p style="margin:0.25rem 0 0;font-size:0.78rem;color:#6c757d;">Stored encrypted in Firestore. Get yours at platform.openai.com</p>
+            </div>
+            <div style="margin-bottom:1.25rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">AI Model</label>
+              <select id="hrAiModel" style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:1rem;">
+                <option value="gpt-4o-mini" selected>GPT-4o Mini (fast, cheap)</option>
+                <option value="gpt-4o">GPT-4o (best quality)</option>
+                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (cheapest)</option>
+              </select>
+            </div>
+            <button onclick="saveHrAvatarSettings()" style="width:100%;padding:0.75rem;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+              💾 Save Persona Settings
+            </button>
+          </div>
+
+          <!-- Knowledge Base Card -->
+          <div style="background:white;border-radius:14px;padding:1.75rem;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+            <h3 style="margin:0 0 1.25rem;color:#212529;font-size:1.05rem;">📚 HR Knowledge Base</h3>
+            <p style="margin:0 0 1rem;font-size:0.85rem;color:#6c757d;">This text is sent to the AI as background context. Include your company's HR policies, rules, and procedures.</p>
+            <div style="margin-bottom:1rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Leave Policy</label>
+              <textarea id="hrPolicyLeave" rows="3" placeholder="e.g. Employees are entitled to 15 days annual leave per year. Sick leave requires a doctor's note after 2 days..." style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="margin-bottom:1rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Cash Advance Policy</label>
+              <textarea id="hrPolicyCash" rows="3" placeholder="e.g. Cash advances up to 50% of monthly salary. Must be repaid within 3 months. Max 2 advances per year..." style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="margin-bottom:1rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Working Hours & Attendance</label>
+              <textarea id="hrPolicyHours" rows="2" placeholder="e.g. Core hours 08:30–17:30 Mon–Fri. Overtime requires prior manager approval..." style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="margin-bottom:1.25rem;">
+              <label style="display:block;font-weight:600;color:#495057;margin-bottom:0.35rem;font-size:0.9rem;">Other Rules / Code of Conduct</label>
+              <textarea id="hrPolicyOther" rows="3" placeholder="e.g. Dress code: smart casual. Disciplinary process: verbal warning → written warning → suspension → dismissal..." style="width:100%;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+            </div>
+            <button onclick="saveHrKnowledgeBase()" style="width:100%;padding:0.75rem;background:linear-gradient(135deg,#28a745,#20c997);color:white;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+              💾 Save Knowledge Base
+            </button>
+          </div>
+
+          <!-- Test Avatar Card -->
+          <div style="background:white;border-radius:14px;padding:1.75rem;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+            <h3 style="margin:0 0 0.75rem;color:#212529;font-size:1.05rem;">🧪 Test the Avatar</h3>
+            <p style="margin:0 0 1rem;font-size:0.85rem;color:#6c757d;">Test a question before sending to staff. Uses your saved settings.</p>
+            <!-- Mini Avatar Preview -->
+            <div style="text-align:center;margin-bottom:1rem;">
+              <svg id="hrTestAvatarSvg" width="90" height="110" viewBox="0 0 90 110" style="filter:drop-shadow(0 4px 8px rgba(0,0,0,0.15));">
+                <!-- Body -->
+                <rect x="20" y="70" width="50" height="38" rx="12" fill="#667eea"/>
+                <!-- Neck -->
+                <rect x="37" y="60" width="16" height="14" rx="4" fill="#E8A87C" id="hrTestNeck"/>
+                <!-- Head -->
+                <ellipse cx="45" cy="46" rx="24" ry="26" fill="#E8A87C" id="hrTestHead"/>
+                <!-- Hair -->
+                <ellipse cx="45" cy="26" rx="24" ry="14" fill="#2c1810"/>
+                <ellipse cx="21" cy="44" rx="5" ry="12" fill="#2c1810"/>
+                <ellipse cx="69" cy="44" rx="5" ry="12" fill="#2c1810"/>
+                <!-- Eyes -->
+                <ellipse cx="37" cy="44" rx="4" ry="4.5" fill="white"/>
+                <ellipse cx="53" cy="44" rx="4" ry="4.5" fill="white"/>
+                <circle cx="37" cy="44" r="2.5" fill="#2c1810" id="hrTestEyeL"/>
+                <circle cx="53" cy="44" r="2.5" fill="#2c1810" id="hrTestEyeR"/>
+                <!-- Smile -->
+                <path d="M38,56 Q45,63 52,56" stroke="#c0392b" stroke-width="1.5" fill="none" stroke-linecap="round" id="hrTestMouth"/>
+                <!-- Collar -->
+                <polygon points="37,70 45,80 53,70" fill="white" opacity="0.5"/>
+              </svg>
+              <div id="hrTestStatus" style="font-size:0.8rem;color:#667eea;font-weight:600;">Ready</div>
+            </div>
+            <div id="hrTestChat" style="height:160px;overflow-y:auto;border:1px solid #dee2e6;border-radius:10px;padding:0.75rem;margin-bottom:0.75rem;font-size:0.875rem;background:#f8f9fa;display:flex;flex-direction:column;gap:0.5rem;">
+              <div style="color:#6c757d;text-align:center;font-style:italic;">Ask a test question below…</div>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <input id="hrTestInput" type="text" placeholder="e.g. How many leave days do I get?" style="flex:1;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #ced4da;font-size:0.9rem;" onkeydown="if(event.key==='Enter')sendHrTestMessage();">
+              <button onclick="sendHrTestMessage()" style="padding:0.6rem 1rem;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:1rem;">➤</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <!-- ===== END HR AVATAR MODULE ===== -->
+
     </main>
   </div>
 
@@ -5659,6 +5782,7 @@
           viewId = 'dashboardView';
         }
         if (module === 'business-tracker') viewId = 'businessTrackerView';
+        if (module === 'hr-avatar') viewId = 'hrAvatarView';
         
         const view = document.getElementById(viewId);
         if (view) {
@@ -6456,6 +6580,7 @@
         'sql-integration': 'sqlIntegrationView',
         'wage-calculator': 'wageCalculatorView',
         'business-tracker': 'businessTrackerView',
+        'hr-avatar': 'hrAvatarView',
         'settings': 'settingsView',
         'downloads': 'syncView'  // Use sync view for downloads until we have a dedicated view
       };
@@ -7349,6 +7474,12 @@
           return;
         }
         
+        if (module === 'hr-avatar') {
+          console.log('Loading HR Avatar module...');
+          await loadHrAvatarModule();
+          return;
+        }
+
         if (module === 'settings') {
           console.log('Loading settings module...');
           await loadSettings();
@@ -8249,6 +8380,185 @@
     window.renderEmployeeGroupedCard = renderEmployeeGroupedCard;
     
     // ========== END APPLICATIONS MODULE ==========
+
+    // ========== HR AVATAR MODULE ==========
+    async function loadHrAvatarModule() {
+      try {
+        const settingsRef = doc(db, 'businesses', businessId, 'settings', 'hr_avatar');
+        const snap = await getDoc(settingsRef);
+        if (snap.exists()) {
+          const d = snap.data();
+          if (d.avatarName)   document.getElementById('hrAvatarName').value    = d.avatarName;
+          if (d.tagline)      document.getElementById('hrAvatarTagline').value  = d.tagline;
+          if (d.skinTone)     document.getElementById('hrAvatarSkin').value     = d.skinTone;
+          if (d.openAiKey)    document.getElementById('hrOpenAiKey').value      = d.openAiKey;
+          if (d.aiModel)      document.getElementById('hrAiModel').value        = d.aiModel;
+          if (d.policyLeave)  document.getElementById('hrPolicyLeave').value    = d.policyLeave;
+          if (d.policyCash)   document.getElementById('hrPolicyCash').value     = d.policyCash;
+          if (d.policyHours)  document.getElementById('hrPolicyHours').value    = d.policyHours;
+          if (d.policyOther)  document.getElementById('hrPolicyOther').value    = d.policyOther;
+          // Update test avatar skin
+          if (d.skinTone) {
+            const neck = document.getElementById('hrTestNeck');
+            const head = document.getElementById('hrTestHead');
+            if (neck) neck.setAttribute('fill', d.skinTone);
+            if (head) head.setAttribute('fill', d.skinTone);
+          }
+        }
+      } catch(e) { console.warn('Could not load HR Avatar settings:', e.message); }
+    }
+
+    window.saveHrAvatarSettings = async function() {
+      try {
+        const data = {
+          avatarName: document.getElementById('hrAvatarName').value.trim() || 'Lerato',
+          tagline:    document.getElementById('hrAvatarTagline').value.trim(),
+          skinTone:   document.getElementById('hrAvatarSkin').value,
+          openAiKey:  document.getElementById('hrOpenAiKey').value.trim(),
+          aiModel:    document.getElementById('hrAiModel').value,
+          updatedAt:  new Date().toISOString()
+        };
+        await setDoc(doc(db, 'businesses', businessId, 'settings', 'hr_avatar'), data, { merge: true });
+        // Update test avatar skin live
+        const neck = document.getElementById('hrTestNeck');
+        const head = document.getElementById('hrTestHead');
+        if (neck) neck.setAttribute('fill', data.skinTone);
+        if (head) head.setAttribute('fill', data.skinTone);
+        alert('✅ Persona settings saved!');
+      } catch(e) { alert('❌ Error saving: ' + e.message); }
+    };
+
+    window.saveHrKnowledgeBase = async function() {
+      try {
+        const data = {
+          policyLeave: document.getElementById('hrPolicyLeave').value.trim(),
+          policyCash:  document.getElementById('hrPolicyCash').value.trim(),
+          policyHours: document.getElementById('hrPolicyHours').value.trim(),
+          policyOther: document.getElementById('hrPolicyOther').value.trim(),
+          updatedAt:   new Date().toISOString()
+        };
+        await setDoc(doc(db, 'businesses', businessId, 'settings', 'hr_avatar'), data, { merge: true });
+        alert('✅ Knowledge base saved!');
+      } catch(e) { alert('❌ Error saving: ' + e.message); }
+    };
+
+    window.toggleHrKeyVisibility = function() {
+      const inp = document.getElementById('hrOpenAiKey');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    };
+
+    window.sendHrTestMessage = async function() {
+      const input   = document.getElementById('hrTestInput');
+      const chatBox = document.getElementById('hrTestChat');
+      const status  = document.getElementById('hrTestStatus');
+      const msg     = input.value.trim();
+      if (!msg) return;
+      input.value = '';
+
+      // Show user bubble
+      chatBox.innerHTML += `<div style="background:#667eea;color:white;padding:0.5rem 0.85rem;border-radius:14px 14px 0 14px;align-self:flex-end;max-width:85%;">${msg}</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      // Animate avatar
+      status.textContent = 'Thinking…';
+      status.style.color = '#ffc107';
+      _hrTestAnimate(true);
+
+      try {
+        // Get settings
+        const snap = await getDoc(doc(db, 'businesses', businessId, 'settings', 'hr_avatar'));
+        const cfg  = snap.exists() ? snap.data() : {};
+        const apiKey = cfg.openAiKey || document.getElementById('hrOpenAiKey').value.trim();
+        if (!apiKey) throw new Error('No OpenAI API key saved. Please save your API key first.');
+
+        const systemPrompt = _hrBuildSystemPrompt(cfg, businessId);
+
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+          body: JSON.stringify({
+            model: cfg.aiModel || 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user',   content: msg }
+            ],
+            max_tokens: 400, temperature: 0.7
+          })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.error?.message || 'OpenAI API error ' + resp.status);
+        }
+
+        const data = await resp.json();
+        const reply = data.choices?.[0]?.message?.content || 'I could not generate a reply.';
+
+        chatBox.innerHTML += `<div style="background:#f0f0f0;color:#212529;padding:0.5rem 0.85rem;border-radius:14px 14px 14px 0;align-self:flex-start;max-width:85%;">${reply}</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        status.textContent = 'Ready';
+        status.style.color = '#28a745';
+
+        // Browser TTS
+        if (window.speechSynthesis) {
+          const utt = new SpeechSynthesisUtterance(reply);
+          utt.rate = 0.95; utt.pitch = 1.1;
+          const voices = speechSynthesis.getVoices();
+          const femaleVoice = voices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('samantha') || v.name.toLowerCase().includes('victoria') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('google uk english female'));
+          if (femaleVoice) utt.voice = femaleVoice;
+          utt.onend = () => _hrTestAnimate(false);
+          speechSynthesis.speak(utt);
+          _hrTestAnimate(true);
+        } else {
+          _hrTestAnimate(false);
+        }
+      } catch(e) {
+        chatBox.innerHTML += `<div style="background:#f8d7da;color:#721c24;padding:0.5rem 0.85rem;border-radius:14px;font-size:0.85rem;">⚠️ ${e.message}</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        status.textContent = 'Error';
+        status.style.color = '#dc3545';
+        _hrTestAnimate(false);
+      }
+    };
+
+    let _hrTestAnimFrame = null;
+    function _hrTestAnimate(speaking) {
+      const mouth = document.getElementById('hrTestMouth');
+      if (!mouth) return;
+      if (!speaking) {
+        cancelAnimationFrame(_hrTestAnimFrame);
+        mouth.setAttribute('d', 'M38,56 Q45,63 52,56');
+        return;
+      }
+      let t = 0;
+      function step() {
+        t += 0.18;
+        const y = 63 + Math.sin(t) * 4;
+        mouth.setAttribute('d', `M38,56 Q45,${y} 52,56`);
+        _hrTestAnimFrame = requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    function _hrBuildSystemPrompt(cfg, bizId) {
+      const name    = cfg.avatarName  || 'Lerato';
+      const company = bizId ? bizId.replace(/_/g,' ').replace(/biz /i,'').trim() : 'this company';
+      const parts   = [
+        `You are ${name}, a warm, professional and empathetic HR assistant for ${company}.`,
+        `You help employees with HR-related questions: leave, sick leave, cash advances, payslips, attendance, disciplinary processes, and general company policies.`,
+        `Always be friendly, clear, and concise. If you don't know something, say so honestly and suggest they contact management directly.`,
+        `Do NOT answer questions unrelated to HR or workplace topics — politely redirect.`,
+        `Keep responses under 150 words unless the question requires more detail.`
+      ];
+      if (cfg.policyLeave)  parts.push(`LEAVE POLICY: ${cfg.policyLeave}`);
+      if (cfg.policyCash)   parts.push(`CASH ADVANCE POLICY: ${cfg.policyCash}`);
+      if (cfg.policyHours)  parts.push(`WORKING HOURS: ${cfg.policyHours}`);
+      if (cfg.policyOther)  parts.push(`OTHER RULES: ${cfg.policyOther}`);
+      return parts.join('\n\n');
+    }
+
+    window._hrBuildSystemPrompt = _hrBuildSystemPrompt;
+    // ========== END HR AVATAR MODULE ==========
 
     async function loadEmployees() {
       try {

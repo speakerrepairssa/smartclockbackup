@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HR Assistant</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 1.5rem 1rem 2rem;
+      color: white;
+    }
+
+    /* Top bar */
+    .top-bar {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .top-bar .brand {
+      font-size: 1.1rem;
+      font-weight: 700;
+      opacity: 0.8;
+    }
+    .top-bar .user-info {
+      font-size: 0.85rem;
+      opacity: 0.65;
+    }
+    .back-btn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+
+    /* Avatar container */
+    .avatar-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .avatar-glow {
+      border-radius: 50%;
+      padding: 6px;
+      background: linear-gradient(135deg, rgba(102,126,234,0.4), rgba(118,75,162,0.4));
+      box-shadow: 0 0 30px rgba(102,126,234,0.4), 0 0 60px rgba(102,126,234,0.15);
+      transition: box-shadow 0.3s;
+    }
+    .avatar-glow.speaking {
+      box-shadow: 0 0 40px rgba(102,234,134,0.6), 0 0 80px rgba(102,234,134,0.25);
+      background: linear-gradient(135deg, rgba(102,234,134,0.4), rgba(52,168,83,0.4));
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+
+    .avatar-name {
+      margin-top: 0.75rem;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .avatar-tagline {
+      font-size: 0.85rem;
+      opacity: 0.65;
+      margin-top: 0.15rem;
+    }
+    .avatar-status {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      padding: 0.25rem 0.85rem;
+      border-radius: 20px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      transition: all 0.3s;
+    }
+    .avatar-status.listening { background: rgba(255,193,7,0.2); border-color: #ffc107; color: #ffe082; }
+    .avatar-status.thinking  { background: rgba(102,126,234,0.2); border-color: #667eea; color: #b4c5ff; }
+    .avatar-status.speaking  { background: rgba(40,167,69,0.2); border-color: #28a745; color: #86efac; }
+
+    /* Chat window */
+    .chat-container {
+      width: 100%;
+      max-width: 680px;
+      flex: 1;
+    }
+
+    .chat-window {
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 1.25rem;
+      min-height: 240px;
+      max-height: 380px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      scroll-behavior: smooth;
+    }
+
+    .chat-window::-webkit-scrollbar { width: 4px; }
+    .chat-window::-webkit-scrollbar-track { background: transparent; }
+    .chat-window::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+    .msg {
+      max-width: 82%;
+      padding: 0.65rem 1rem;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.5;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .msg.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border-radius: 16px 16px 0 16px;
+    }
+    .msg.hr {
+      align-self: flex-start;
+      background: rgba(255,255,255,0.12);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px 16px 16px 0;
+    }
+    .msg.error {
+      align-self: flex-start;
+      background: rgba(220,53,69,0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(220,53,69,0.4);
+      border-radius: 12px;
+      font-size: 0.85rem;
+    }
+    .msg.system {
+      align-self: center;
+      background: transparent;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.8rem;
+      font-style: italic;
+      max-width: 100%;
+    }
+
+    /* Typing indicator */
+    .typing {
+      align-self: flex-start;
+      display: flex;
+      gap: 4px;
+      padding: 0.75rem 1rem;
+      background: rgba(255,255,255,0.1);
+      border-radius: 16px 16px 16px 0;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .typing span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,0.6);
+      animation: bounce 1s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+
+    /* Input bar */
+    .input-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 14px;
+      color: white;
+      padding: 0.75rem 1.1rem;
+      font-size: 0.95rem;
+      outline: none;
+      line-height: 1.4;
+      resize: none;
+      min-height: 48px;
+      max-height: 120px;
+      overflow-y: auto;
+      transition: border-color 0.2s;
+    }
+    .chat-input::placeholder { color: rgba(255,255,255,0.35); }
+    .chat-input:focus { border-color: rgba(102,126,234,0.7); }
+
+    .btn-send, .btn-mic {
+      width: 48px; height: 48px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.25rem;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .btn-send {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+    .btn-send:hover { transform: scale(1.08); }
+    .btn-mic {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: white;
+    }
+    .btn-mic.active { background: rgba(220,53,69,0.7); border-color: #dc3545; animation: micPulse 0.8s infinite; }
+    @keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+
+    .hint-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
+    }
+    .hint-pill {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.7);
+      padding: 0.3rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .hint-pill:hover { background: rgba(102,126,234,0.3); border-color: #667eea; color: white; }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <span class="brand">🏢 SmartClock HR</span>
+    <span class="user-info" id="topUserName">Loading…</span>
+    <a class="back-btn" href="/pages/employee-dashboard.html">← Back</a>
+  </div>
+
+  <!-- ===== AVATAR ===== -->
+  <div class="avatar-section">
+    <div class="avatar-glow" id="avatarGlow">
+      <svg id="hrAvatarSvg" width="160" height="190" viewBox="0 0 160 190">
+        <!-- Body / jacket -->
+        <rect x="30" y="125" width="100" height="65" rx="22" fill="#667eea"/>
+        <!-- Collar detail -->
+        <polygon points="68,125 80,148 92,125" fill="rgba(255,255,255,0.25)"/>
+        <line x1="80" y1="148" x2="80" y2="190" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+        <!-- Shoulders -->
+        <ellipse cx="30" cy="140" rx="14" ry="22" fill="#5a70d4"/>
+        <ellipse cx="130" cy="140" rx="14" ry="22" fill="#5a70d4"/>
+        <!-- Neck -->
+        <rect x="67" y="106" width="26" height="24" rx="6" fill="#E8A87C" id="avrNeck"/>
+        <!-- Head -->
+        <ellipse cx="80" cy="78" rx="42" ry="46" fill="#E8A87C" id="avrHead"/>
+        <!-- Hair base -->
+        <ellipse cx="80" cy="42" rx="42" ry="24" fill="#1a0a00"/>
+        <!-- Side hair -->
+        <ellipse cx="38" cy="72" rx="9" ry="22" fill="#1a0a00"/>
+        <ellipse cx="122" cy="72" rx="9" ry="22" fill="#1a0a00"/>
+        <!-- Hair highlights -->
+        <ellipse cx="65" cy="36" rx="10" ry="8" fill="#3d1a00" opacity="0.5"/>
+        <!-- Eyebrows -->
+        <path d="M55,60 Q65,55 72,60" stroke="#3d1a00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M88,60 Q95,55 105,60" stroke="#3d1a00" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- Eyes whites -->
+        <ellipse cx="64" cy="72" rx="8" ry="9" fill="white"/>
+        <ellipse cx="96" cy="72" rx="8" ry="9" fill="white"/>
+        <!-- Irises -->
+        <circle cx="64" cy="72" r="5" fill="#4a3728" id="avrIrisL"/>
+        <circle cx="96" cy="72" r="5" fill="#4a3728" id="avrIrisR"/>
+        <!-- Pupils -->
+        <circle cx="64" cy="72" r="2.5" fill="#1a0a00"/>
+        <circle cx="96" cy="72" r="2.5" fill="#1a0a00"/>
+        <!-- Eye shine -->
+        <circle cx="65.5" cy="70.5" r="1.2" fill="white"/>
+        <circle cx="97.5" cy="70.5" r="1.2" fill="white"/>
+        <!-- Eyelids for blink -->
+        <ellipse cx="64" cy="72" rx="8" ry="9" fill="#E8A87C" opacity="0" id="avrBlinkL"/>
+        <ellipse cx="96" cy="72" rx="8" ry="9" fill="#E8A87C" opacity="0" id="avrBlinkR"/>
+        <!-- Nose -->
+        <path d="M77,80 Q80,90 83,80" stroke="#c47a50" stroke-width="1" fill="none" stroke-linecap="round"/>
+        <!-- Mouth -->
+        <path d="M66,96 Q80,110 94,96" stroke="#c0392b" stroke-width="2" fill="none" stroke-linecap="round" id="avrMouth"/>
+        <!-- Upper lip -->
+        <path d="M66,96 Q73,92 80,94 Q87,92 94,96" stroke="#a93226" stroke-width="1" fill="none" stroke-linecap="round"/>
+        <!-- Cheek blush -->
+        <ellipse cx="50" cy="82" rx="10" ry="6" fill="#ff9e9e" opacity="0.25"/>
+        <ellipse cx="110" cy="82" rx="10" ry="6" fill="#ff9e9e" opacity="0.25"/>
+        <!-- Earrings -->
+        <circle cx="36" cy="82" r="3" fill="#ffd700"/>
+        <circle cx="124" cy="82" r="3" fill="#ffd700"/>
+        <!-- Lanyard/ID badge -->
+        <path d="M72,126 Q80,140 88,126" stroke="#ffd700" stroke-width="1.5" fill="none"/>
+        <rect x="74" y="140" width="12" height="8" rx="2" fill="#ffd700" opacity="0.8"/>
+      </svg>
+    </div>
+    <div class="avatar-name" id="hrAvatarDisplayName">Lerato</div>
+    <div class="avatar-tagline" id="hrAvatarDisplayTagline">Your friendly HR assistant</div>
+    <div class="avatar-status" id="avatarStatus">Ready to help</div>
+  </div>
+
+  <!-- ===== CHAT ===== -->
+  <div class="chat-container">
+    <!-- Hint pills -->
+    <div class="hint-pills" id="hintPills">
+      <span class="hint-pill" onclick="sendHint(this)">How much leave do I have?</span>
+      <span class="hint-pill" onclick="sendHint(this)">How do I apply for a cash advance?</span>
+      <span class="hint-pill" onclick="sendHint(this)">What are my working hours?</span>
+      <span class="hint-pill" onclick="sendHint(this)">Disciplinary process?</span>
+      <span class="hint-pill" onclick="sendHint(this)">Who do I contact for HR issues?</span>
+    </div>
+
+    <div class="chat-window" id="chatWindow">
+      <div class="msg system">Ask me anything about HR, leave, cash advances, or company policies.</div>
+    </div>
+
+    <div class="input-row">
+      <button class="btn-mic" id="btnMic" onclick="toggleMic()" title="Voice input">🎤</button>
+      <textarea class="chat-input" id="chatInput" placeholder="Type your question…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+      <button class="btn-send" onclick="sendMessage()" title="Send">➤</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, app } from '../config/firebase.js';
+    import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // ── Auth check ─────────────────────────────────────────────────────────────
+    const userRole   = sessionStorage.getItem('userRole');
+    const businessId = sessionStorage.getItem('businessId');
+    const empName    = sessionStorage.getItem('employeeName') || sessionStorage.getItem('empName') || 'Employee';
+    const empId      = sessionStorage.getItem('employeeId')   || sessionStorage.getItem('slotId');
+
+    // Allow management too (userRole = 'admin' or 'manager')
+    if (!businessId) {
+      // Redirect to login but still allow testing with query param
+      const params = new URLSearchParams(location.search);
+      if (!params.get('biz')) {
+        alert('Please log in to access the HR Assistant.');
+        location.href = '/pages/employee-login.html';
+      }
+    }
+
+    const resolvedBusinessId = businessId || new URLSearchParams(location.search).get('biz');
+    document.getElementById('topUserName').textContent = empName !== 'Employee' ? empName : '';
+
+    // ── Load HR Avatar config ──────────────────────────────────────────────────
+    let _cfg = {};
+    let _conversationHistory = [];
+
+    async function loadConfig() {
+      try {
+        const snap = await getDoc(doc(db, 'businesses', resolvedBusinessId, 'settings', 'hr_avatar'));
+        if (snap.exists()) _cfg = snap.data();
+      } catch(e) { console.warn('Config load failed:', e.message); }
+
+      // Apply persona
+      const name    = _cfg.avatarName || 'Lerato';
+      const tagline = _cfg.tagline    || 'Your friendly HR assistant';
+      const skin    = _cfg.skinTone   || '#E8A87C';
+
+      document.getElementById('hrAvatarDisplayName').textContent    = name;
+      document.getElementById('hrAvatarDisplayTagline').textContent = tagline;
+      document.title = name + ' · HR Assistant';
+
+      // Apply skin tone
+      document.getElementById('avrHead').setAttribute('fill', skin);
+      document.getElementById('avrNeck').setAttribute('fill', skin);
+      document.getElementById('avrBlinkL').setAttribute('fill', skin);
+      document.getElementById('avrBlinkR').setAttribute('fill', skin);
+
+      // Opening greeting
+      const greeting = `Hi ${empName !== 'Employee' ? empName.split(' ')[0] : 'there'}! I'm ${name}, your HR assistant. How can I help you today?`;
+      await speak(greeting, true);
+      addMessage('hr', greeting);
+
+      // Seed conversation with greeting
+      _conversationHistory.push({ role: 'assistant', content: greeting });
+    }
+
+    loadConfig();
+
+    // ── System prompt builder ──────────────────────────────────────────────────
+    function buildSystemPrompt() {
+      const name    = _cfg.avatarName || 'Lerato';
+      const company = resolvedBusinessId ? resolvedBusinessId.replace(/_/g,' ').replace(/biz /i,'').trim() : 'this company';
+      const parts   = [
+        `You are ${name}, a warm, professional and empathetic HR assistant for ${company}.`,
+        `You help employees with HR-related questions: leave, sick leave, cashadvances, payslips, attendance, disciplinary processes, and general company policies.`,
+        `Always be friendly, clear, and concise. Use simple language. If unsure, say so and suggest contacting management.`,
+        `Do NOT answer questions unrelated to HR or the workplace — politely redirect. Do NOT perform tasks outside your HR scope.`,
+        `Keep responses under 160 words unless the question genuinely requires more. Avoid bullet overload — prefer short paragraphs.`
+      ];
+      if (_cfg.policyLeave)  parts.push(`LEAVE POLICY: ${_cfg.policyLeave}`);
+      if (_cfg.policyCash)   parts.push(`CASH ADVANCE POLICY: ${_cfg.policyCash}`);
+      if (_cfg.policyHours)  parts.push(`WORKING HOURS POLICY: ${_cfg.policyHours}`);
+      if (_cfg.policyOther)  parts.push(`COMPANY RULES: ${_cfg.policyOther}`);
+      if (empName) parts.push(`The employee you are speaking to is: ${empName}.`);
+      return parts.join('\n\n');
+    }
+
+    // ── Chat helpers ───────────────────────────────────────────────────────────
+    function addMessage(role, text, extra) {
+      const win = document.getElementById('chatWindow');
+      const div = document.createElement('div');
+      div.className = 'msg ' + role;
+      div.textContent = text;
+      win.appendChild(div);
+      win.scrollTop = win.scrollHeight;
+      return div;
+    }
+
+    function showTyping() {
+      const win = document.getElementById('chatWindow');
+      const dot = document.createElement('div');
+      dot.className = 'typing'; dot.id = 'typingDot';
+      dot.innerHTML = '<span></span><span></span><span></span>';
+      win.appendChild(dot);
+      win.scrollTop = win.scrollHeight;
+    }
+
+    function hideTyping() {
+      document.getElementById('typingDot')?.remove();
+    }
+
+    function setStatus(text, mode) {
+      const el = document.getElementById('avatarStatus');
+      el.textContent = text;
+      el.className = 'avatar-status' + (mode ? ' ' + mode : '');
+    }
+
+    // ── Send message ───────────────────────────────────────────────────────────
+    window.sendMessage = async function() {
+      const input = document.getElementById('chatInput');
+      const msg   = input.value.trim();
+      if (!msg) return;
+      input.value = ''; input.style.height = '';
+
+      addMessage('user', msg);
+      _conversationHistory.push({ role: 'user', content: msg });
+
+      const apiKey = _cfg.openAiKey;
+      if (!apiKey) {
+        addMessage('error', '⚠️ No API key configured yet. Please ask management to set up the HR Avatar in the business dashboard.');
+        return;
+      }
+
+      setStatus('Thinking…', 'thinking');
+      document.getElementById('avatarGlow').classList.add('speaking');
+      showTyping();
+
+      try {
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+          },
+          body: JSON.stringify({
+            model: _cfg.aiModel || 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: buildSystemPrompt() },
+              ..._conversationHistory.slice(-10)   // keep last 10 for context
+            ],
+            max_tokens: 450,
+            temperature: 0.7
+          })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error?.message || 'API error ' + resp.status);
+        }
+
+        const data  = await resp.json();
+        const reply = data.choices?.[0]?.message?.content || 'Sorry, I couldn\'t generate a reply.';
+
+        hideTyping();
+        _conversationHistory.push({ role: 'assistant', content: reply });
+
+        addMessage('hr', reply);
+        await speak(reply, false);
+
+      } catch(err) {
+        hideTyping();
+        addMessage('error', '⚠️ ' + err.message);
+        setStatus('Error', '');
+        document.getElementById('avatarGlow').classList.remove('speaking');
+        _stopAvatarAnim();
+      }
+    };
+
+    window.sendHint = function(el) {
+      document.getElementById('chatInput').value = el.textContent;
+      sendMessage();
+    };
+
+    // ── TTS + avatar animation ─────────────────────────────────────────────────
+    let _animFrame = null;
+
+    function _stopAvatarAnim() {
+      cancelAnimationFrame(_animFrame);
+      _animFrame = null;
+      const m = document.getElementById('avrMouth');
+      if (m) m.setAttribute('d', 'M66,96 Q80,110 94,96');
+    }
+
+    function _startAvatarAnim() {
+      let t = 0;
+      function step() {
+        t += 0.15;
+        const y = 110 + Math.sin(t) * 7;
+        const m = document.getElementById('avrMouth');
+        if (m) m.setAttribute('d', `M66,96 Q80,${y} 94,96`);
+        _animFrame = requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    // Blink loop
+    let _blinkTimer = null;
+    function startBlink() {
+      function doBlink() {
+        const bl = document.getElementById('avrBlinkL');
+        const br = document.getElementById('avrBlinkR');
+        if (!bl) return;
+        bl.setAttribute('opacity','1'); br.setAttribute('opacity','1');
+        setTimeout(() => { bl.setAttribute('opacity','0'); br.setAttribute('opacity','0'); }, 120);
+        _blinkTimer = setTimeout(doBlink, 2800 + Math.random()*2000);
+      }
+      _blinkTimer = setTimeout(doBlink, 1500);
+    }
+    startBlink();
+
+    async function speak(text, immediate) {
+      return new Promise(resolve => {
+        if (!window.speechSynthesis) { resolve(); return; }
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.rate  = 0.93;
+        utt.pitch = 1.12;
+
+        function trySpeak() {
+          const voices = speechSynthesis.getVoices();
+          const femVoice = voices.find(v =>
+            /samantha|victoria|zira|karen|google uk english female|female/i.test(v.name)
+          );
+          if (femVoice) utt.voice = femVoice;
+
+          setStatus('Speaking…', 'speaking');
+          document.getElementById('avatarGlow').classList.add('speaking');
+          _startAvatarAnim();
+
+          utt.onend  = () => { _stopAvatarAnim(); document.getElementById('avatarGlow').classList.remove('speaking'); setStatus('Ready to help', ''); resolve(); };
+          utt.onerror = () => { _stopAvatarAnim(); document.getElementById('avatarGlow').classList.remove('speaking'); setStatus('Ready to help', ''); resolve(); };
+          speechSynthesis.speak(utt);
+        }
+
+        if (speechSynthesis.getVoices().length === 0) {
+          speechSynthesis.addEventListener('voiceschanged', trySpeak, { once: true });
+        } else {
+          trySpeak();
+        }
+      });
+    }
+
+    // ── Voice input (Web Speech API) ───────────────────────────────────────────
+    let _recognition = null;
+    let _micActive   = false;
+
+    window.toggleMic = function() {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) {
+        alert('Voice input is not supported in this browser. Please use Chrome.');
+        return;
+      }
+      if (_micActive) {
+        _recognition?.stop();
+        return;
+      }
+      _recognition = new SpeechRec();
+      _recognition.lang = 'en-ZA';
+      _recognition.interimResults = false;
+
+      _recognition.onstart = () => {
+        _micActive = true;
+        document.getElementById('btnMic').classList.add('active');
+        setStatus('Listening…', 'listening');
+      };
+      _recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        document.getElementById('chatInput').value = transcript;
+        sendMessage();
+      };
+      _recognition.onerror  = () => { _micActive = false; document.getElementById('btnMic').classList.remove('active'); setStatus('Ready to help',''); };
+      _recognition.onend    = () => { _micActive = false; document.getElementById('btnMic').classList.remove('active'); setStatus('Ready to help',''); };
+
+      _recognition.start();
+    };
+
+    // ── Auto-resize textarea ───────────────────────────────────────────────────
+    document.getElementById('chatInput').addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+  </script>
+</body>
+</html>
