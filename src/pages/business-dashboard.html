@@ -5816,8 +5816,9 @@
     // Initialize Realtime Database — use explicit app to match the correct project
     const rtdb = getDatabase(app);
     
-    // Make db and Firebase functions globally accessible for Assessment module
+    // Make db, app and Firebase functions globally accessible for Assessment module
     window.db = db;
+    window.app = app;
     window.rtdb = rtdb;
     window.collection = collection;
     window.query = query;
@@ -6647,8 +6648,9 @@
       if (connectorStatusUnsubscribe) connectorStatusUnsubscribe();
 
       const BIZ = businessId;
-      const API_KEY = 'AIzaSyC6capPBwQDzIyp73i4ML0m9UwqjcfJ_WE';
-      const REST_URL = `https://firestore.googleapis.com/v1/projects/smartclock-v2-8271f/databases/(default)/documents/businesses/${BIZ}/connector_status/current?key=${API_KEY}`;
+      const API_KEY = (window.app || app).options.apiKey;
+      const _PROJ  = (window.app || app).options.projectId;
+      const REST_URL = `https://firestore.googleapis.com/v1/projects/${_PROJ}/databases/(default)/documents/businesses/${BIZ}/connector_status/current?key=${API_KEY}`;
 
       console.log('[ConnectorStatus] watching businessId:', BIZ);
 
@@ -6835,8 +6837,8 @@
     // ── Browse Device Events by Date — device-first, Firebase compare, sync ────
     let _dateQueryEvents = []; // holds current result set for sync buttons
 
-    const _FBAPI  = 'AIzaSyC6capPBwQDzIyp73i4ML0m9UwqjcfJ_WE';
-    const _FBBASE = 'https://firestore.googleapis.com/v1/projects/smartclock-v2-8271f/databases/(default)/documents';
+    const _FBAPI  = app.options.apiKey;
+    const _FBBASE = `https://firestore.googleapis.com/v1/projects/${app.options.projectId}/databases/(default)/documents`;
 
     async function queryDeviceEventsByDate() {
       const dateInput = document.getElementById('deviceDateInput');
