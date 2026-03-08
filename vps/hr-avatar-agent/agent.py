@@ -10,7 +10,8 @@ import os
 
 from dotenv import load_dotenv
 from livekit import agents, rtc
-from livekit.agents import AgentServer, AgentSession, Agent, room_io, JobContext, RpcInvocationData
+from livekit.agents import AgentServer, AgentSession, Agent, room_io, JobContext
+from livekit.rtc import RpcInvocationData
 from livekit.plugins import openai, noise_cancellation, bey
 
 from prompts import DEFAULT_HR_PROMPT, build_system_prompt
