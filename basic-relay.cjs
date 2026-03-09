@@ -1,81 +1,107 @@
 /**
- * Basic AiClock Relay - Minimal working version (CommonJS)
+ * AiClock Relay - Pure Fan-out Forwarder
+ * Receives Hikvision webhooks and forwards raw body to Cloud Functions
+ * for both aiclock and smartclock-v2 projects.
+ * 
+ * Cloud Functions handle all business logic:
+ * - Device → Business mapping (dynamic, supports switching)
+ * - Attendance status normalization & toggle
+ * - Firestore writes, assessment cache, face photos
  */
 
 const http = require('http');
 const https = require('https');
 
 const PORT = 7660;
-const FIREBASE_URL = 'https://us-central1-aiclock-82608.cloudfunctions.net/attendanceWebhook';
 
-console.log('Starting Basic AiClock Relay...');
+// Cloud Function targets — both projects
+const TARGETS = [
+  { name: 'aiclock',       url: 'https://attendancewebhook-4q7htrps4q-uc.a.run.app' },
+  { name: 'smartclock-v2', url: 'https://attendancewebhook-bfullfgyiq-uc.a.run.app' }
+];
+
+console.log('Starting AiClock Relay (Fan-out Forwarder)...');
 console.log('Port:', PORT);
-console.log('Firebase URL:', FIREBASE_URL);
+console.log('Targets:', TARGETS.map(t => t.name).join(', '));
+
+function forwardRaw(target, buf, contentType) {
+  return new Promise((resolve) => {
+    const u = new URL(target.url);
+    const req = https.request({
+      hostname: u.hostname, port: 443, path: u.pathname, method: 'POST',
+      headers: { 'Content-Type': contentType.replace('multipart/mixed', 'multipart/form-data'), 'Content-Length': buf.length }
+    }, (res) => {
+      let body = '';
+      res.on('data', c => { body += c; });
+      res.on('end', () => {
+        console.log('  [' + target.name + '] ' + res.statusCode + ' ' + body.slice(0, 200));
+        resolve({ name: target.name, status: res.statusCode, body });
+      });
+    });
+    req.on('error', (e) => {
+      console.error('  [' + target.name + '] ERROR:', e.message);
+      resolve({ name: target.name, status: 0, error: e.message });
+    });
+    req.write(buf);
+    req.end();
+  });
+}
 
 const server = http.createServer((req, res) => {
-  // Handle GET requests (health check)
+  // Health check
   if (req.method === 'GET') {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Basic AiClock Relay is running\nPort: ' + PORT + '\nStatus: Ready');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'healthy',
+      port: PORT,
+      mode: 'fan-out forwarder',
+      targets: TARGETS.map(t => t.name)
+    }));
     return;
   }
 
-  // Handle POST webhooks
+  // CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    res.end();
+    return;
+  }
+
+  // Webhook
   if (req.method === 'POST') {
-    // Collect as binary Buffer so multipart images are NOT corrupted
     const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', async () => {
+      const rawBuf = Buffer.concat(chunks);
+      const ct = req.headers['content-type'] || 'application/octet-stream';
+      console.log('Webhook received:', req.url, '| CT:', ct, '| len:', rawBuf.length);
 
-    req.on('data', chunk => {
-      chunks.push(chunk);
+      // Respond immediately to the device
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+
+      // Forward to all Cloud Function targets in parallel
+      try {
+        const results = await Promise.all(TARGETS.map(t => forwardRaw(t, rawBuf, ct)));
+        const ok = results.filter(r => r.status >= 200 && r.status < 300).length;
+        console.log('Fan-out: ' + ok + '/' + TARGETS.length + ' succeeded');
+      } catch (e) {
+        console.error('Fan-out error:', e.message);
+      }
     });
-
-    req.on('end', () => {
-      const bodyBuffer = Buffer.concat(chunks);
-      console.log('✅ Webhook received:', req.url);
-      console.log('Body length:', bodyBuffer.length, 'Content-Type:', req.headers['content-type']);
-
-      // Parse the URL for the Firebase function
-      const url = new URL(FIREBASE_URL);
-
-      // Forward the original Content-Type so multipart boundaries are preserved
-      const forwardHeaders = {
-        'Content-Type': req.headers['content-type'] || 'application/octet-stream',
-        'Content-Length': bodyBuffer.length
-      };
-
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + (url.search || ''),
-        method: 'POST',
-        headers: forwardHeaders
-      };
-
-      const firebaseReq = https.request(options, (firebaseRes) => {
-        console.log('Firebase response status:', firebaseRes.statusCode);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true }));
-      });
-
-      firebaseReq.on('error', (error) => {
-        console.error('Firebase error:', error.message);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: error.message }));
-      });
-
-      firebaseReq.write(bodyBuffer);
-      firebaseReq.end();
-    });
-
     return;
   }
 
-  // Handle other methods
   res.writeHead(405, { 'Content-Type': 'text/plain' });
   res.end('Method not allowed');
 });
 
 server.listen(PORT, () => {
-  console.log(`✅ Basic Relay started on port ${PORT}`);
+  console.log('Relay started on port ' + PORT);
 });
 
 server.on('error', (error) => {

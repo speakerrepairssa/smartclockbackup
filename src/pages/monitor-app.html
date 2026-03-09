@@ -775,6 +775,7 @@
             updateStats(employees);
             setConnStatus(true, `Live · ${new Date().toLocaleTimeString()}`);
           },
+
           error => {
             console.error(error);
             document.getElementById('attendancePanels').innerHTML = `
@@ -854,9 +855,14 @@
       const time = emp.lastClockTime
         ? new Date(emp.lastClockTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
         : '--:--';
+      const faceUrl = emp.jpegBase64 ? 'data:image/jpeg;base64,' + emp.jpegBase64 : null;
+      const avatar = faceUrl
+        ? `<img src="${faceUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none';this.nextSibling.style.display='flex';">
+           <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials}</span>`
+        : initials;
       return `
         <div class="emp-row status-${status}">
-          <div class="emp-avatar">${initials}</div>
+          <div class="emp-avatar">${avatar}</div>
           <div class="emp-info">
             <div class="emp-name">${name}</div>
             <div class="emp-slot">Slot ${slot}</div>

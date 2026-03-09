@@ -97,7 +97,7 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
     // 🎯 EXTRACT DEVICE INTERNAL ID FROM MULTIPART BOUNDARY
     let deviceInternalId = null;
     const contentType = req.get('content-type');
-    if (contentType && contentType.includes('multipart/form-data')) {
+    if (contentType && (contentType.includes('multipart/form-data') || contentType.includes('multipart/mixed'))) {
       const boundaryMatch = contentType.match(/boundary=([^;,\s]+)/);
       if (boundaryMatch) {
         // Extract device ID from boundary (e.g., "------------------------I30zHlMXSZssZgWvd3t1iH")
@@ -115,7 +115,7 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
     // Handle multipart/form-data from VPS relay
     let webhookImageBuffer = null;
     let webhookImageMimeType = null;
-    if (req.get('content-type')?.includes('multipart/form-data')) {
+    if (req.get('content-type')?.includes('multipart/form-data') || req.get('content-type')?.includes('multipart/mixed')) {
       logger.info("🔄 Parsing multipart data...");
       const parsed = await parseMultipartData(req);
       eventData = parsed.fields;
@@ -204,6 +204,7 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
       employeeName = AccessControllerEvent.name;
       attendanceStatus = AccessControllerEvent.attendanceStatus;
       serialNo = AccessControllerEvent.serialNo;
+      if (!deviceId) deviceId = serialNo;
       
       logger.info("📦 Direct AccessControllerEvent data", { 
         verifyNo, 
@@ -228,7 +229,7 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
           verifyNo = eventLogData.AccessControllerEvent.employeeNoString || eventLogData.AccessControllerEvent.verifyNo;
           employeeName = eventLogData.AccessControllerEvent.name;
           serialNo = eventLogData.AccessControllerEvent.serialNo;
-          deviceId = eventLogData.deviceID || deviceId;
+          deviceId = eventLogData.deviceID || serialNo || deviceId;
           
           // Determine attendance status from event
           if (eventLogData.AccessControllerEvent.attendanceStatus) {
@@ -278,6 +279,10 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
         attendanceStatus = 'in';
       } else if (statusStr === 'checkout' || statusStr === '2') {
         attendanceStatus = 'out';
+      } else if (statusStr === 'undefined' || statusStr === 'unknown') {
+        // Device sent literal "undefined" string — will toggle based on current status later
+        attendanceStatus = 'toggle';
+        logger.info("🔄 Status is 'undefined'/'unknown' — will toggle based on current status");
       }
       logger.info("✅ Normalized attendance status", { 
         original: eventData.attendanceStatus || eventData.data?.AccessControllerEvent?.attendanceStatus,
@@ -729,7 +734,7 @@ async function fetchAndSaveFacePhoto(businessId, slotId, employeeNo, employeeNam
  */
 async function processAttendanceEvent(businessId, eventData) {
   try {
-    const { employeeId, employeeName, attendanceStatus, timestamp, deviceId, verifyNo, serialNo,
+    let { employeeId, employeeName, attendanceStatus, timestamp, deviceId, verifyNo, serialNo,
             faceImageBuffer, faceImageMimeType } = eventData;
     
     // Get business plan limits early for validation
@@ -812,7 +817,7 @@ async function processAttendanceEvent(businessId, eventData) {
 
     logger.info("🎯 Using slot number from device", { slotNumber, verifyNo, employeeId });
 
-    const isClockingIn = attendanceStatus === 'in' || attendanceStatus === 'checkIn';
+    let isClockingIn = attendanceStatus === 'in' || attendanceStatus === 'checkIn';
 
     // � MISPUNCH CORRECTION: Skip duplicate validation for historical corrections
     const skipStatusValidation = eventData.skipStatusValidation || eventData.isMispunchCorrection;
@@ -841,6 +846,18 @@ async function processAttendanceEvent(businessId, eventData) {
       const currentStatusSnap = await statusRef.get();
       const currentStatus = currentStatusSnap.exists ? currentStatusSnap.data() : null;
       lastClockStatus = currentStatus?.attendanceStatus || 'out'; // Update the outer variable
+
+      // 🔄 TOGGLE LOGIC: If status is 'toggle' (device sent "undefined"), flip based on current status
+      if (attendanceStatus === 'toggle' || (attendanceStatus !== 'in' && attendanceStatus !== 'out')) {
+        attendanceStatus = lastClockStatus === 'in' ? 'out' : 'in';
+        isClockingIn = attendanceStatus === 'in';
+        logger.info("🔄 Status toggled based on current status", {
+          slotNumber,
+          previousStatus: lastClockStatus,
+          newStatus: attendanceStatus,
+          isClockingIn
+        });
+      }
       
       logger.info("🔍 Duplicate detection check", { 
         slotNumber, 

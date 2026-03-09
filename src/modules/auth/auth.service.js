@@ -505,4 +505,4 @@ class AuthService {
 }
 
 // Export singleton instance
-export default new AuthService();
+export default new AuthService(); // v2 2026-03-08

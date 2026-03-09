@@ -67,19 +67,22 @@ run_ssh "cd ${REMOTE_DIR} && npm install --omit=dev"
 echo ""
 echo "─── STEP 4: Install Python 3.11+ and uv ─────────────────────────────────"
 run_ssh "
-  # Install Python 3.11 if not present
-  if ! python3.11 --version &>/dev/null; then
+  # Install Python 3.11 if not present (deadsnakes PPA for Ubuntu)
+  if ! python3.11 --version &>/dev/null 2>&1; then
+    apt-get update -qq
+    apt-get install -y software-properties-common
+    add-apt-repository -y ppa:deadsnakes/ppa
     apt-get update -qq
     apt-get install -y python3.11 python3.11-venv python3.11-dev
   fi
-  echo 'Python '$(python3.11 --version)
+  python3.11 --version
 
   # Install uv (fast Python package manager)
-  if ! command -v uv &>/dev/null; then
+  if ! \$HOME/.local/bin/uv --version &>/dev/null 2>&1; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH=\$HOME/.local/bin:\$PATH
   fi
-  echo 'uv '$(uv --version)
+  export PATH=\$HOME/.local/bin:\$PATH
+  uv --version
 "
 
 echo ""
@@ -88,10 +91,11 @@ run_ssh "
   export PATH=\$HOME/.local/bin:\$PATH
   cd ${REMOTE_DIR}
   uv venv .venv --python python3.11
-  source .venv/bin/activate
-  uv pip install 'livekit-agents[openai,bey,silero,turn-detector]~=1.4' \
-                 'livekit-plugins-noise-cancellation~=0.2' \
-                 'python-dotenv>=1.0.0'
+  .venv/bin/pip install --upgrade pip
+  uv pip install --python .venv/bin/python \
+    'livekit-agents[openai,bey,silero,turn-detector]~=1.4' \
+    'livekit-plugins-noise-cancellation~=0.2' \
+    'python-dotenv>=1.0.0'
   echo 'Python deps installed'
 "
 
@@ -100,9 +104,8 @@ echo "─── STEP 6: Download LiveKit model files ─────────
 run_ssh "
   export PATH=\$HOME/.local/bin:\$PATH
   cd ${REMOTE_DIR}
-  source .venv/bin/activate
   # Download Silero VAD + turn-detector model files (required before first run)
-  python agent.py download-files || true
+  .venv/bin/python agent.py download-files || true
   echo 'Model files ready'
 "
 

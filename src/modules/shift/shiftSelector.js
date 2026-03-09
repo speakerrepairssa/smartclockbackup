@@ -3,6 +3,7 @@
 
 import { db } from "../../config/firebase.js";
 import authService from "../auth/auth.service.js";
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /**
  * Shift Selector Component
@@ -29,23 +30,18 @@ class ShiftSelector {
   }
 
   /**
-   * Load available shifts from backend
+   * Load available shifts from Firestore
    */
   async loadShifts() {
     try {
-      const response = await fetch(
-        `https://us-central1-aiclock-82608.cloudfunctions.net/getShifts?businessId=${this.businessId}`
-      );
-
-      const result = await response.json();
-
-      if (result.success) {
-        this.shifts = result.shifts || [];
-      } else {
-        console.error("Failed to load shifts:", result.error);
-        this.shifts = [];
-      }
-
+      const snap = await getDocs(collection(db, 'businesses', this.businessId, 'shifts'));
+      this.shifts = [];
+      snap.forEach(d => this.shifts.push({ shiftId: d.id, ...d.data() }));
+      this.shifts.sort((a, b) => {
+        if (a.isDefault && !b.isDefault) return -1;
+        if (!a.isDefault && b.isDefault) return 1;
+        return (a.shiftName || '').localeCompare(b.shiftName || '');
+      });
     } catch (error) {
       console.error("Error loading shifts:", error);
       this.shifts = [];

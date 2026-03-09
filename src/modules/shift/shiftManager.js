@@ -1,7 +1,8 @@
-// Shift Management Module
+// Shift Management Module — v3 direct Firestore (no Cloud Functions)
 import { db } from "../../config/firebase.js";
 import authService from "../auth/auth.service.js";
 import { showNotification, showLoader, hideLoader } from "../shared/ui.js";
+import { collection, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /**
  * Shift Manager Controller
@@ -26,6 +27,10 @@ class ShiftManagerController {
     }
 
     this.businessId = authService.getBusinessId();
+    if (!this.businessId) {
+      console.error('ShiftManager: No business ID in session — cannot load shifts');
+      return;
+    }
     this.initializeEventListeners();
     await this.loadShifts();
   }
@@ -89,45 +94,11 @@ class ShiftManagerController {
   }
 
   /**
-   * Load all shifts from backend
+   * Load all shifts from Firestore
    */
   async loadShifts() {
     try {
       showLoader();
-
-      const response = await fetch(
-        `https://us-central1-aiclock-82608.cloudfunctions.net/getShifts?businessId=${this.businessId}`
-      );
-
-      // Check if response is OK
-      if (!response.ok) {
-        console.log(`⚠️ Shifts API unavailable (${response.status}), loading directly from Firestore...`);
-        // Fallback: Load directly from Firestore
-        await this.loadShiftsFromFirestore();
-        return;
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        this.shifts = result.shifts || [];
-        this.renderShifts();
-        
-        // Update shifts count
-        const shiftsCount = document.getElementById('shiftsCount');
-        if (shiftsCount) {
-          shiftsCount.textContent = `${this.shifts.length} shift${this.shifts.length !== 1 ? 's' : ''} configured`;
-          shiftsCount.style.color = '#666';
-        }
-      } else {
-        throw new Error(result.error || 'Failed to load shifts');
-      }
-
-    } catch (error) {
-      console.error("Error loading shifts from API:", error);
-      
-      // Fallback: Try loading directly from Firestore
-      console.log('🔄 Attempting to load shifts directly from Firestore...');
       await this.loadShiftsFromFirestore();
     } finally {
       hideLoader();
@@ -141,11 +112,8 @@ class ShiftManagerController {
     try {
       console.log('📊 Loading shifts from Firestore for:', this.businessId);
       
-      const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js');
-      
       const shiftsRef = collection(db, "businesses", this.businessId, "shifts");
-      const q = query(shiftsRef, where("active", "==", true));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(shiftsRef);
       
       this.shifts = [];
       querySnapshot.forEach((doc) => {
@@ -261,6 +229,7 @@ class ShiftManagerController {
    * Get text description of enabled days
    */
   getEnabledDaysText(schedule) {
+    if (!schedule) return 'Not set';
     const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const enabledDays = dayOrder.filter(day => schedule[day] && schedule[day].enabled);
 
@@ -299,6 +268,7 @@ class ShiftManagerController {
    * Render schedule preview
    */
   renderSchedulePreview(schedule) {
+    if (!schedule) return '<p class="text-muted">No schedule configured</p>';
     const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const dayLabels = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
 
@@ -389,19 +359,16 @@ class ShiftManagerController {
     try {
       showLoader();
 
-      const response = await fetch(
-        `https://us-central1-aiclock-82608.cloudfunctions.net/getShift?businessId=${this.businessId}&shiftId=${shiftId}`
-      );
+      const shiftDoc = await getDoc(doc(db, 'businesses', this.businessId, 'shifts', shiftId));
 
-      const result = await response.json();
-
-      if (result.success && result.shift) {
-        this.currentShift = result.shift;
+      if (shiftDoc.exists()) {
+        const shift = { shiftId: shiftDoc.id, ...shiftDoc.data() };
+        this.currentShift = shift;
         this.showShiftModal();
-        this.populateShiftForm(result.shift);
+        this.populateShiftForm(shift);
         document.getElementById("shiftModalTitle").textContent = "Edit Shift";
       } else {
-        throw new Error(result.error || 'Failed to load shift');
+        showNotification("Shift not found", "error");
       }
 
     } catch (error) {
@@ -471,7 +438,7 @@ class ShiftManagerController {
     const dailyMultipliers = shift.dailyMultipliers || {};
 
     days.forEach(day => {
-      const daySchedule = shift.schedule[day];
+      const daySchedule = (shift.schedule || {})[day];
       const enabled = daySchedule && daySchedule.enabled;
 
       document.getElementById(`${day}Enabled`).checked = enabled;
@@ -585,52 +552,28 @@ class ShiftManagerController {
 
       showLoader();
 
-      let response;
       if (this.currentShift) {
         // Update existing shift
-        response = await fetch(
-          `https://us-central1-aiclock-82608.cloudfunctions.net/updateShift`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              businessId: this.businessId,
-              shiftId: this.currentShift.shiftId,
-              shiftData: shiftData
-            })
-          }
+        await setDoc(
+          doc(db, 'businesses', this.businessId, 'shifts', this.currentShift.shiftId),
+          { ...shiftData, updatedAt: new Date().toISOString() },
+          { merge: true }
         );
+        showNotification("Shift updated successfully", "success");
       } else {
         // Create new shift
-        response = await fetch(
-          `https://us-central1-aiclock-82608.cloudfunctions.net/createShift`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              businessId: this.businessId,
-              shiftData: shiftData
-            })
-          }
-        );
+        const newRef = doc(collection(db, 'businesses', this.businessId, 'shifts'));
+        await setDoc(newRef, {
+          ...shiftData,
+          shiftId: newRef.id,
+          active: true,
+          createdAt: new Date().toISOString()
+        });
+        showNotification("Shift created successfully", "success");
       }
 
-      const result = await response.json();
-
-      if (result.success) {
-        showNotification(
-          this.currentShift ? "Shift updated successfully" : "Shift created successfully",
-          "success"
-        );
-        this.closeShiftModal();
-        await this.loadShifts(); // Reload shifts list
-      } else {
-        if (result.errors && result.errors.length > 0) {
-          showNotification(result.errors.join(", "), "error");
-        } else {
-          throw new Error(result.error || 'Failed to save shift');
-        }
-      }
+      this.closeShiftModal();
+      await this.loadShifts(); // Reload shifts list
 
     } catch (error) {
       console.error("Error saving shift:", error);
@@ -654,34 +597,9 @@ class ShiftManagerController {
     try {
       showLoader();
 
-      const response = await fetch(
-        `https://us-central1-aiclock-82608.cloudfunctions.net/deleteShift`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            businessId: this.businessId,
-            shiftId: shiftId
-          })
-        }
-      );
-
-      const result = await response.json();
-
-      if (result.success) {
-        showNotification("Shift deleted successfully", "success");
-        await this.loadShifts(); // Reload shifts list
-      } else {
-        if (result.count && result.count > 0) {
-          const employeeList = result.employees.map(e => e.employeeName).join(', ');
-          showNotification(
-            `Cannot delete shift: ${result.count} employee(s) are using it (${employeeList}). Reassign them first.`,
-            "error"
-          );
-        } else {
-          throw new Error(result.error || 'Failed to delete shift');
-        }
-      }
+      await deleteDoc(doc(db, 'businesses', this.businessId, 'shifts', shiftId));
+      showNotification("Shift deleted successfully", "success");
+      await this.loadShifts(); // Reload shifts list
 
     } catch (error) {
       console.error("Error deleting shift:", error);
@@ -701,4 +619,4 @@ if (document.readyState === "loading") {
   new ShiftManagerController();
 }
 
-export default ShiftManagerController;
+export default ShiftManagerController; // v2 2026-03-08
