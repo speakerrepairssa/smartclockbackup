@@ -386,23 +386,45 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
       })
     );
 
-    await Promise.all(processPromises);
+    // Use allSettled so duplicate-punch errors don't block later steps
+    const processResults = await Promise.allSettled(processPromises);
+    const anySucceeded = processResults.some(r => r.status === 'fulfilled');
+    const failures = processResults.filter(r => r.status === 'rejected');
+    if (failures.length > 0) {
+      failures.forEach(f => logger.warn("⚠️ processAttendanceEvent rejected:", { reason: f.reason?.message || f.reason }));
+    }
 
-    // 🚀 AUTO-UPDATE ASSESSMENT CACHE (simplified for reliability)
+    // 🚀 AUTO-UPDATE ASSESSMENT CACHE — runs even if some attendance writes failed (e.g. duplicate punch)
     try {
       const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM format
       
       // Trigger full cache refresh for all affected businesses (more reliable than single employee update)
       const cachePromises = businessIds.map(async (businessId) => {
-        logger.info(`🔄 Triggering full assessment cache refresh for business ${businessId} after employee ${employeeId} clock event`);
+        logger.info(`🔄 Triggering full assessment cache refresh for business ${businessId} after employee ${employeeId || verifyNo} clock event`);
         return calculateAndCacheAssessment(businessId, currentMonth, 176);
       });
       
       await Promise.all(cachePromises);
-      logger.info(`✅ Assessment cache refreshed for ${businessIds.length} business(es) after employee ${employeeId} clock event`);
+      logger.info(`✅ Assessment cache refreshed for ${businessIds.length} business(es) after employee ${employeeId || verifyNo} clock event`);
     } catch (cacheError) {
       logger.warn("⚠️ Assessment cache update failed (non-critical)", { error: cacheError.message });
       // Don't fail the main webhook - cache update is optional
+    }
+
+    // If ALL attendance writes failed (e.g. all duplicate punches), still return 200
+    // because the event was received and processed (just rejected as duplicate)
+    if (!anySucceeded && failures.length > 0) {
+      res.status(200).json({
+        success: false,
+        message: failures[0].reason?.message || 'All attendance writes rejected',
+        businessIds,
+        deviceId,
+        employeeId,
+        verifyNo,
+        attendanceStatus,
+        cacheUpdated: true
+      });
+      return;
     }
 
     res.status(200).json({ 
@@ -412,7 +434,8 @@ exports.attendanceWebhook = onRequest(async (req, res) => {
       deviceId,
       employeeId,
       verifyNo,
-      attendanceStatus
+      attendanceStatus,
+      cacheUpdated: true
     });
 
   } catch (error) {
@@ -582,43 +605,55 @@ function parseMultipartData(req) {
 
 /**
  * 🔍 FIND BUSINESS BY DEVICE ID
- * Queries all businesses to find which one owns the device
+ * Queries all businesses to find which one owns the device.
+ * Checks multiple case variants since Firestore doc IDs are case-sensitive.
  */
 async function findBusinessByDeviceId(deviceId) {
   try {
-    // Normalize deviceId to uppercase for consistent matching
-    const normalizedDeviceId = deviceId?.toUpperCase();
-    logger.info("Searching for businesses with deviceId", { originalDeviceId: deviceId, normalizedDeviceId });
+    // Build case variants to check (Firestore doc IDs are case-sensitive)
+    const variants = [...new Set([
+      deviceId,                         // original (e.g. "admin")
+      deviceId?.toUpperCase(),          // UPPER (e.g. "ADMIN")
+      deviceId?.toLowerCase(),          // lower (e.g. "admin")
+    ].filter(Boolean))];
+    
+    logger.info("Searching for businesses with deviceId", { originalDeviceId: deviceId, variants });
 
     // Query all businesses to check their devices subcollection
     const businessesSnapshot = await db.collection('businesses').get();
     const businessIds = [];
     
     for (const doc of businessesSnapshot.docs) {
-      // Check if this business has the device in its devices subcollection
-      const deviceDoc = await db.collection('businesses')
-        .doc(doc.id)
-        .collection('devices')
-        .doc(normalizedDeviceId)
-        .get();
-      
-      if (deviceDoc.exists) {
-        const businessData = doc.data();
-        logger.info("Found business for device in subcollection", { 
-          businessId: doc.id, 
-          businessName: businessData.businessName,
-          deviceId: normalizedDeviceId 
-        });
-        businessIds.push(doc.id);
+      let found = false;
+      // Check all case variants of deviceId
+      for (const variant of variants) {
+        const deviceDoc = await db.collection('businesses')
+          .doc(doc.id)
+          .collection('devices')
+          .doc(variant)
+          .get();
+        
+        if (deviceDoc.exists) {
+          const businessData = doc.data();
+          logger.info("Found business for device in subcollection", { 
+            businessId: doc.id, 
+            businessName: businessData.businessName,
+            deviceId: variant,
+            matchedVariant: variant
+          });
+          businessIds.push(doc.id);
+          found = true;
+          break; // Found match, no need to check other variants for this business
+        }
       }
     }
 
     if (businessIds.length === 0) {
-      logger.warn("No business found for deviceId - device may need to be registered", { originalDeviceId: deviceId, normalizedDeviceId });
+      logger.warn("No business found for deviceId - device may need to be registered", { originalDeviceId: deviceId, variants });
       return null;
     }
 
-    logger.info(`Found ${businessIds.length} business(es) with device ${normalizedDeviceId}`, { businessIds });
+    logger.info(`Found ${businessIds.length} business(es) with device ${deviceId}`, { businessIds });
     return businessIds;
 
   } catch (error) {

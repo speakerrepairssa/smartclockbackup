@@ -14807,12 +14807,18 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           const btExpList = document.getElementById('trackerExpensesList');
           if (btExpList) {
             btExpList.innerHTML = '';
-            if (trackerExpenses.length > 0) {
-              trackerExpenses.forEach(exp => window.addTrackerExpenseRow(exp.name, exp.amount));
-            } else {
+            // Auto-fill Salaries from assessment
+            const salaryAmount = await window.autoFillSalariesFromAssessment();
+            // Always add Salaries as first locked row
+            window.addTrackerExpenseRow('Salaries', salaryAmount || 0, true);
+            // Add other (non-salary) expenses
+            const otherExpenses = trackerExpenses.filter(exp => exp.name?.toLowerCase() !== 'salaries');
+            if (otherExpenses.length > 0) {
+              otherExpenses.forEach(exp => window.addTrackerExpenseRow(exp.name, exp.amount));
+            } else if (trackerExpenses.length === 0) {
+              // Default expenses for new businesses (salaries already added above)
               window.addTrackerExpenseRow('Rent', '');
               window.addTrackerExpenseRow('Electricity', '');
-              window.addTrackerExpenseRow('Salaries', '');
             }
           }
         }
@@ -14978,6 +14984,19 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           btSettings.expenses = data.trackerExpenses || [];
           btSettings.currency = data.currency || 'R';
         }
+
+        // Auto-refresh Salaries from assessment potential payroll
+        try {
+          const salaryAmount = await window.autoFillSalariesFromAssessment();
+          if (salaryAmount > 0) {
+            const salIdx = btSettings.expenses.findIndex(e => e.name?.toLowerCase() === 'salaries');
+            if (salIdx >= 0) {
+              btSettings.expenses[salIdx].amount = salaryAmount;
+            } else {
+              btSettings.expenses.unshift({ name: 'Salaries', amount: salaryAmount, locked: true });
+            }
+          }
+        } catch(e) { console.warn('Auto-fill salaries in tracker:', e); }
 
         const workingDays = btSettings.workingDays;
         const currency = btSettings.currency;
@@ -15289,20 +15308,63 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       container.innerHTML = html;
     }
 
-    window.addTrackerExpenseRow = function(name = '', amount = '') {
+    window.addTrackerExpenseRow = function(name = '', amount = '', locked = false) {
       const list = document.getElementById('trackerExpensesList');
       if (!list) return;
       const row = document.createElement('div');
       row.style.cssText = 'display:grid;grid-template-columns:1fr 130px 36px;gap:0.5rem;margin-bottom:0.5rem;align-items:center;';
-      row.innerHTML = `
-        <input type="text" placeholder="e.g. Rent, Electricity, Salaries" value="${name}"
-          style="padding:0.45rem 0.75rem;border:1px solid #dee2e6;border-radius:6px;font-size:0.875rem;" class="bt-exp-name">
-        <input type="number" placeholder="Amount" value="${amount}" min="0" step="0.01"
-          style="padding:0.45rem 0.75rem;border:1px solid #dee2e6;border-radius:6px;font-size:0.875rem;" class="bt-exp-amount">
-        <button type="button" onclick="this.closest('div').remove()"
-          style="padding:0.45rem;background:#dc3545;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;text-align:center;">✕</button>
-      `;
+      if (locked) {
+        row.dataset.locked = 'true';
+        row.innerHTML = `
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <input type="text" value="${name}" readonly
+              style="padding:0.45rem 0.75rem;border:1px solid #b8daff;border-radius:6px;font-size:0.875rem;background:#e8f0fe;color:#1a73e8;font-weight:600;cursor:default;flex:1;" class="bt-exp-name">
+            <span style="font-size:0.7rem;color:#1a73e8;background:#d4e5ff;padding:0.15rem 0.5rem;border-radius:10px;white-space:nowrap;">Auto</span>
+          </div>
+          <input type="number" value="${amount}" readonly
+            style="padding:0.45rem 0.75rem;border:1px solid #b8daff;border-radius:6px;font-size:0.875rem;background:#e8f0fe;color:#1a73e8;font-weight:600;cursor:default;" class="bt-exp-amount">
+          <span style="color:#1a73e8;font-size:0.75rem;text-align:center;" title="Imported from Assessment">🔗</span>
+        `;
+      } else {
+        row.innerHTML = `
+          <input type="text" placeholder="e.g. Rent, Electricity" value="${name}"
+            style="padding:0.45rem 0.75rem;border:1px solid #dee2e6;border-radius:6px;font-size:0.875rem;" class="bt-exp-name">
+          <input type="number" placeholder="Amount" value="${amount}" min="0" step="0.01"
+            style="padding:0.45rem 0.75rem;border:1px solid #dee2e6;border-radius:6px;font-size:0.875rem;" class="bt-exp-amount">
+          <button type="button" onclick="this.closest('div').remove()"
+            style="padding:0.45rem;background:#dc3545;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;text-align:center;">✕</button>
+        `;
+      }
       list.appendChild(row);
+    };
+
+    // Auto-fill Salaries from Assessment potential payroll
+    window.autoFillSalariesFromAssessment = async function() {
+      try {
+        const now = new Date();
+        const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const cacheSnap = await getDoc(doc(db, 'businesses', businessId, 'assessment_cache', month));
+        let potentialPayroll = 0;
+        if (cacheSnap.exists()) {
+          const data = cacheSnap.data();
+          potentialPayroll = data.summary?.totalPotentialPayroll || 0;
+        }
+        if (potentialPayroll === 0) {
+          // Fallback: calculate from employees collection
+          const empSnap = await getDocs(collection(db, 'businesses', businessId, 'employees'));
+          empSnap.forEach(d => {
+            const emp = d.data();
+            if (emp.active === false) return;
+            const rate = parseFloat(emp.payRate) || 0;
+            const rh = parseFloat(emp.requiredHoursPerMonth) || 176;
+            potentialPayroll += rate * rh;
+          });
+        }
+        return Math.round(potentialPayroll * 100) / 100;
+      } catch (e) {
+        console.warn('Could not auto-fill salaries:', e);
+        return 0;
+      }
     };
 
     window.saveTrackerSettings = async function() {
@@ -15313,7 +15375,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         rows.forEach(row => {
           const name = row.querySelector('.bt-exp-name')?.value?.trim();
           const amount = parseFloat(row.querySelector('.bt-exp-amount')?.value || 0);
-          if (name && amount > 0) expenses.push({ name, amount });
+          if (name) expenses.push({ name, amount, locked: row.dataset.locked === 'true' });
         });
         const businessRef = doc(db, "businesses", businessId);
         await setDoc(businessRef, {

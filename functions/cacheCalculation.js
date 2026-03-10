@@ -485,7 +485,8 @@ async function calculateAndCacheAssessment(businessId, month, requiredHoursPerMo
           totalEmployees: validEmployees.length,
           totalHoursWorked: validEmployees.reduce((sum, e) => sum + e.currentHours, 0),
           totalHoursShort: validEmployees.reduce((sum, e) => sum + e.hoursShort, 0),
-          totalAmountDue: validEmployees.reduce((sum, e) => sum + e.currentIncomeDue, 0)
+          totalAmountDue: validEmployees.reduce((sum, e) => sum + e.currentIncomeDue, 0),
+          totalPotentialPayroll: validEmployees.reduce((sum, e) => sum + (e.potentialIncome || 0), 0)
         },
         employees: validEmployees,
         lastUpdated: new Date().toISOString()

@@ -383,6 +383,29 @@ if (lastClockStatus === 'in' && newPunch === 'in') {
 
 ---
 
-**Created:** February 9, 2026
-**System:** AiClock (aiclock-82608)
+## Known Issues & Fixes (Log)
+
+### 1. Device ID Case-Sensitivity Bug (Fixed: 10 March 2026)
+**Symptom:** Clock-in events arrive at Cloud Function but fail with "Device not registered to any business".  
+**Root Cause:** `findBusinessByDeviceId()` uppercased the incoming `deviceId` (e.g. `"admin"` → `"ADMIN"`) before looking up the Firestore document. Firestore document IDs are **case-sensitive**, so if the device was registered with doc ID `admin` (lowercase), the lookup for `ADMIN` would fail.  
+**Fix:** `findBusinessByDeviceId()` now checks all case variants (original, uppercase, lowercase) when looking up device documents. This ensures a match regardless of how the device was registered.  
+**File:** `functions/index.js` — `findBusinessByDeviceId()`  
+**Impact:** All device registrations now work regardless of case used during registration vs case sent by the device in events.
+
+### 2. Assessment Cache Not Auto-Triggering (Fixed: 10 March 2026)
+**Symptom:** Assessment cache wasn't recalculating when employees clocked in/out.  
+**Root Cause:** `Promise.all(processPromises)` in `attendanceWebhook` threw on duplicate-punch errors, which prevented the cache recalculation code from executing.  
+**Fix:** Changed to `Promise.allSettled(processPromises)` so the cache update runs even when some attendance writes fail (e.g. duplicate punches).  
+**File:** `functions/index.js` — `attendanceWebhook` main handler  
+
+### 3. Business Tracker Salaries Auto-Import (Added: 10 March 2026)
+**Feature:** The "Salaries" expense row in Business Tracker Settings now auto-fills from Assessment's `totalPotentialPayroll` (100% attendance wage bill).  
+**Details:** Row is read-only with "Auto" badge. Value refreshes from assessment cache on dashboard load and when assessment data changes.  
+**Files:** `src/pages/business-dashboard.html` — `autoFillSalariesFromAssessment()`, `functions/cacheCalculation.js` — added `totalPotentialPayroll` to cache summary.
+
+---
+
+**Created:** February 9, 2026  
+**Last Updated:** 10 March 2026  
+**System:** AiClock (aiclock-82608)  
 **Current Version:** Production with Admin Utilities
