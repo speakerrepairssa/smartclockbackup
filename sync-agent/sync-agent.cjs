@@ -207,6 +207,30 @@ function listDocs(collectionPath) {
   });
 }
 
+// Load employee names from Firestore staff collection → { '1': 'John', '2': 'Jane', ... }
+async function loadStaffNames(businessId) {
+  const names = {};
+  try {
+    const data = await listDocs(`businesses/${businessId}/staff`);
+    const docs = data.documents || [];
+    for (const d of docs) {
+      const id = d.name.split('/').pop(); // slot number
+      const fields = d.fields || {};
+      const empName = fields.employeeName?.stringValue || '';
+      const active  = fields.active?.booleanValue;
+      const isActive = fields.isActive?.booleanValue;
+      // Only map slots that have a real employee name and are active
+      if (empName && empName !== `Employee ${id}` && active !== false) {
+        names[id] = empName;
+      }
+    }
+    log(`Staff names loaded: ${Object.keys(names).length} active employees`);
+  } catch (err) {
+    log(`Could not load staff names: ${err.message}`);
+  }
+  return names;
+}
+
 // Fetch a single doc by path — uses API key directly
 function getDocByPath(docPath) {
   return new Promise((resolve, reject) => {
@@ -285,13 +309,11 @@ function fv(val) {
   return { stringValue: String(val) };
 }
 
+// Write document using API key directly — avoids anonymous auth rate limits
 async function writeDoc(docPath, fields) {
-  const body = { fields: {} };
-  for (const [k, v] of Object.entries(fields)) body.fields[k] = fv(v);
-  return firestoreRequest('PATCH', docPath, body);
+  return writeDocApiKey(docPath, fields);
 }
 
-// Write using API key directly — used for heartbeat/status so it always works
 function writeDocApiKey(docPath, fields) {
   const body = { fields: {} };
   for (const [k, v] of Object.entries(fields)) body.fields[k] = fv(v);
@@ -317,9 +339,29 @@ function writeDocApiKey(docPath, fields) {
   });
 }
 
+// Check document existence using API key directly — avoids anonymous auth rate limits
 async function docExists(docPath) {
-  const res = await firestoreRequest('GET', docPath);
-  return !!(res && res.fields);
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'firestore.googleapis.com',
+      port: 443,
+      path: `/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${docPath}?key=${FIREBASE_API_KEY}`,
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    };
+    const req = https.request(opts, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(raw);
+          resolve(!!(data && data.fields));
+        } catch (_) { resolve(false); }
+      });
+    });
+    req.on('error', () => resolve(false));
+    req.end();
+  });
 }
 
 // ── Hikvision Device ──────────────────────────────────────────────────────────
@@ -560,6 +602,9 @@ async function runSync(config, onStatus) {
     const events = await fetchAllDeviceEvents(deviceIP, deviceUser, devicePass, port);
     log(`Sync: fetched ${events.length} events from device`);
 
+    // Load staff names from Firebase to resolve slot → real employee name
+    const staffNames = await loadStaffNames(businessId);
+
     // Parse valid events
     const parsed = [];
     for (const evt of events) {
@@ -579,7 +624,8 @@ async function runSync(config, onStatus) {
       const serialNo = evt.serialNo || null;
       const docId    = serialNo ? `dev_${serialNo}` : `dev_${ts.getTime()}_${slot}`;
       const docPath  = `businesses/${businessId}/attendance_events/${dateStr}/${slotNum}/${docId}`;
-      parsed.push({ docPath, slotNum, slot, empName: evt.name || `Employee ${slot}`, isoTs, dateStr, ts, statusStr: isIn ? 'in' : 'out', serialNo });
+      const empName  = staffNames[slot] || evt.name || `Employee ${slot}`;
+      parsed.push({ docPath, slotNum, slot, empName, isoTs, dateStr, ts, statusStr: isIn ? 'in' : 'out', serialNo });
     }
 
     // Batch-check existence (20 concurrent)
@@ -1287,27 +1333,29 @@ async function resetConfig() {
         res.writeHead(400); res.end(JSON.stringify({ error: 'Missing or invalid date param' }));
         return;
       }
-      fetchEventsForDate(config.deviceIP, config.deviceUser, config.devicePass, config.devicePort || 443, date)
-        .then(rawEvents => {
-          const events = rawEvents.map(e => {
-            const slot      = String(e.employeeNoString || '').trim();
-            const slotNum   = parseInt(slot) || 0;
-            const empName   = (e.name || '').trim() || (slot && slot !== '0' ? 'Employee ' + slot : '');
-            const rawTime   = e.time || e.dateTime || null;
-            const ts        = rawTime ? new Date(rawTime) : null;
-            const isoTs     = ts && !isNaN(ts.getTime()) ? ts.toISOString() : null;
-            const dateStr   = isoTs ? isoTs.split('T')[0] : date;
-            const rawStatus = String(e.attendanceStatus || '').toLowerCase();
-            const isIn      = rawStatus === 'checkin' || rawStatus === '5' || rawStatus === '1' || rawStatus === 'in';
-            const isOut     = rawStatus === 'checkout' || rawStatus === '6' || rawStatus === '2' || rawStatus === 'out';
-            const type      = isIn ? 'in' : isOut ? 'out' : (empName ? 'access' : 'system');
-            const serialNo  = e.serialNo || null;
-            const docId     = serialNo ? `dev_${serialNo}` : (isoTs ? `dev_${ts.getTime()}_${slot}` : null);
-            return { name: empName, time: rawTime, isoTs, dateStr, type, slot, slotNum, serialNo, docId };
-          }).filter(e => e.isoTs);
-          res.writeHead(200); res.end(JSON.stringify({ date, total: events.length, events }));
-        })
-        .catch(err => { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); });
+      // Load staff names then fetch device events
+      loadStaffNames(config.businessId).then(staffNames => {
+        return fetchEventsForDate(config.deviceIP, config.deviceUser, config.devicePass, config.devicePort || 443, date)
+          .then(rawEvents => {
+            const events = rawEvents.map(e => {
+              const slot      = String(e.employeeNoString || '').trim();
+              const slotNum   = parseInt(slot) || 0;
+              const empName   = staffNames[slot] || (e.name || '').trim() || (slot && slot !== '0' ? 'Employee ' + slot : '');
+              const rawTime   = e.time || e.dateTime || null;
+              const ts        = rawTime ? new Date(rawTime) : null;
+              const isoTs     = ts && !isNaN(ts.getTime()) ? ts.toISOString() : null;
+              const dateStr   = isoTs ? isoTs.split('T')[0] : date;
+              const rawStatus = String(e.attendanceStatus || '').toLowerCase();
+              const isIn      = rawStatus === 'checkin' || rawStatus === '5' || rawStatus === '1' || rawStatus === 'in';
+              const isOut     = rawStatus === 'checkout' || rawStatus === '6' || rawStatus === '2' || rawStatus === 'out';
+              const type      = isIn ? 'in' : isOut ? 'out' : (empName ? 'access' : 'system');
+              const serialNo  = e.serialNo || null;
+              const docId     = serialNo ? `dev_${serialNo}` : (isoTs ? `dev_${ts.getTime()}_${slot}` : null);
+              return { name: empName, time: rawTime, isoTs, dateStr, type, slot, slotNum, serialNo, docId };
+            }).filter(e => e.isoTs);
+            res.writeHead(200); res.end(JSON.stringify({ date, total: events.length, events }));
+          });
+      }).catch(err => { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); });
       return;
     }
     res.writeHead(200, { 'Content-Type': 'text/html' });

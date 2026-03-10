@@ -329,8 +329,44 @@
           </div>
         </form>
       </div>
+
+      <!-- Employee Portal Section -->
+      <div style="border-top: 2px solid #e0e0e0; padding: 1.5rem 2rem; text-align: center; background: #f8f9fa;">
+        <p style="margin: 0 0 0.75rem 0; font-weight: 600; color: #333; font-size: 0.95rem;">👤 Are you an employee?</p>
+        <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+          <a href="/downloads/aiclock-employee-portal.apk" download="aiclock-employee-portal.apk"
+             style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.5rem; background: linear-gradient(135deg, #48bb78, #38a169); color: white; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+            📦 Download App (APK)
+          </a>
+          <a href="/pages/employee-login.html"
+             style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.5rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+            🔐 Employee Portal (Online)
+          </a>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- QR Code Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    // Generate Employee Portal QR Code
+    document.addEventListener('DOMContentLoaded', function() {
+      const qrEl = document.getElementById('employeeQR');
+      if (qrEl && typeof QRCode !== 'undefined') {
+        const host = window.location.hostname;
+        const portalUrl = window.location.origin + '/pages/employee-login.html';
+        new QRCode(qrEl, {
+          text: portalUrl,
+          width: 140,
+          height: 140,
+          colorDark: '#000000',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      }
+    });
+  </script>
 
   <script type="module">
     import authService from '../modules/auth/auth.service.js';

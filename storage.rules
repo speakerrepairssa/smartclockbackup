@@ -40,6 +40,15 @@ service firebase.storage {
                       request.resource.contentType.matches('image/.*');
       allow read: if isAuthenticated();
     }
+
+    // Employee face photos (uploaded from dashboard or synced from device)
+    // Note: App uses custom Firestore-based auth, not Firebase Auth SDK,
+    // so request.auth is null. We allow writes with size+type checks only.
+    match /businesses/{businessId}/employee-faces/{fileName} {
+      allow write: if isValidSize() && 
+                      request.resource.contentType.matches('image/.*');
+      allow read: if true;
+    }
     
     // Default deny all other paths
     match /{allPaths=**} {

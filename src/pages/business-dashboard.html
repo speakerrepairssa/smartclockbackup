@@ -1273,6 +1273,33 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
           }
 
+          /* Collapsible card body */
+          .employee-card-body {
+            display: none;
+          }
+          .employee-card.expanded .employee-card-body {
+            display: block;
+          }
+
+          /* Toggle arrow */
+          .emp-expand-arrow {
+            font-size: 1.2rem;
+            color: #667eea;
+            transition: transform 0.25s;
+            align-self: center;
+            margin-left: auto;
+            padding: 0.25rem;
+          }
+          .employee-card.expanded .emp-expand-arrow {
+            transform: rotate(90deg);
+          }
+
+          /* Clickable header */
+          .emp-avatar-wrap {
+            cursor: pointer;
+            user-select: none;
+          }
+
           .employee-card.inactive {
             border-left-color: #ccc;
             opacity: 0.7;
@@ -1283,6 +1310,11 @@
             display: flex;
             align-items: center;
             gap: 1rem;
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+          }
+          .employee-card.expanded .emp-avatar-wrap {
             margin-bottom: 1rem;
             padding-bottom: 1rem;
             border-bottom: 1px solid #f0f0f0;
@@ -3151,16 +3183,6 @@
         <h2 class="section-title">Employee Month Assessment</h2>
         <p class="section-description">Monthly working hours analysis and payroll overview</p>
 
-        <!-- Monthly Hours Schedule Reference -->
-        <div id="monthlyHoursSchedule" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 1.5rem;">
-          <h3 style="font-size: 1.1rem; color: #2c3e50; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-            📅 Annual Working Hours Schedule
-          </h3>
-          <div id="monthlyHoursGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
-            <!-- Will be populated dynamically -->
-          </div>
-        </div>
-
         <div class="assessment-controls" style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); display: flex; gap: 1rem; align-items: end; margin-bottom: 1.5rem; flex-wrap: wrap;">
           <div class="control-group" style="flex: 1; min-width: 200px;">
             <label for="assessmentMonthInput" style="display: block; margin-bottom: 0.5rem; color: #2c3e50; font-weight: 600; font-size: 0.9rem;">Assessment Month:</label>
@@ -3179,6 +3201,18 @@
 
         <div id="assessmentContent">
           <div style="text-align: center; color: #999; padding: 3rem; font-size: 1.1rem;">📊 Select a month to generate assessment</div>
+        </div>
+
+        <!-- Monthly Hours Schedule Reference (moved to bottom, collapsible) -->
+        <div id="monthlyHoursSchedule" style="background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-top: 1.5rem; overflow: hidden;">
+          <h3 onclick="var c=document.getElementById('monthlyHoursContent');c.style.display=c.style.display==='none'?'block':'none';this.querySelector('span:last-child').textContent=c.style.display==='none'?'\u25B6':'\u25BC'" style="font-size: 1.1rem; color: #2c3e50; margin: 0; padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;">
+            <span style="display:flex;align-items:center;gap:0.5rem;">📅 Annual Working Hours Schedule</span><span style="font-size:0.9rem;color:#667eea;">▶</span>
+          </h3>
+          <div id="monthlyHoursContent" style="display: none; padding: 0 1.5rem 1.5rem;">
+            <div id="monthlyHoursGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
         </div>
       </div>
 
@@ -4024,6 +4058,8 @@
             <button class="btn-print-timecard" onclick="printTimecard()">🖨️ Print</button>
             <button class="btn-refresh-timecard" onclick="cleanupAttendanceEvents()" style="background: #dc3545;">🧹 Clean Data</button>
             <button class="btn-refresh-timecard" onclick="checkForDuplicates()" style="background: #28a745;">🔍 Check Issues</button>
+            <button class="btn-refresh-timecard" onclick="autoFixTimecard()" style="background: #f59e0b;">🔧 Auto Fix</button>
+            <button class="btn-refresh-timecard" id="undoAutoFixBtn" onclick="undoAutoFix()" style="background: #6366f1; display: none;">↩️ Undo Auto Fix</button>
           </div>
           
           <!-- Timecard Display -->
@@ -6500,7 +6536,7 @@
           dateCard.style.display = 'block'; // show always once connector seen
           const dateInput = document.getElementById('deviceDateInput');
           if (dateInput && !dateInput.value) {
-            dateInput.value = new Date().toISOString().slice(0, 10);
+            const _now = new Date(); dateInput.value = _now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0') + '-' + String(_now.getDate()).padStart(2,'0');
           }
           if (!isOnline) {
             const btn = document.getElementById('deviceDateBtn');
@@ -6695,9 +6731,22 @@
         }
       } catch (_) {}
 
-      // ── Step 3: Mark + render ─────────────────────────────────────────────────
+      // ── Step 2b: Load staff names from Firebase to resolve slot → real name ──
+      const _staffNames = {};
+      try {
+        const staffSnap = await getDocs(collection(db, 'businesses', businessId, 'staff'));
+        staffSnap.forEach(d => {
+          const data = d.data();
+          if (data.employeeName && data.active !== false) {
+            _staffNames[d.id] = data.employeeName;
+          }
+        });
+      } catch (_) {}
+
+      // ── Step 3: Mark + render (resolve names from staff, not device) ──────────
       _dateQueryEvents = deviceEvents.map(e => ({
         ...e,
+        name: _staffNames[String(e.slotNum || e.slot)] || e.name || ('Employee ' + (e.slot || '?')),
         onFirebase: !!(e.docId && firebaseDocIds.has(e.docId))
       }));
 
@@ -7975,8 +8024,10 @@
                     </div>
                   </div>
                   <span class="employee-slot-badge" style="align-self:flex-start">SLOT ${i}</span>
+                  <span class="emp-expand-arrow">&#9654;</span>
                 </div>
 
+                <div class="employee-card-body">
                 <div class="employee-header" style="display:none"><!-- kept for legacy --></div>
                 
                 <div class="employee-details">
@@ -8065,6 +8116,7 @@
                     </button>
                   ` : ''}
                 </div>
+                </div><!-- end employee-card-body -->
               </div>
             `);
           } else {
@@ -8108,6 +8160,18 @@
         }
 
         employeesGrid.innerHTML = slotCards.join('');
+
+        // Attach expand/collapse click handlers to employee cards
+        employeesGrid.querySelectorAll('.employee-card:not(.empty-slot)').forEach(card => {
+          const header = card.querySelector('.emp-avatar-wrap');
+          if (header) {
+            header.addEventListener('click', function(e) {
+              // Don't toggle if clicking a button, input or label inside the header
+              if (e.target.closest('button, input, label, .btn-photo-upload, .btn-photo-sync')) return;
+              card.classList.toggle('expanded');
+            });
+          }
+        });
 
         // Real-time photo listener — updates avatar the moment facePhotoUrl lands in Firestore
         if (window._employeePhotoUnsubscribe) window._employeePhotoUnsubscribe();
@@ -9452,37 +9516,226 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         return;
       }
 
-      // Show inline progress on the card
-      const card = event.target.closest('.employee-card');
-      const syncBtn = card ? card.querySelector('.btn-photo-sync') : null;
-      const uploadLabel = card ? card.querySelector('.btn-photo-upload') : null;
-      if (uploadLabel) uploadLabel.textContent = '⏳ Uploading…';
+      // Open the cropper modal instead of uploading directly
+      openPhotoCropper(file, slotId, slotNum, empName, event);
+    }
 
-      try {
-        const { getStorage, ref: sRef, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
-        const storage = getStorage(app);
-        const photoRef = sRef(storage, `businesses/${businessId}/employee-faces/${slotId}.jpg`);
-        await uploadBytes(photoRef, file, { contentType: file.type });
-        const photoUrl = await getDownloadURL(photoRef);
+    // ── Image Cropper Modal ──────────────────────────────────────────────────
+    function openPhotoCropper(file, slotId, slotNum, empName, originalEvent) {
+      // Remove any existing cropper
+      const old = document.getElementById('photoCropperModal');
+      if (old) old.remove();
 
-        // Save URL to staff doc in Firestore
-        const staffSnap = await getDocs(query(
-          collection(db, 'businesses', businessId, 'staff'),
-          where('slotNumber', '==', Number(slotNum))
-        ));
-        if (!staffSnap.empty) {
-          await setDoc(staffSnap.docs[0].ref, { facePhotoUrl: photoUrl }, { merge: true });
-        }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          // Create modal
+          const modal = document.createElement('div');
+          modal.id = 'photoCropperModal';
+          modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;';
 
-        // Swap avatar on the card immediately
-        updateCardAvatar(card, photoUrl, empName);
-        console.log('✅ Photo uploaded:', photoUrl);
+          const title = document.createElement('div');
+          title.style.cssText = 'color:white;font-size:1.1rem;font-weight:600;margin-bottom:1rem;';
+          title.textContent = '✂️ Crop Photo — ' + (empName || 'Employee');
 
-      } catch (err) {
-        alert('Photo upload failed: ' + err.message);
-      } finally {
-        if (uploadLabel) uploadLabel.textContent = '📷 Upload Photo';
-      }
+          const instructions = document.createElement('div');
+          instructions.style.cssText = 'color:#aaa;font-size:0.8rem;margin-bottom:0.75rem;';
+          instructions.textContent = 'Drag to move • Scroll to zoom • Crop to circular area';
+
+          // Canvas container
+          const canvasSize = Math.min(400, window.innerWidth - 40);
+          const canvas = document.createElement('canvas');
+          canvas.width = canvasSize;
+          canvas.height = canvasSize;
+          canvas.style.cssText = 'border-radius:8px;cursor:grab;touch-action:none;';
+          const ctx = canvas.getContext('2d');
+
+          // Crop state
+          let scale = 1;
+          let offsetX = 0, offsetY = 0;
+          let dragging = false, lastX = 0, lastY = 0;
+
+          // Calculate initial scale to fit image in canvas
+          const fitScale = Math.max(canvasSize / img.width, canvasSize / img.height);
+          scale = fitScale;
+          offsetX = (canvasSize - img.width * scale) / 2;
+          offsetY = (canvasSize - img.height * scale) / 2;
+
+          function draw() {
+            ctx.clearRect(0, 0, canvasSize, canvasSize);
+            // Draw image
+            ctx.drawImage(img, offsetX, offsetY, img.width * scale, img.height * scale);
+            // Draw dark overlay with circular hole
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(0, 0, canvasSize, canvasSize);
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(canvasSize / 2, canvasSize / 2, canvasSize / 2 - 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            // Draw circle border
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(canvasSize / 2, canvasSize / 2, canvasSize / 2 - 10, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          draw();
+
+          // Mouse drag
+          canvas.addEventListener('mousedown', function(e) { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.style.cursor = 'grabbing'; });
+          window.addEventListener('mouseup', function() { dragging = false; canvas.style.cursor = 'grab'; });
+          window.addEventListener('mousemove', function(e) {
+            if (!dragging) return;
+            offsetX += e.clientX - lastX;
+            offsetY += e.clientY - lastY;
+            lastX = e.clientX; lastY = e.clientY;
+            draw();
+          });
+
+          // Touch drag
+          canvas.addEventListener('touchstart', function(e) {
+            if (e.touches.length === 1) { dragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+          }, { passive: false });
+          canvas.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            if (e.touches.length === 1 && dragging) {
+              offsetX += e.touches[0].clientX - lastX;
+              offsetY += e.touches[0].clientY - lastY;
+              lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+              draw();
+            }
+          }, { passive: false });
+          canvas.addEventListener('touchend', function() { dragging = false; });
+
+          // Scroll zoom
+          canvas.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.95 : 1.05;
+            const newScale = scale * zoomFactor;
+            // Prevent zooming out too far
+            const minScale = Math.max(canvasSize / img.width, canvasSize / img.height) * 0.5;
+            if (newScale < minScale) return;
+            // Zoom towards center
+            const cx = canvasSize / 2, cy = canvasSize / 2;
+            offsetX = cx - (cx - offsetX) * (newScale / scale);
+            offsetY = cy - (cy - offsetY) * (newScale / scale);
+            scale = newScale;
+            draw();
+          }, { passive: false });
+
+          // Zoom buttons
+          const zoomRow = document.createElement('div');
+          zoomRow.style.cssText = 'display:flex;gap:0.75rem;margin-top:0.75rem;';
+          const btnStyle = 'padding:0.5rem 1.2rem;border:none;border-radius:6px;font-size:0.9rem;font-weight:600;cursor:pointer;';
+          const zoomOut = document.createElement('button');
+          zoomOut.textContent = '➖ Zoom Out';
+          zoomOut.style.cssText = btnStyle + 'background:#e0e0e0;color:#333;';
+          zoomOut.onclick = function() {
+            const zf = 0.85;
+            const minScale = Math.max(canvasSize / img.width, canvasSize / img.height) * 0.5;
+            const ns = Math.max(scale * zf, minScale);
+            const cx = canvasSize / 2;
+            offsetX = cx - (cx - offsetX) * (ns / scale);
+            offsetY = cx - (cx - offsetY) * (ns / scale);
+            scale = ns; draw();
+          };
+          const zoomIn = document.createElement('button');
+          zoomIn.textContent = '➕ Zoom In';
+          zoomIn.style.cssText = btnStyle + 'background:#e0e0e0;color:#333;';
+          zoomIn.onclick = function() {
+            const ns = scale * 1.15;
+            const cx = canvasSize / 2;
+            offsetX = cx - (cx - offsetX) * (ns / scale);
+            offsetY = cx - (cx - offsetY) * (ns / scale);
+            scale = ns; draw();
+          };
+          zoomRow.appendChild(zoomOut);
+          zoomRow.appendChild(zoomIn);
+
+          // Action buttons
+          const btnRow = document.createElement('div');
+          btnRow.style.cssText = 'display:flex;gap:1rem;margin-top:1rem;';
+          const cancelBtn = document.createElement('button');
+          cancelBtn.textContent = '✕ Cancel';
+          cancelBtn.style.cssText = btnStyle + 'background:#dc3545;color:white;';
+          cancelBtn.onclick = function() { modal.remove(); };
+
+          const cropBtn = document.createElement('button');
+          cropBtn.textContent = '✅ Crop & Upload';
+          cropBtn.style.cssText = btnStyle + 'background:#28a745;color:white;';
+          cropBtn.onclick = async function() {
+            // Extract cropped area
+            const outSize = 400; // output image size
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = outSize; outCanvas.height = outSize;
+            const outCtx = outCanvas.getContext('2d');
+
+            // Map canvas crop circle to output
+            const radius = canvasSize / 2 - 10;
+            const cropX = canvasSize / 2 - radius;
+            const cropY = canvasSize / 2 - radius;
+            const cropW = radius * 2;
+
+            // Scale factor from canvas to output
+            const sf = outSize / cropW;
+            outCtx.drawImage(img,
+              (cropX - offsetX) / scale, (cropY - offsetY) / scale,
+              cropW / scale, cropW / scale,
+              0, 0, outSize, outSize
+            );
+
+            // Convert to blob
+            outCanvas.toBlob(async function(blob) {
+              cropBtn.textContent = '⏳ Uploading…';
+              cropBtn.disabled = true;
+
+              try {
+                const { getStorage, ref: sRef, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+                const storage = getStorage(app);
+                const photoRef = sRef(storage, 'businesses/' + businessId + '/employee-faces/' + slotId + '.jpg');
+                await uploadBytes(photoRef, blob, { contentType: 'image/jpeg' });
+                const photoUrl = await getDownloadURL(photoRef);
+
+                // Save URL to staff doc
+                const staffSnap = await getDocs(query(
+                  collection(db, 'businesses', businessId, 'staff'),
+                  where('slotNumber', '==', Number(slotNum))
+                ));
+                if (!staffSnap.empty) {
+                  await setDoc(staffSnap.docs[0].ref, { facePhotoUrl: photoUrl }, { merge: true });
+                }
+
+                // Update avatar on card
+                const card = originalEvent.target.closest('.employee-card');
+                if (card) updateCardAvatar(card, photoUrl, empName);
+                console.log('✅ Cropped photo uploaded:', photoUrl);
+                modal.remove();
+              } catch (err) {
+                alert('Photo upload failed: ' + err.message);
+                cropBtn.textContent = '✅ Crop & Upload';
+                cropBtn.disabled = false;
+              }
+            }, 'image/jpeg', 0.9);
+          };
+
+          btnRow.appendChild(cancelBtn);
+          btnRow.appendChild(cropBtn);
+
+          modal.appendChild(title);
+          modal.appendChild(instructions);
+          modal.appendChild(canvas);
+          modal.appendChild(zoomRow);
+          modal.appendChild(btnRow);
+          document.body.appendChild(modal);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+      // Reset file input so same file can be re-selected
+      originalEvent.target.value = '';
     }
 
     // ── Employee Face Photo – Sync from Hikvision device ────────────────────
@@ -10397,6 +10650,134 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     window.loadTimecard = loadTimecard;
 
     // Function to clean up invalid/test events and duplicates
+    // ── Auto Fix Timecard ──────────────────────────────────────────────────────
+    // Keeps only the earliest clock-in and latest clock-out per day, removes extras.
+    // Stores removed events so they can be restored with "Undo Auto Fix".
+    let _autoFixBackup = null; // { employeeId, month, removedEvents: [{ docPath, data }] }
+
+    async function autoFixTimecard() {
+      const employeeId = document.getElementById('employeeSelect').value;
+      const month = document.getElementById('monthSelect').value;
+      if (!employeeId || !month) { alert('Select an employee and month first.'); return; }
+
+      const [year, monthNum] = month.split('-');
+      const daysInMonth = new Date(year, monthNum, 0).getDate();
+
+      // Scan every day for events that should be removed
+      const toRemove = []; // { ref, data }
+      let daysFixed = 0;
+
+      const display = document.getElementById('timecardDisplay');
+      display.innerHTML = '<div style="text-align:center;padding:3rem;color:#999;">Running auto-fix…</div>';
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(monthNum).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        try {
+          const dayRef = collection(db, 'businesses', businessId, 'attendance_events', dateStr, employeeId);
+          const snap = await getDocs(dayRef);
+          if (snap.empty) continue;
+
+          const events = [];
+          snap.forEach(d => {
+            const data = d.data();
+            if (data.testMode) return;
+            if (data.status === 'pending' && !data.resolvedManually) return;
+            events.push({ id: d.id, ref: d.ref, data, ts: new Date(data.timestamp).getTime() });
+          });
+          if (events.length <= 2) continue; // 1 in + 1 out is fine
+
+          const clockIns  = events.filter(e => {
+            const t = e.data.type || (e.data.attendanceStatus === 'in' ? 'clock-in' : (e.data.attendanceStatus === 'out' ? 'clock-out' : ''));
+            return t === 'clock-in';
+          }).sort((a, b) => a.ts - b.ts);
+          const clockOuts = events.filter(e => {
+            const t = e.data.type || (e.data.attendanceStatus === 'in' ? 'clock-in' : (e.data.attendanceStatus === 'out' ? 'clock-out' : ''));
+            return t === 'clock-out';
+          }).sort((a, b) => a.ts - b.ts);
+
+          // Keep earliest clock-in and latest clock-out
+          const keepInId  = clockIns.length  > 0 ? clockIns[0].id  : null;
+          const keepOutId = clockOuts.length > 0 ? clockOuts[clockOuts.length - 1].id : null;
+
+          for (const evt of events) {
+            if (evt.id !== keepInId && evt.id !== keepOutId) {
+              toRemove.push({ ref: evt.ref, data: evt.data, dateStr, docId: evt.id });
+            }
+          }
+          if (toRemove.length > 0) daysFixed++;
+        } catch (err) {
+          console.log('Auto-fix skip day', dateStr, err.message);
+        }
+      }
+
+      if (toRemove.length === 0) {
+        alert('Nothing to fix — every day already has at most one clock-in and one clock-out.');
+        await loadTimecard();
+        return;
+      }
+
+      if (!confirm(`Auto Fix will remove ${toRemove.length} extra punch(es) across ${daysFixed} day(s).\n\nFor each day it keeps:\n  • Earliest clock-in\n  • Latest clock-out\n\nYou can undo this afterwards.\n\nProceed?`)) {
+        await loadTimecard();
+        return;
+      }
+
+      // Save backup for undo
+      _autoFixBackup = {
+        employeeId, month,
+        removedEvents: toRemove.map(r => ({
+          path: r.ref.path,
+          dateStr: r.dateStr,
+          docId: r.docId,
+          data: r.data
+        }))
+      };
+
+      // Delete the extra events
+      let deleted = 0;
+      for (const r of toRemove) {
+        try {
+          await deleteDoc(r.ref);
+          deleted++;
+        } catch (err) {
+          console.error('Auto-fix delete error:', err);
+        }
+      }
+
+      // Show undo button
+      const undoBtn = document.getElementById('undoAutoFixBtn');
+      if (undoBtn) undoBtn.style.display = 'inline-block';
+
+      alert(`Auto Fix complete — removed ${deleted} extra punch(es).\nUse "Undo Auto Fix" to restore them.`);
+      await loadTimecard();
+    }
+
+    async function undoAutoFix() {
+      if (!_autoFixBackup || !_autoFixBackup.removedEvents.length) {
+        alert('Nothing to undo.');
+        return;
+      }
+
+      if (!confirm(`Restore ${_autoFixBackup.removedEvents.length} removed punch(es)?`)) return;
+
+      let restored = 0;
+      for (const evt of _autoFixBackup.removedEvents) {
+        try {
+          const ref = doc(db, 'businesses', businessId, 'attendance_events', evt.dateStr, _autoFixBackup.employeeId, evt.docId);
+          await setDoc(ref, evt.data);
+          restored++;
+        } catch (err) {
+          console.error('Undo restore error:', err);
+        }
+      }
+
+      _autoFixBackup = null;
+      const undoBtn = document.getElementById('undoAutoFixBtn');
+      if (undoBtn) undoBtn.style.display = 'none';
+
+      alert(`Restored ${restored} punch(es).`);
+      await loadTimecard();
+    }
+
     async function cleanupAttendanceEvents() {
       if (!confirm('This will clean up duplicate and invalid attendance events. Continue?')) {
         return;
@@ -10643,6 +11024,8 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
     window.printTimecard = printTimecard;
     window.cleanupAttendanceEvents = cleanupAttendanceEvents;
     window.checkForDuplicates = checkForDuplicates;
+    window.autoFixTimecard = autoFixTimecard;
+    window.undoAutoFix = undoAutoFix;
     window.initTimecard = initTimecard;
 
     // ============================================
@@ -10942,6 +11325,34 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       try {
         console.log('📊 Calculating assessment from attendance for month:', month);
         
+        // Load all shifts for name + schedule lookup
+        const calcShiftsSnap = await getDocs(collection(db, 'businesses', businessId, 'shifts'));
+        const calcShifts = {};
+        calcShiftsSnap.forEach(d => { calcShifts[d.id] = d.data(); });
+
+        // Helper: calculate monthly required hours from shift schedule
+        function calcMonthlyHoursFromShift(shift, monthStr) {
+          if (!shift || !shift.schedule) return 176;
+          const [yr, mo] = monthStr.split('-');
+          const daysInMonth = new Date(yr, mo, 0).getDate();
+          const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+          let totalMins = 0;
+          for (let day = 1; day <= daysInMonth; day++) {
+            const d = new Date(yr, mo - 1, day);
+            const dayName = dayNames[d.getDay()];
+            const ds = shift.schedule[dayName];
+            if (ds && ds.enabled && ds.startTime && ds.endTime) {
+              const [sh, sm] = ds.startTime.split(':').map(Number);
+              const [eh, em] = ds.endTime.split(':').map(Number);
+              let work = (eh * 60 + em) - (sh * 60 + sm);
+              if (work < 0) work += 24 * 60;
+              const brk = ds.breakDuration !== undefined ? parseFloat(ds.breakDuration) : (shift.defaultBreakDuration !== undefined ? parseFloat(shift.defaultBreakDuration) : 0);
+              totalMins += Math.max(0, work - brk);
+            }
+          }
+          return totalMins > 0 ? Math.round((totalMins / 60) * 100) / 100 : 176;
+        }
+
         // Get staff first (like timecard does)
         const staffRef = collection(db, "businesses", businessId, "staff");
         const staffSnap = await getDocs(staffRef);
@@ -10957,8 +11368,12 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           
           // Only include active employees (active !== false for backward compatibility)
           if (staff.active !== false) {
+            const empShift = staff.shiftId ? calcShifts[staff.shiftId] : null;
             employeeData[empId] = {
               name: staff.employeeName || empId,
+              shiftId: staff.shiftId || null,
+              shiftName: empShift ? (empShift.shiftName || 'Unnamed Shift') : null,
+              shiftRequiredHours: empShift ? calcMonthlyHoursFromShift(empShift, month) : 176,
               totalHours: 0,
               attendanceDays: 0,
               daysWithInOut: 0, // Track days with complete in/out for daily pay
@@ -10972,73 +11387,113 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         
         console.log('👥 Staff data loaded:', Object.keys(employeeData).length, 'active employees');
         
-        // Get attendance events for the month
-        const attendanceRef = collection(db, "businesses", businessId, "attendance_events");
-        const attendanceSnap = await getDocs(attendanceRef);
-        
-        console.log('📋 Found', attendanceSnap.size, 'attendance events');
-        
-        // 🚀 FIXED: Process attendance events with real time calculation  
-        const processedDates = new Set();
-        
-        attendanceSnap.forEach(doc => {
-          const event = doc.data();
-          const empId = event.employeeId || event.employeeName;
-          const eventDate = event.timestamp ? event.timestamp.split('T')[0] : 'unknown';
-          const uniqueKey = `${empId}-${eventDate}`;
-          
-          if (employeeData[empId] && !processedDates.has(uniqueKey)) {
-            processedDates.add(uniqueKey);
-            
-            // Calculate real hours for this employee/date
-            const dateEvents = [];
-            attendanceSnap.forEach(subDoc => {
-              const subEvent = subDoc.data();
-              const subEmpId = subEvent.employeeId || subEvent.employeeName;
-              const subEventDate = subEvent.timestamp ? subEvent.timestamp.split('T')[0] : 'unknown';
-              
-              if (subEmpId === empId && subEventDate === eventDate) {
-                dateEvents.push({
-                  timestamp: subEvent.timestamp,
-                  status: subEvent.attendanceStatus,
-                  time: new Date(subEvent.timestamp)
-                });
-              }
-            });
-            
-            // Sort events and calculate daily hours
-            dateEvents.sort((a, b) => a.time - b.time);
-            let dailyHours = 0;
-            let clockInTime = null;
-            let hasCompleteInOut = false;
-            
-            for (const evt of dateEvents) {
-              if (evt.status === 'in' && !clockInTime) {
-                clockInTime = evt.time;
-              } else if (evt.status === 'out' && clockInTime) {
-                const hoursWorked = (evt.time - clockInTime) / (1000 * 60 * 60);
-                dailyHours += Math.max(0, hoursWorked);
-                hasCompleteInOut = true; // Mark that we have at least one complete in/out pair
-                clockInTime = null;
-              }
-            }
-            
-            employeeData[empId].totalHours += Math.round(dailyHours * 100) / 100;
-            employeeData[empId].attendanceDays += 1;
-            
-            // Track days with complete in/out for daily-paid employees
-            if (hasCompleteInOut) {
-              employeeData[empId].daysWithInOut += 1;
-            }
+        // Get attendance events for the month (NESTED structure: attendance_events/{date}/{employeeId}/*)
+        const [cyr, cmo] = month.split('-');
+        const cDaysInMonth = new Date(cyr, cmo, 0).getDate();
+        const empIds = Object.keys(employeeData);
+        let totalFound = 0;
+        // Only query up to today if current month
+        const cToday = new Date();
+        const cMaxDay = (parseInt(cyr) === cToday.getFullYear() && parseInt(cmo) === cToday.getMonth() + 1)
+          ? Math.min(cToday.getDate(), cDaysInMonth) : cDaysInMonth;
+
+        // Parallel queries for speed — collect raw events per employee per date
+        const calcPromises = [];
+        const empEventsByDate = {}; // { empId: { dateStr: [events] } }
+        empIds.forEach(id => { empEventsByDate[id] = {}; });
+
+        for (let day = 1; day <= cMaxDay; day++) {
+          const dateStr = `${cyr}-${String(cmo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          for (const empId of empIds) {
+            calcPromises.push(
+              getDocs(collection(db, 'businesses', businessId, 'attendance_events', dateStr, empId))
+                .then(dayEventsSnap => {
+                  if (dayEventsSnap.empty) return;
+                  const dateEvents = [];
+                  dayEventsSnap.forEach(d => {
+                    const ev = d.data();
+                    if (ev.testMode) return;
+                    const ts = ev.timestamp?.toDate ? ev.timestamp.toDate() : new Date(ev.timestamp);
+                    if (isNaN(ts.getTime())) return;
+                    let status = ev.attendanceStatus || (ev.type && ev.type.toLowerCase().includes('in') ? 'in' : 'out');
+                    dateEvents.push({ timestamp: ts, status: status, time: ts });
+                    totalFound++;
+                  });
+                  if (dateEvents.length > 0) {
+                    empEventsByDate[empId][dateStr] = dateEvents;
+                  }
+                }).catch(() => { /* date/employee combo doesn't exist */ })
+            );
           }
+        }
+        await Promise.all(calcPromises);
+        console.log('📋 Found', totalFound, 'attendance events (' + calcPromises.length + ' queries, parallel)');
+
+        // Calculate PAYABLE hours per employee per day (matching timecard logic)
+        const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+        empIds.forEach(empId => {
+          const data = employeeData[empId];
+          const shift = data.shiftId ? calcShifts[data.shiftId] : null;
+
+          Object.keys(empEventsByDate[empId]).forEach(dateStr => {
+            const events = empEventsByDate[empId][dateStr].sort((a, b) => a.time - b.time);
+            
+            // Find first clock-in and last clock-out
+            let firstIn = null, lastOut = null, hasComplete = false, clockIn = null;
+            for (const evt of events) {
+              if (evt.status === 'in') {
+                if (!firstIn) firstIn = evt.time;
+                clockIn = evt.time;
+              } else if (evt.status === 'out' && clockIn) {
+                lastOut = evt.time;
+                hasComplete = true;
+                clockIn = null;
+              }
+            }
+
+            if (!hasComplete || !firstIn || !lastOut) return;
+
+            // Get shift schedule for this day
+            const d = new Date(dateStr + 'T12:00:00');
+            const dayName = dayNames[d.getDay()];
+            const ds = shift && shift.schedule ? shift.schedule[dayName] : null;
+
+            let payableHours = 0;
+            if (ds && ds.enabled && ds.startTime && ds.endTime) {
+              const [schedSH, schedSM] = ds.startTime.split(':').map(Number);
+              const [schedEH, schedEM] = ds.endTime.split(':').map(Number);
+
+              const schedStart = new Date(firstIn);
+              schedStart.setHours(schedSH, schedSM, 0, 0);
+              const schedEnd = new Date(firstIn);
+              schedEnd.setHours(schedEH, schedEM, 0, 0);
+
+              const brk = ds.breakDuration !== undefined ? parseFloat(ds.breakDuration) : (shift.defaultBreakDuration !== undefined ? parseFloat(shift.defaultBreakDuration) : 0);
+              let schedMins = (schedEH * 60 + schedEM) - (schedSH * 60 + schedSM);
+              if (schedMins < 0) schedMins += 24 * 60;
+              const scheduledWorkHours = Math.max(0, (schedMins - brk) / 60);
+
+              const payableStart = new Date(Math.max(firstIn.getTime(), schedStart.getTime()));
+              const payableEnd = new Date(Math.min(lastOut.getTime(), schedEnd.getTime()));
+              const payableDuration = Math.max(0, (payableEnd - payableStart) / (1000 * 60 * 60));
+              payableHours = Math.min(Math.max(0, payableDuration - (brk / 60)), scheduledWorkHours);
+            } else {
+              // No shift — raw hours
+              payableHours = Math.max(0, (lastOut - firstIn) / (1000 * 60 * 60));
+            }
+
+            data.totalHours += Math.round(payableHours * 100) / 100;
+            data.attendanceDays += 1;
+            if (hasComplete) data.daysWithInOut += 1;
+          });
         });
         
         // Generate assessment array
         const assessmentArray = [];
-        const requiredHours = 176;
         
         Object.entries(employeeData).forEach(([empId, data], index) => {
           let totalPay, potentialIncome, effectiveHours, displayRate;
+          const requiredHours = data.shiftRequiredHours || 176;
           
           if (data.paymentType === 'daily' && data.dailyRate > 0) {
             // Daily-paid employee: each day with in/out = full day pay (8 hours equivalent)
@@ -11046,7 +11501,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
             effectiveHours = dailyHoursEquivalent;
             totalPay = data.daysWithInOut * data.dailyRate;
             
-            // Required days = 176 hours / 8 = 22 days
+            // Required days from shift hours / 8
             const requiredDays = Math.ceil(requiredHours / 8);
             potentialIncome = requiredDays * data.dailyRate;
             
@@ -11061,20 +11516,22 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           }
           
           const hoursShort = Math.max(0, requiredHours - effectiveHours);
+          const calcShortPct = requiredHours > 0 ? (hoursShort / requiredHours) * 100 : 0;
 
-          let status = 'On Track';
+          let status = 'Good Standing';
           let statusColor = '#28a745';
-          if (hoursShort > 40) {
-            status = 'Critical';
+          if (calcShortPct > 20) {
+            status = 'Critical Issue';
             statusColor = '#dc3545';
-          } else if (hoursShort > 0) {
-            status = 'Behind';
+          } else if (calcShortPct > 10) {
+            status = 'Fair';
             statusColor = '#fd7e14';
           }
 
           assessmentArray.push({
             index: data.slot || (index + 1),
             name: data.name,
+            shiftName: data.shiftName || null,
             requiredHours: requiredHours,
             currentHours: effectiveHours, // Use effective hours (8 per day for daily-paid)
             actualHours: data.totalHours, // Store actual hours for reference
@@ -11105,17 +11562,22 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       var totalHoursShort = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.hoursShort)||0); }, 0);
       var totalIncomeDue = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.currentIncomeDue)||0); }, 0);
       var totalPotentialIncome = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.potentialIncome)||0); }, 0);
-      var avgAtt = totalEmployees > 0 ? ((totalHours/(totalEmployees*176))*100).toFixed(1) : '0.0';
+      var totalPastDue = employeeAssessments.reduce(function(s,e){ return s+(parseFloat(e.pastDueHours)||0); }, 0);
+      var avgAtt = totalPastDue > 0 ? Math.min(100, (totalHours/totalPastDue)*100).toFixed(1) : '0.0';
 
-      function attSt(ch, rh) {
+      function attSt(ch, rh, pastDue) {
         var c = parseFloat(ch)||0, r = parseFloat(rh)||176;
-        var rate = r>0 ? (c/r)*100 : 0;
-        if (rate>=90) return {label:'Good Standing', bg:'#28a745', rate:rate};
-        if (rate>=80) return {label:'Fair', bg:'#0d6efd', rate:rate};
+        var pd = parseFloat(pastDue)||0;
+        var rate = pd > 0 ? Math.min(100, (c/pd)*100) : (c > 0 ? 100 : 0);
+        // Status based on % of hours short vs past due
+        var hs = Math.max(0, pd - c);
+        var shortPct = pd > 0 ? (hs / pd) * 100 : 0;
+        if (shortPct <= 10) return {label:'Good Standing', bg:'#28a745', rate:rate};
+        if (shortPct <= 20) return {label:'Fair', bg:'#0d6efd', rate:rate};
         return {label:'Critical Issue', bg:'#dc3545', rate:rate};
       }
 
-      var standings = employeeAssessments.map(function(emp){ return Object.assign({}, emp, {_att: attSt(emp.currentHours, emp.requiredHours)}); });
+      var standings = employeeAssessments.map(function(emp){ return Object.assign({}, emp, {_att: attSt(emp.currentHours, emp.requiredHours, emp.pastDueHours)}); });
       var goodCount = standings.filter(function(e){ return e._att.label==='Good Standing'; }).length;
       var fairCount = standings.filter(function(e){ return e._att.label==='Fair'; }).length;
       var critCount = standings.filter(function(e){ return e._att.label==='Critical Issue'; }).length;
@@ -11126,8 +11588,9 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
       var insightHTML = '';
 
       // INSIGHT CARD 1: Attendance Standings
-      insightHTML += '<div style="background:white;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:1.5rem;margin-bottom:1.5rem;">';
-      insightHTML += '<h3 style="margin:0 0 1rem;font-size:1.05rem;color:#2c3e50;font-weight:700;border-bottom:3px solid #667eea;padding-bottom:0.5rem;">&#128202; Assessment #1 &#8212; Attendance Standing</h3>';
+      insightHTML += '<div style="background:white;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);margin-bottom:1.5rem;overflow:hidden;">';
+      insightHTML += '<h3 id="assess1Header" style="margin:0;font-size:1.05rem;color:#2c3e50;font-weight:700;border-bottom:3px solid #667eea;padding:1rem 1.5rem;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;"><span>&#128202; Assessment #1 &#8212; Attendance Standing</span><span id="assess1Arrow" style="font-size:0.9rem;color:#667eea;">&#9654;</span></h3>';
+      insightHTML += '<div id="assess1Body" style="display:none;padding:1.5rem;">';
       insightHTML += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1rem;">';
       insightHTML += '<div style="text-align:center;padding:1.2rem;background:#d4edda;border-radius:10px;border:2px solid #28a745;">';
       insightHTML += '<div style="font-size:2.5rem;font-weight:700;color:#155724;">'+goodCount+'</div>';
@@ -11149,11 +11612,12 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         insightHTML += '<span style="background:'+a.bg+';color:white;padding:2px 6px;border-radius:10px;font-size:0.7rem;font-weight:700;">'+a.rate.toFixed(1)+'%</span>';
         insightHTML += '</div>';
       });
-      insightHTML += '</div></div>';
+      insightHTML += '</div></div></div>';
 
       // INSIGHT CARD 2: Most Late Employee
-      insightHTML += '<div style="background:white;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:1.5rem;margin-bottom:1.5rem;">';
-      insightHTML += '<h3 style="margin:0 0 1rem;font-size:1.05rem;color:#2c3e50;font-weight:700;border-bottom:3px solid #dc3545;padding-bottom:0.5rem;">&#9201; Assessment #2 &#8212; Most Late Employee (Hours Short)</h3>';
+      insightHTML += '<div style="background:white;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);margin-bottom:1.5rem;overflow:hidden;">';
+      insightHTML += '<h3 id="assess2Header" style="margin:0;font-size:1.05rem;color:#2c3e50;font-weight:700;border-bottom:3px solid #dc3545;padding:1rem 1.5rem;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;"><span>&#9201; Assessment #2 &#8212; Most Late Employee (Hours Short)</span><span id="assess2Arrow" style="font-size:0.9rem;color:#dc3545;">&#9654;</span></h3>';
+      insightHTML += '<div id="assess2Body" style="display:none;padding:1.5rem;">';
       if (!anyLate) {
         insightHTML += '<div style="text-align:center;padding:1.5rem;color:#28a745;font-size:1rem;font-weight:600;">&#10003; All employees on track &#8212; no hours short this month!</div>';
       } else {
@@ -11171,7 +11635,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           insightHTML += '</div>';
         });
       }
-      insightHTML += '</div>';
+      insightHTML += '</div></div>';
 
       var tableRows = '';
       standings.forEach(function(emp, idx){
@@ -11185,9 +11649,10 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         tableRows += '<td style="padding:0.75rem;color:#7f8c8d;font-style:italic;">'+(emp.shiftName||'&#8212;')+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;">'+(emp.requiredHours||176)+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;color:'+(ch>0?'#28a745':'#6c757d')+';font-weight:'+(ch>0?'600':'normal')+';">'+ch.toFixed(1)+'</td>';
+        var pd = parseFloat(emp.pastDueHours)||0;
+        tableRows += '<td style="padding:0.75rem;text-align:center;color:'+(pd>0?'#ff9800':'#6c757d')+';font-weight:'+(pd>0?'600':'normal')+';">'+pd.toFixed(1)+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;color:'+(hs>0?'#dc3545':'#28a745')+';font-weight:600;">'+hs.toFixed(1)+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;font-weight:600;color:'+(a.rate>=90?'#28a745':a.rate>=80?'#0d6efd':'#dc3545')+';">'+a.rate.toFixed(1)+'%</td>';
-        tableRows += '<td style="padding:0.75rem;text-align:center;"><span style="background:'+a.bg+';color:white;padding:3px 9px;border-radius:12px;font-size:0.75rem;font-weight:700;">'+a.label+'</span></td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;">R'+(parseFloat(emp.payRate)||0).toFixed(2)+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;font-weight:600;">R'+(parseFloat(emp.currentIncomeDue)||0).toFixed(2)+'</td>';
         tableRows += '<td style="padding:0.75rem;text-align:center;color:#28a745;font-weight:600;">R'+(parseFloat(emp.potentialIncome)||0).toFixed(2)+'</td>';
@@ -11200,17 +11665,17 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         + '<thead><tr style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;">'
         + '<th style="padding:0.75rem;">#</th><th style="padding:0.75rem;">Employee</th>'
         + '<th style="padding:0.75rem;">Shift</th><th style="padding:0.75rem;text-align:center;">Req. Hrs</th>'
-        + '<th style="padding:0.75rem;text-align:center;">Curr. Hrs</th><th style="padding:0.75rem;text-align:center;">Hrs Short</th>'
-        + '<th style="padding:0.75rem;text-align:center;">Att. %</th><th style="padding:0.75rem;text-align:center;">Standing</th>'
+        + '<th style="padding:0.75rem;text-align:center;">Curr. Hrs</th><th style="padding:0.75rem;text-align:center;">Hrs Past</th><th style="padding:0.75rem;text-align:center;">Hrs Short</th>'
+        + '<th style="padding:0.75rem;text-align:center;">Att. %</th>'
         + '<th style="padding:0.75rem;text-align:center;">Pay Rate</th><th style="padding:0.75rem;text-align:center;">Income Due</th>'
         + '<th style="padding:0.75rem;text-align:center;">Potential</th><th style="padding:0.75rem;text-align:center;">Status</th>'
         + '</tr></thead><tbody>'+tableRows+'</tbody></table></div>';
 
       function gc(grad, label, value, sub) {
-        return '<div style="text-align:center;padding:1.5rem;background:'+grad+';color:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);">'
-          + '<div style="font-size:0.8rem;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem;">'+label+'</div>'
-          + '<div style="font-size:2.4rem;font-weight:700;">'+value+'</div>'
-          + (sub ? '<div style="font-size:0.75rem;opacity:0.8;margin-top:2px;">'+sub+'</div>' : '')
+        return '<div style="text-align:center;padding:1.2rem 0.8rem;background:'+grad+';color:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);overflow:hidden;">'
+          + '<div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem;">'+label+'</div>'
+          + '<div style="font-size:1.6rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+value+'</div>'
+          + (sub ? '<div style="font-size:0.7rem;opacity:0.8;margin-top:2px;">'+sub+'</div>' : '')
           + '</div>';
       }
       var summaryHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-top:0.5rem;">'
@@ -11220,12 +11685,28 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         + gc('linear-gradient(135deg,#4caf50,#2196f3)', 'Total Amount Due', 'R'+totalIncomeDue.toFixed(2), '')
         + gc('linear-gradient(135deg,#673ab7,#3f51b5)', 'Potential Payroll', 'R'+totalPotentialIncome.toFixed(2), '')
         + gc('linear-gradient(135deg,#00bcd4,#009688)', 'Avg Attendance', avgAtt+'%', '')
-        + gc('linear-gradient(135deg,#28a745,#218838)', 'Good Standing', goodCount, '90&#8211;100% att.')
-        + gc('linear-gradient(135deg,#0d6efd,#0056b3)', 'Fair Standing', fairCount, '80&#8211;90% att.')
-        + gc('linear-gradient(135deg,#dc3545,#c82333)', 'Critical Issue', critCount, '&lt;80% att.')
+        + gc('linear-gradient(135deg,#28a745,#218838)', 'Good Standing', goodCount, '0&#8211;10% short')
+        + gc('linear-gradient(135deg,#0d6efd,#0056b3)', 'Fair Standing', fairCount, '10&#8211;20% short')
+        + gc('linear-gradient(135deg,#dc3545,#c82333)', 'Critical Issue', critCount, '&gt;20% short')
         + '</div>';
 
-      display.innerHTML = insightHTML + tableHTML + summaryHTML;
+      display.innerHTML = tableHTML + summaryHTML + insightHTML;
+
+      // Attach click handlers for collapsible assessment sections
+      var a1h = document.getElementById('assess1Header');
+      if (a1h) a1h.onclick = function() {
+        var b = document.getElementById('assess1Body');
+        var a = document.getElementById('assess1Arrow');
+        if (b.style.display === 'none') { b.style.display = 'block'; a.innerHTML = '&#9660;'; }
+        else { b.style.display = 'none'; a.innerHTML = '&#9654;'; }
+      };
+      var a2h = document.getElementById('assess2Header');
+      if (a2h) a2h.onclick = function() {
+        var b = document.getElementById('assess2Body');
+        var a = document.getElementById('assess2Arrow');
+        if (b.style.display === 'none') { b.style.display = 'block'; a.innerHTML = '&#9660;'; }
+        else { b.style.display = 'none'; a.innerHTML = '&#9654;'; }
+      };
     }
 
     async function printAssessment() {
@@ -11258,9 +11739,9 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
                 hoursShort: data.hoursShort || 0,
                 payRate: data.payRate || 30.00,
                 currentIncomeDue: data.totalPay || data.currentIncomeDue || 0,
-                status: data.status === 'on_track' ? 'On Track' : 
-                       data.status === 'behind' ? 'Behind' : 
-                       data.status === 'critical' ? 'Critical' : 'On Track'
+                status: data.status === 'on_track' ? 'Good Standing' : 
+                       data.status === 'behind' ? 'Fair' : 
+                       data.status === 'critical' ? 'Critical Issue' : 'Good Standing'
               });
             });
           } else {
@@ -11370,97 +11851,215 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         });
         
         // --- Direct Firestore calculation (Cloud Functions unavailable) ---
-        const requiredHoursPerMonth = 176;
+        const defaultRequiredHoursPerMonth = 176;
 
-        // 1. Load staff
+        // 1. Load all shifts first so we can map shiftId → name + weekly hours
+        const shiftsSnap = await getDocs(collection(db, 'businesses', businessId, 'shifts'));
+        const allShifts = {};
+        shiftsSnap.forEach(d => { allShifts[d.id] = d.data(); });
+        console.log(`📋 ${Object.keys(allShifts).length} shifts loaded`);
+
+        // Helper: calculate monthly required hours from a shift schedule
+        function getMonthlyHoursFromShift(shift, monthStr) {
+          if (!shift || !shift.schedule) return defaultRequiredHoursPerMonth;
+          const [yr, mo] = monthStr.split('-');
+          const daysInMonth = new Date(yr, mo, 0).getDate();
+          const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+          let totalMins = 0;
+          for (let day = 1; day <= daysInMonth; day++) {
+            const d = new Date(yr, mo - 1, day);
+            const dayName = dayNames[d.getDay()];
+            const ds = shift.schedule[dayName];
+            if (ds && ds.enabled && ds.startTime && ds.endTime) {
+              const [sh, sm] = ds.startTime.split(':').map(Number);
+              const [eh, em] = ds.endTime.split(':').map(Number);
+              let work = (eh * 60 + em) - (sh * 60 + sm);
+              if (work < 0) work += 24 * 60;
+              const brk = ds.breakDuration !== undefined ? parseFloat(ds.breakDuration) : (shift.defaultBreakDuration !== undefined ? parseFloat(shift.defaultBreakDuration) : 0);
+              totalMins += Math.max(0, work - brk);
+            }
+          }
+          return totalMins > 0 ? Math.round((totalMins / 60) * 100) / 100 : defaultRequiredHoursPerMonth;
+        }
+
+        // 1b. Load staff
         const staffSnap = await getDocs(collection(db, 'businesses', businessId, 'staff'));
         const employees = [];
         staffSnap.forEach(d => {
           const s = d.data();
           if (!s.employeeName || s.employeeName.startsWith('Deleted')) return;
+          const empShift = s.shiftId ? allShifts[s.shiftId] : null;
           employees.push({
             employeeId: d.id,
             employeeName: s.employeeName,
             slot: parseInt(s.slot || d.id) || 0,
             payRate: parseFloat(s.payRate || s.hourlyRate || 0) || 0,
             shiftId: s.shiftId || null,
+            shiftName: empShift ? (empShift.shiftName || 'Unnamed Shift') : null,
             active: s.active !== false
           });
         });
         employees.sort((a, b) => a.slot - b.slot);
         console.log(`👥 ${employees.length} staff loaded`);
 
-        // 2. Load attendance events for the month
+        // 2. Load attendance events for the month (NESTED structure: attendance_events/{date}/{employeeId}/*)
         const [yr, mo] = month.split('-');
-        const monthStart = new Date(yr, mo - 1, 1);
-        const monthEnd   = new Date(yr, mo, 0, 23, 59, 59, 999);
-
-        const attSnap = await getDocs(collection(db, 'businesses', businessId, 'attendance_events'));
-        console.log(`📋 ${attSnap.size} total attendance events`);
+        const daysInMonth = new Date(yr, mo, 0).getDate();
+        const monthStart = `${yr}-${String(mo).padStart(2, '0')}-01`;
+        // Only query up to today if current month
+        const today = new Date();
+        const maxDay = (parseInt(yr) === today.getFullYear() && parseInt(mo) === today.getMonth() + 1)
+          ? Math.min(today.getDate(), daysInMonth) : daysInMonth;
 
         // 3. Group events by employee
         const empAtt = {};
         employees.forEach(e => { empAtt[e.employeeId] = { events: [] }; });
 
-        attSnap.forEach(d => {
-          const ev = d.data();
-          const ts = ev.timestamp?.toDate ? ev.timestamp.toDate() : new Date(ev.timestamp);
-          if (ts < monthStart || ts > monthEnd) return;
-          if (!empAtt[ev.employeeId]) return;
-          const t = (ev.type || (ev.attendanceStatus === 'in' ? 'clock-in' : 'clock-out')).toLowerCase();
-          empAtt[ev.employeeId].events.push({
-            timestamp: ts,
-            type: t.includes('in') ? 'clock-in' : 'clock-out',
-            eventDate: ev.eventDate || ts.toISOString().split('T')[0]
-          });
-        });
-
-        // 4. Pair clock-in / clock-out and sum minutes
-        Object.keys(empAtt).forEach(eid => {
-          const evs = empAtt[eid].events.sort((a, b) => a.timestamp - b.timestamp);
-          let mins = 0, clockIn = null;
-          const days = new Set();
-          for (const ev of evs) {
-            if (ev.type === 'clock-in') {
-              clockIn = ev.timestamp;
-              days.add(ev.eventDate);
-            } else if (ev.type === 'clock-out' && clockIn) {
-              mins += Math.max(0, (ev.timestamp - clockIn) / 60000);
-              days.add(ev.eventDate);
-              clockIn = null;
-            }
+        // Build all queries in parallel for speed
+        let totalEventsFound = 0;
+        const queryPromises = [];
+        for (let day = 1; day <= maxDay; day++) {
+          const dateStr = `${yr}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          for (const emp of employees) {
+            queryPromises.push(
+              getDocs(collection(db, 'businesses', businessId, 'attendance_events', dateStr, emp.employeeId))
+                .then(snap => {
+                  snap.forEach(d => {
+                    const ev = d.data();
+                    if (ev.testMode) return;
+                    const ts = ev.timestamp?.toDate ? ev.timestamp.toDate() : new Date(ev.timestamp);
+                    if (isNaN(ts.getTime())) return;
+                    let evType = null;
+                    if (ev.type) evType = ev.type;
+                    else if (ev.attendanceStatus) evType = ev.attendanceStatus === 'in' ? 'clock-in' : 'clock-out';
+                    if (evType) {
+                      empAtt[emp.employeeId].events.push({
+                        timestamp: ts,
+                        type: evType.toLowerCase().includes('in') ? 'clock-in' : 'clock-out',
+                        eventDate: dateStr
+                      });
+                      totalEventsFound++;
+                    }
+                  });
+                }).catch(() => { /* date/employee combo doesn't exist */ })
+            );
           }
-          empAtt[eid].totalHours = Math.round((mins / 60) * 100) / 100;
+        }
+        await Promise.all(queryPromises);
+        console.log(`📋 ${totalEventsFound} total attendance events found (${queryPromises.length} queries, parallel)`);
+
+        // 4. Calculate PAYABLE hours per day (matching timecard logic)
+        // Group events by employee AND date, then apply shift schedule caps + break deduction
+        Object.keys(empAtt).forEach(eid => {
+          // Find this employee's shift
+          const emp = employees.find(e => e.employeeId === eid);
+          const shift = emp && emp.shiftId ? allShifts[emp.shiftId] : null;
+          const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+
+          // Group events by date
+          const eventsByDate = {};
+          empAtt[eid].events.forEach(ev => {
+            if (!eventsByDate[ev.eventDate]) eventsByDate[ev.eventDate] = [];
+            eventsByDate[ev.eventDate].push(ev);
+          });
+
+          let totalPayable = 0;
+          const days = new Set();
+
+          Object.keys(eventsByDate).forEach(dateStr => {
+            const dayEvents = eventsByDate[dateStr].sort((a, b) => a.timestamp - b.timestamp);
+
+            // Pair clock-in/out to find first-in and last-out
+            let firstIn = null, lastOut = null, hasComplete = false;
+            let clockIn = null;
+            for (const ev of dayEvents) {
+              if (ev.type === 'clock-in') {
+                if (!firstIn) firstIn = ev.timestamp;
+                clockIn = ev.timestamp;
+              } else if (ev.type === 'clock-out' && clockIn) {
+                lastOut = ev.timestamp;
+                hasComplete = true;
+                clockIn = null;
+              }
+            }
+
+            if (!hasComplete || !firstIn || !lastOut) return;
+            days.add(dateStr);
+
+            // Get shift schedule for this day of week
+            const d = new Date(dateStr + 'T12:00:00'); // noon to avoid timezone
+            const dayName = dayNames[d.getDay()];
+            const ds = shift && shift.schedule ? shift.schedule[dayName] : null;
+
+            if (ds && ds.enabled && ds.startTime && ds.endTime) {
+              // Apply timecard-style payable hours calculation
+              const [schedSH, schedSM] = ds.startTime.split(':').map(Number);
+              const [schedEH, schedEM] = ds.endTime.split(':').map(Number);
+
+              // Create schedule boundaries for the day
+              const schedStart = new Date(firstIn);
+              schedStart.setHours(schedSH, schedSM, 0, 0);
+              const schedEnd = new Date(firstIn);
+              schedEnd.setHours(schedEH, schedEM, 0, 0);
+
+              // Break duration
+              const brk = ds.breakDuration !== undefined ? parseFloat(ds.breakDuration) : (shift.defaultBreakDuration !== undefined ? parseFloat(shift.defaultBreakDuration) : 0);
+
+              // Scheduled work hours
+              let schedMins = (schedEH * 60 + schedEM) - (schedSH * 60 + schedSM);
+              if (schedMins < 0) schedMins += 24 * 60;
+              const scheduledWorkHours = Math.max(0, (schedMins - brk) / 60);
+
+              // Payable start = later of actual clock-in or scheduled start
+              const payableStart = new Date(Math.max(firstIn.getTime(), schedStart.getTime()));
+              // Payable end = earlier of actual last clock-out or scheduled end
+              const payableEnd = new Date(Math.min(lastOut.getTime(), schedEnd.getTime()));
+
+              // Hours between payable start and end, minus break, capped at scheduled
+              const payableDuration = Math.max(0, (payableEnd - payableStart) / (1000 * 60 * 60));
+              const payable = Math.min(Math.max(0, payableDuration - (brk / 60)), scheduledWorkHours);
+
+              totalPayable += payable;
+            } else {
+              // No shift schedule — use raw clock-in/out time (no caps)
+              const rawHours = Math.max(0, (lastOut - firstIn) / (1000 * 60 * 60));
+              totalPayable += rawHours;
+            }
+          });
+
+          empAtt[eid].totalHours = Math.round(totalPayable * 100) / 100;
           empAtt[eid].attendanceDays = days.size;
         });
 
-        // 5. Helper: calculate past-due hours from shift schedule
-        const shiftsCache = {};
-        async function getPastDueHours(emp) {
+        // 5. Helper: calculate past-due hours from shift schedule (uses allShifts from parent scope)
+        function getPastDueHours(emp) {
           if (!emp.shiftId) return 0;
-          if (!shiftsCache[emp.shiftId]) {
-            const sDoc = await getDocs(collection(db, 'businesses', businessId, 'shifts'));
-            sDoc.forEach(d => { shiftsCache[d.id] = d.data(); });
-          }
-          const shift = shiftsCache[emp.shiftId];
+          const shift = allShifts[emp.shiftId];
           if (!shift || !shift.schedule) return 0;
 
-          const today = new Date();
-          const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-          const cur = new Date(monthStart);
+          // Use local date construction to avoid UTC timezone shift
+          const now = new Date();
+          // Include today in past due (working day has passed or is in progress)
+          const upToDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const cur = new Date(parseInt(yr), parseInt(mo) - 1, 1); // local midnight March 1
           const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
           let hrs = 0;
-          while (cur <= yesterday) {
+          let dayCount = 0;
+          console.log(`📅 getPastDueHours for ${emp.employeeName}: from ${cur.toDateString()} to ${upToDate.toDateString()}`);
+          while (cur <= upToDate) {
             const ds = shift.schedule[dayNames[cur.getDay()]];
-            if (ds && ds.enabled) {
+            if (ds && ds.enabled && ds.startTime && ds.endTime) {
               const [sh, sm] = ds.startTime.split(':').map(Number);
               const [eh, em] = ds.endTime.split(':').map(Number);
-              const work = (eh * 60 + em) - (sh * 60 + sm);
-              const brk  = ds.breakDuration || shift.defaultBreakDuration || 60;
+              let work = (eh * 60 + em) - (sh * 60 + sm);
+              if (work < 0) work += 24 * 60; // overnight shift
+              const brk = ds.breakDuration !== undefined ? parseFloat(ds.breakDuration) : (shift.defaultBreakDuration !== undefined ? parseFloat(shift.defaultBreakDuration) : 0);
               hrs += Math.max(0, work - brk) / 60;
+              dayCount++;
             }
             cur.setDate(cur.getDate() + 1);
           }
+          console.log(`📅 ${emp.employeeName}: ${dayCount} working days, ${Math.round(hrs * 100) / 100} hrs past due`);
           return Math.round(hrs * 100) / 100;
         }
 
@@ -11471,19 +12070,24 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
         for (const emp of employees) {
           const att = empAtt[emp.employeeId] || { totalHours: 0, attendanceDays: 0 };
           const curHours   = Math.round(att.totalHours * 100) / 100;
-          const hoursShort = Math.max(0, requiredHoursPerMonth - curHours);
-          const pastDue    = await getPastDueHours(emp);
+          // Calculate per-employee required hours from their shift schedule
+          const empShift = emp.shiftId ? allShifts[emp.shiftId] : null;
+          const empRequiredHours = empShift ? getMonthlyHoursFromShift(empShift, month) : defaultRequiredHoursPerMonth;
+          const pastDue    = getPastDueHours(emp);
+          const hoursShort = Math.max(0, pastDue - curHours);
           const income     = Math.round(curHours * emp.payRate * 100) / 100;
-          const potential  = Math.round(requiredHoursPerMonth * emp.payRate * 100) / 100;
-          const status     = hoursShort > 40 ? 'Critical' : hoursShort > 0 ? 'Behind' : 'On Track';
-          const statusColor= hoursShort > 40 ? '#dc3545' : hoursShort > 0 ? '#fd7e14' : '#28a745';
+          const potential  = Math.round(empRequiredHours * emp.payRate * 100) / 100;
+          const shortPct   = pastDue > 0 ? (hoursShort / pastDue) * 100 : 0;
+          const status     = shortPct > 20 ? 'Critical Issue' : shortPct > 10 ? 'Fair' : 'Good Standing';
+          const statusColor= shortPct > 20 ? '#dc3545' : shortPct > 10 ? '#fd7e14' : '#28a745';
 
           records.push({
             employeeIndex: records.length + 1,
             employeeId: emp.employeeId,
             employeeName: emp.employeeName,
             slot: emp.slot,
-            requiredHours: requiredHoursPerMonth,
+            shiftName: emp.shiftName || null,
+            requiredHours: empRequiredHours,
             currentHours: curHours,
             pastDueHours: pastDue,
             hoursShort,
@@ -11504,7 +12108,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           totPotential += potential;
         }
 
-        const avgAtt = records.length ? Math.round((totHours / (requiredHoursPerMonth * records.length)) * 10000) / 100 : 0;
+        const avgAtt = records.length ? Math.round((totHours / (defaultRequiredHoursPerMonth * records.length)) * 10000) / 100 : 0;
         const summary = {
           totalEmployees: records.length,
           totalHoursWorked: Math.round(totHours * 100) / 100,
@@ -11512,7 +12116,7 @@ App: https://aiclock-82608.web.app/mobile-staff-app.html`;
           totalAmountDue: Math.round(totAmt * 100) / 100,
           totalPotentialPayroll: Math.round(totPotential * 100) / 100,
           averageAttendance: avgAtt,
-          requiredHoursPerMonth,
+          requiredHoursPerMonth: defaultRequiredHoursPerMonth,
           calculatedAt: new Date().toISOString(),
           month
         };
@@ -16474,14 +17078,15 @@ Click "Test Connection" after starting the service.`);
           }
           
           const hoursShort = Math.max(0, requiredHours - effectiveHours);
+          const secShortPct = requiredHours > 0 ? (hoursShort / requiredHours) * 100 : 0;
 
-          let status = 'On Track';
+          let status = 'Good Standing';
           let statusColor = '#28a745';
-          if (hoursShort > 40) {
-            status = 'Critical';
+          if (secShortPct > 20) {
+            status = 'Critical Issue';
             statusColor = '#dc3545';
-          } else if (hoursShort > 0) {
-            status = 'Behind';
+          } else if (secShortPct > 10) {
+            status = 'Fair';
             statusColor = '#fd7e14';
           }
 
@@ -16519,17 +17124,21 @@ Click "Test Connection" after starting the service.`);
       const totalIncomeDue = employeeAssessments.reduce((sum, emp) => sum + (emp.currentIncomeDue || 0), 0);
       const totalPotentialIncome = employeeAssessments.reduce((sum, emp) => sum + (emp.potentialIncome || 0), 0);
 
-      // Attendance standing helper
-      function attStatus(currentHours, requiredHours) {
-        const rate = requiredHours > 0 ? (currentHours / requiredHours) * 100 : 0;
-        if (rate >= 90) return { label: 'Good Standing', bg: '#28a745', rate };
-        if (rate >= 80) return { label: 'Fair', bg: '#0d6efd', rate };
+      // Attendance standing helper - uses pastDueHours (hours owed to date) for accurate rate
+      function attStatus(currentHours, requiredHours, pastDueHours) {
+        const c = currentHours || 0;
+        const pd = pastDueHours || 0;
+        const rate = pd > 0 ? Math.min(100, (c / pd) * 100) : (c > 0 ? 100 : 0);
+        const hs = Math.max(0, pd - c);
+        const shortPct = pd > 0 ? (hs / pd) * 100 : 0;
+        if (shortPct <= 10) return { label: 'Good Standing', bg: '#28a745', rate };
+        if (shortPct <= 20) return { label: 'Fair', bg: '#0d6efd', rate };
         return { label: 'Critical Issue', bg: '#dc3545', rate };
       }
 
       const standings = employeeAssessments.map(emp => ({
         ...emp,
-        _att: attStatus(emp.currentHours || 0, emp.requiredHours || 176)
+        _att: attStatus(emp.currentHours || 0, emp.requiredHours || 176, emp.pastDueHours || 0)
       }));
       const goodCount = standings.filter(e => e._att.label === 'Good Standing').length;
       const fairCount = standings.filter(e => e._att.label === 'Fair').length;
@@ -16538,7 +17147,8 @@ Click "Test Connection" after starting the service.`);
       const lateRanking = [...employeeAssessments].sort((a, b) => (b.hoursShort || 0) - (a.hoursShort || 0));
       const maxHs = lateRanking.length > 0 ? Math.max(lateRanking[0].hoursShort || 0, 1) : 1;
       const noLate = lateRanking.filter(emp => (emp.hoursShort || 0) > 0).length === 0;
-      const avgAtt = totalEmployees > 0 ? ((totalHours / (totalEmployees * 176)) * 100).toFixed(1) : '0.0';
+      const totalPastDue2 = employeeAssessments.reduce((s, e) => s + (e.pastDueHours || 0), 0);
+      const avgAtt = totalPastDue2 > 0 ? Math.min(100, (totalHours / totalPastDue2) * 100).toFixed(1) : '0.0';
 
       // Pre-build HTML snippets (string concat to avoid nested template literal issues)
       const tableRowsHtml = standings.map((emp, index) => {
@@ -16787,7 +17397,7 @@ Click "Test Connection" after starting the service.`);
               setTimeout(() => {
                 androidCanvas.innerHTML = '';
                 new QRCode(androidCanvas, {
-                  text: APP_CONFIG.android.downloadUrl,
+                  text: APP_CONFIG.android.apkUrl,
                   width: 200,
                   height: 200,
                   colorDark: '#000000',
@@ -16802,7 +17412,7 @@ Click "Test Connection" after starting the service.`);
           }
           
           new QRCode(androidCanvas, {
-            text: APP_CONFIG.android.downloadUrl,
+            text: APP_CONFIG.android.apkUrl,
             width: 200,
             height: 200,
             colorDark: '#000000',
@@ -16844,10 +17454,10 @@ Click "Test Connection" after starting the service.`);
       showNotification('🔐 Opening employee portal', 'info');
     }
 
-    // Copy Android download link
+    // Copy Employee Portal link
     function copyAndroidLink() {
-      navigator.clipboard.writeText(APP_CONFIG.android.webUrl).then(() => {
-        showNotification('🔗 Mobile app link copied to clipboard', 'success');
+      navigator.clipboard.writeText(APP_CONFIG.android.portalUrl).then(() => {
+        showNotification('🔗 Employee Portal link copied to clipboard', 'success');
       }).catch(err => {
         console.error('Failed to copy link:', err);
         showNotification('❌ Failed to copy link', 'error');

@@ -17,7 +17,7 @@ import { ENV } from './env.js';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _host = (typeof window !== 'undefined' ? window.location.hostname : '');
-const _isProd = ENV === 'production' || _host.includes('aiclock-82608');
+const _isProd = ENV === 'production' || _host.includes('aiclock-82608') || _host.includes('smartclock.co.za');
 
 const _testConfig = {
   apiKey: "AIzaSyC6capPBwQDzIyp73i4ML0m9UwqjcfJ_WE",

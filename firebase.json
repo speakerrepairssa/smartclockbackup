@@ -14,6 +14,19 @@
     ],
     "headers": [
       {
+        "source": "**/*.apk",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/vnd.android.package-archive"
+          },
+          {
+            "key": "Content-Disposition",
+            "value": "attachment; filename=\"aiclock-employee-portal.apk\""
+          }
+        ]
+      },
+      {
         "source": "**/*.@(html|htm)",
         "headers": [
           {
