@@ -1207,6 +1207,13 @@
           /* Spotlight card */
           .mrp-spotlight-body { padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; flex: 1; overflow-y: auto; min-height: 60px; }
 
+          /* Incentive card */
+          .mrp-incentive-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; min-height: 80px; }
+          .mrp-incentive-img-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0.75rem; overflow: hidden; min-height: 80px; position: relative; }
+          .mrp-incentive-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 1.5rem 0; }
+          .mrp-incentive-img-wrap img { max-height: 100%; transition: opacity 0.3s; }
+          .mrp-incentive-uploading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.85); font-size: 0.85rem; font-weight: 600; color: #667eea; z-index: 2; }
+
           .mrp-spotlight-row {
             display: flex;
             align-items: center;
@@ -3146,6 +3153,37 @@
                   <div class="mrp-sr-icon">⏳</div>
                   <div><div class="mrp-sr-label">Waiting for data</div><div class="mrp-sr-name">—</div></div>
                 </div>
+              </div>
+              <div class="mm-resize-hdl" title="Drag to resize"></div>
+            </div>
+
+            <!-- Incentive Prize card -->
+            <div class="mrp-card" data-mmrk="incentive">
+              <div class="mrp-card-hdr">
+                <div class="mrp-card-title">🏆 Incentive</div>
+                <div style="display:flex;align-items:center;gap:0.4rem">
+                  <select id="incentivePeriod" onchange="loadIncentiveImage()" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff;border-radius:5px;padding:0.15rem 0.4rem;font-size:0.65rem;font-weight:700;cursor:pointer;">
+                    <option value="daily">Daily</option>
+                    <option value="weekly" selected>Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                  <label class="mm-zoom-btn" style="cursor:pointer;position:relative;" title="Upload prize image">
+                    📤
+                    <input type="file" accept="image/*" onchange="uploadIncentiveImage(this)" style="position:absolute;opacity:0;width:0;height:0;">
+                  </label>
+                  <button class="mm-zoom-btn" onclick="deleteIncentiveImage()" title="Delete prize image">🗑️</button>
+                </div>
+              </div>
+              <div class="mrp-incentive-body" id="mrpIncentiveBody">
+                <div id="incentiveImageWrap" class="mrp-incentive-img-wrap">
+                  <div id="incentivePlaceholder" class="mrp-incentive-placeholder">
+                    <div style="font-size:2.5rem;opacity:0.3;">🏆</div>
+                    <div style="font-size:0.8rem;color:#94a3b8;margin-top:0.25rem;">Upload a prize image</div>
+                    <div style="font-size:0.7rem;color:#cbd5e1;">Daily, weekly, or monthly incentive</div>
+                  </div>
+                  <img id="incentiveImage" src="" alt="Incentive Prize" style="display:none;width:100%;height:100%;object-fit:contain;border-radius:6px;">
+                </div>
+                <div id="incentiveCaption" style="display:none;padding:0.4rem 0.75rem 0.6rem;text-align:center;font-size:0.75rem;font-weight:600;color:#475569;"></div>
               </div>
               <div class="mm-resize-hdl" title="Drag to resize"></div>
             </div>
@@ -18352,6 +18390,125 @@ Click "Test Connection" after starting the service.`);
 
     window.resetMmLayout = function() { localStorage.removeItem(SK); location.reload(); };
 
+    /* ── Incentive Prize Image ── */
+    window.uploadIncentiveImage = async function(input) {
+      if (!input.files || !input.files[0]) return;
+      var file = input.files[0];
+      if (!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
+      if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5 MB'); return; }
+
+      var period = document.getElementById('incentivePeriod').value;
+      var wrap = document.getElementById('incentiveImageWrap');
+      // Show uploading overlay
+      var overlay = document.createElement('div');
+      overlay.className = 'mrp-incentive-uploading';
+      overlay.textContent = '⏳ Uploading…';
+      wrap.appendChild(overlay);
+
+      try {
+        var bid = typeof currentBusinessId !== 'undefined' ? currentBusinessId : null;
+        if (!bid) { alert('No business selected'); overlay.remove(); return; }
+
+        var { getStorage, ref: sRef, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+        var storage = getStorage(app);
+        var ext = file.name.split('.').pop() || 'jpg';
+        var storagePath = 'businesses/' + bid + '/incentives/' + period + '.' + ext;
+        var imgRef = sRef(storage, storagePath);
+        await uploadBytes(imgRef, file, { contentType: file.type });
+        var url = await getDownloadURL(imgRef);
+
+        // Save to Firestore
+        await setDoc(doc(db, 'businesses', bid), {
+          incentiveImages: { [period]: { url: url, storagePath: storagePath, uploadedAt: new Date().toISOString(), fileName: file.name } }
+        }, { merge: true });
+
+        loadIncentiveImage();
+      } catch (e) {
+        console.error('Incentive upload error:', e);
+        alert('Upload failed: ' + e.message);
+      } finally {
+        overlay.remove();
+        input.value = '';
+      }
+    };
+
+    window.deleteIncentiveImage = async function() {
+      var period = document.getElementById('incentivePeriod').value;
+      if (!confirm('Delete the ' + period + ' incentive image?')) return;
+
+      try {
+        var bid = typeof currentBusinessId !== 'undefined' ? currentBusinessId : null;
+        if (!bid) return;
+
+        // Get current data
+        var bizDoc = await getDoc(doc(db, 'businesses', bid));
+        var data = bizDoc.exists() ? bizDoc.data() : {};
+        var info = data.incentiveImages && data.incentiveImages[period];
+
+        if (info && info.storagePath) {
+          var { getStorage, ref: sRef, deleteObject } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+          var storage = getStorage(app);
+          try { await deleteObject(sRef(storage, info.storagePath)); } catch(e) { console.warn('Storage delete:', e); }
+        }
+
+        // Remove from Firestore
+        var updates = {};
+        updates['incentiveImages.' + period] = null;
+        var { deleteField } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        updates['incentiveImages.' + period] = deleteField();
+        await updateDoc(doc(db, 'businesses', bid), updates);
+
+        loadIncentiveImage();
+      } catch (e) {
+        console.error('Incentive delete error:', e);
+        alert('Delete failed: ' + e.message);
+      }
+    };
+
+    window.loadIncentiveImage = async function() {
+      var period = document.getElementById('incentivePeriod');
+      if (!period) return;
+      var sel = period.value;
+      var imgEl = document.getElementById('incentiveImage');
+      var placeholder = document.getElementById('incentivePlaceholder');
+      var caption = document.getElementById('incentiveCaption');
+      if (!imgEl || !placeholder) return;
+
+      try {
+        var bid = typeof currentBusinessId !== 'undefined' ? currentBusinessId : null;
+        if (!bid) return;
+
+        var bizDoc = await getDoc(doc(db, 'businesses', bid));
+        var data = bizDoc.exists() ? bizDoc.data() : {};
+        var info = data.incentiveImages && data.incentiveImages[sel];
+
+        if (info && info.url) {
+          imgEl.src = info.url;
+          imgEl.style.display = 'block';
+          placeholder.style.display = 'none';
+          var labels = { daily: '📅 Daily Prize', weekly: '📆 Weekly Prize', monthly: '🗓️ Monthly Prize' };
+          caption.textContent = labels[sel] || 'Prize';
+          caption.style.display = 'block';
+        } else {
+          imgEl.style.display = 'none';
+          imgEl.src = '';
+          placeholder.style.display = 'flex';
+          caption.style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Load incentive error:', e);
+      }
+    };
+
+    /* Auto-load incentive when monitor opens */
+    (function() {
+      var _origSw2 = window.switchModule;
+      window.switchModule = function(m) {
+        if (typeof _origSw2 === 'function') _origSw2.apply(this, arguments);
+        if (m === 'monitor') setTimeout(function() { loadIncentiveImage(); }, 500);
+      };
+    })();
+
     /* ── Per-panel zoom ── */
     var ZK2 = 'mm_zoom';
     var zv2 = JSON.parse(localStorage.getItem(ZK2)||'{}');
@@ -18370,7 +18527,7 @@ Click "Test Connection" after starting the service.`);
       if (id==='mm-chart' && window._mmChart) { try { window._mmChart.resize(); } catch(e){} }
     };
     /* apply saved zoom on init */
-    var _zoomPanels = ['mm-in','mm-out','mm-chart','mm-spot'];
+    var _zoomPanels = ['mm-in','mm-out','mm-chart','mm-spot','mm-incentive'];
     function applyAllZooms() { _zoomPanels.forEach(applyZoom2); }
     window.addEventListener('load', function() { setTimeout(applyAllZooms, 600); });
     /* also re-apply when monitor section opens */
