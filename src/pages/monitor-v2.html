@@ -163,6 +163,14 @@
 
     /* Spotlight */
     .spotlight-body{padding:0.8rem 1rem;display:flex;flex-direction:column;gap:0.5rem;flex:1;overflow-y:auto;min-height:80px;}
+
+    /* Incentive */
+    .incentive-body{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:80px;}
+    .incentive-img-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:0.75rem;overflow:hidden;min-height:80px;position:relative;}
+    .incentive-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:1.5rem 0;}
+    .incentive-img-wrap img{max-height:100%;max-width:100%;object-fit:contain;border-radius:6px;transition:opacity 0.3s;}
+    .incentive-uploading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.8);font-size:0.85rem;font-weight:600;color:#14b8a6;z-index:2;}
+    .incentive-caption{padding:0.4rem 0.75rem 0.6rem;text-align:center;font-size:0.75rem;font-weight:600;color:#94a3b8;}
     .spot-section-lbl{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#475569;padding:0 0.1rem 0.1rem;}
     .spot-row{display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.8rem;border-radius:10px;}
     .spot-row.top {background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);}
@@ -272,6 +280,37 @@
         <div class="layout-resize-hdl" title="Drag to resize"></div>
       </div>
 
+      <!-- Incentive Prize card -->
+      <div class="rp-card" data-rk="incentive">
+        <div class="rp-hdr">
+          <div class="rp-title">&#127942; Incentive</div>
+          <div style="display:flex;align-items:center;gap:0.4rem">
+            <select id="incentivePeriod" onchange="loadIncentiveImage()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);color:#fff;border-radius:5px;padding:0.15rem 0.4rem;font-size:0.65rem;font-weight:700;cursor:pointer;">
+              <option value="daily">Daily</option>
+              <option value="weekly" selected>Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            <label class="zoom-btn" style="cursor:pointer;position:relative;" title="Upload prize image">
+              &#128228;
+              <input type="file" accept="image/*" onchange="uploadIncentiveImage(this)" style="position:absolute;opacity:0;width:0;height:0;">
+            </label>
+            <button class="zoom-btn" onclick="deleteIncentiveImage()" title="Delete prize image">&#128465;</button>
+          </div>
+        </div>
+        <div class="incentive-body">
+          <div class="incentive-img-wrap" id="incentiveImageWrap">
+            <div id="incentivePlaceholder" class="incentive-placeholder">
+              <div style="font-size:2.5rem;opacity:0.25;">&#127942;</div>
+              <div style="font-size:0.8rem;color:#475569;margin-top:0.25rem;">Upload a prize image</div>
+              <div style="font-size:0.7rem;color:#334155;">Daily, weekly, or monthly incentive</div>
+            </div>
+            <img id="incentiveImage" src="" alt="Incentive Prize" style="display:none;">
+          </div>
+          <div id="incentiveCaption" class="incentive-caption" style="display:none;"></div>
+        </div>
+        <div class="layout-resize-hdl" title="Drag to resize"></div>
+      </div>
+
     </div>
   </div>
 
@@ -285,7 +324,7 @@
 
 <script type="module">
   import { db, app } from '../config/firebase.js';
-  import { collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { collection, onSnapshot, doc as fdoc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   const ini = n => (n||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   const _bucket = app.options.storageBucket;
@@ -408,6 +447,90 @@
     if(label) label.textContent=ok?"Live \u2014 real-time sync":(lbl||"Disconnected");
   }
 
+  /* ── Incentive Prize Image ── */
+  window.uploadIncentiveImage = async function(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5 MB'); return; }
+    const period = document.getElementById('incentivePeriod').value;
+    const wrap = document.getElementById('incentiveImageWrap');
+    const overlay = document.createElement('div');
+    overlay.className = 'incentive-uploading';
+    overlay.textContent = '\u23f3 Uploading\u2026';
+    wrap.appendChild(overlay);
+    try {
+      const { getStorage, ref: sRef, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+      const storage = getStorage(app);
+      const ext = file.name.split('.').pop() || 'jpg';
+      const storagePath = 'businesses/' + bId + '/incentives/' + period + '.' + ext;
+      const imgRef = sRef(storage, storagePath);
+      await uploadBytes(imgRef, file, { contentType: file.type });
+      const url = await getDownloadURL(imgRef);
+      await setDoc(fdoc(db, 'businesses', bId), {
+        incentiveImages: { [period]: { url, storagePath, uploadedAt: new Date().toISOString(), fileName: file.name } }
+      }, { merge: true });
+      loadIncentiveImage();
+    } catch (e) {
+      console.error('Incentive upload error:', e);
+      alert('Upload failed: ' + e.message);
+    } finally {
+      overlay.remove();
+      input.value = '';
+    }
+  };
+
+  window.deleteIncentiveImage = async function() {
+    const period = document.getElementById('incentivePeriod').value;
+    if (!confirm('Delete the ' + period + ' incentive image?')) return;
+    try {
+      const bizDoc = await getDoc(fdoc(db, 'businesses', bId));
+      const data = bizDoc.exists() ? bizDoc.data() : {};
+      const info = data.incentiveImages && data.incentiveImages[period];
+      if (info && info.storagePath) {
+        const { getStorage, ref: sRef, deleteObject } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js');
+        try { await deleteObject(sRef(getStorage(app), info.storagePath)); } catch(e) { console.warn('Storage delete:', e); }
+      }
+      const { deleteField } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      await updateDoc(fdoc(db, 'businesses', bId), { ['incentiveImages.' + period]: deleteField() });
+      loadIncentiveImage();
+    } catch (e) {
+      console.error('Incentive delete error:', e);
+      alert('Delete failed: ' + e.message);
+    }
+  };
+
+  window.loadIncentiveImage = async function() {
+    const periodEl = document.getElementById('incentivePeriod');
+    if (!periodEl || !bId) return;
+    const sel = periodEl.value;
+    const imgEl = document.getElementById('incentiveImage');
+    const placeholder = document.getElementById('incentivePlaceholder');
+    const caption = document.getElementById('incentiveCaption');
+    if (!imgEl || !placeholder) return;
+    try {
+      const bizDoc = await getDoc(fdoc(db, 'businesses', bId));
+      const data = bizDoc.exists() ? bizDoc.data() : {};
+      const info = data.incentiveImages && data.incentiveImages[sel];
+      if (info && info.url) {
+        imgEl.src = info.url;
+        imgEl.style.display = 'block';
+        placeholder.style.display = 'none';
+        const labels = { daily: '\ud83d\udcc5 Daily Prize', weekly: '\ud83d\udcc6 Weekly Prize', monthly: '\ud83d\uddd3\ufe0f Monthly Prize' };
+        caption.textContent = labels[sel] || 'Prize';
+        caption.style.display = 'block';
+      } else {
+        imgEl.style.display = 'none';
+        imgEl.src = '';
+        placeholder.style.display = 'flex';
+        caption.style.display = 'none';
+      }
+    } catch (e) { console.error('Load incentive error:', e); }
+  };
+
+  // Auto-load incentive on page load
+  setTimeout(() => loadIncentiveImage(), 800);
+
   window.toggleFS=()=>{
     const el=document.documentElement, inFS=document.fullscreenElement||document.webkitFullscreenElement;
     if(!inFS)(el.requestFullscreen||el.webkitRequestFullscreen).call(el);
@@ -515,7 +638,7 @@
     if (id==='fv-chart' && window._fvChart) { try { window._fvChart.resize(); } catch(e){} }
   };
   window.addEventListener('load', function() {
-    ['fv-in','fv-out','fv-chart','fv-spot'].forEach(applyZoom);
+    ['fv-in','fv-out','fv-chart','fv-spot','fv-incentive'].forEach(applyZoom);
   });
 })();
 </script>
