@@ -1101,6 +1101,19 @@ async function processAttendanceEvent(businessId, eventData) {
       manualNotes: eventData.manualNotes || null
     });
 
+    // 🚀 UPDATE TIMECARD CACHE (Background optimization for fast loading)
+    // This updates the pre-calculated timecard cache so when users click timecard,
+    // it loads instantly from cache instead of querying all events
+    (async () => {
+      try {
+        await updateTimecardCache(businessId, slotNumber.toString(), timestamp);
+        logger.info('✅ Timecard cache updated in background', { businessId, employeeId: slotNumber, timestamp });
+      } catch (cacheError) {
+        logger.warn('⚠️ Timecard cache update failed (non-critical):', cacheError.message);
+        // Non-critical - cache will be rebuilt on-demand if missing
+      }
+    })();
+
     // TRIGGER WHATSAPP AUTOMATION CARDS  
     try {
       const trigger = isClockingIn ? 'clock-in' : 'clock-out';
@@ -7222,5 +7235,296 @@ exports.uploadEmployeePhoto = onRequest(async (req, res) => {
   } catch (err) {
     logger.error('❌ uploadEmployeePhoto error:', err);
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🚀 TIMECARD CACHE SYSTEM - VIRTUAL CACHE FOR FAST LOADING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Helper function to update timecard cache for a specific employee and month
+ * Called whenever an attendance event is recorded
+ * Stores precomputed daily hours in timecard_cache/{businessId}/{employeeId}/{YYYY-MM}
+ */
+async function updateTimecardCache(businessId, employeeId, timestamp) {
+  try {
+    const date = new Date(timestamp);
+    const yearMonth = date.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
+    const [year, month] = yearMonth.split('-');
+    const monthDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+
+    // Get employee staff data for shift info
+    const staffRef = db.collection('businesses').doc(businessId).collection('staff').doc(employeeId);
+    const staffSnap = await staffRef.get();
+    const staffData = staffSnap.exists ? staffSnap.data() : {};
+
+    // Get business data for default schedule
+    const businessRef = db.collection('businesses').doc(businessId);
+    const businessSnap = await businessRef.get();
+    const businessData = businessSnap.exists ? businessSnap.data() : {};
+
+    // Get employee shift if assigned
+    let employeeShift = null;
+    if (staffData.shiftId) {
+      try {
+        const shiftRef = db.collection('businesses').doc(businessId).collection('shifts').doc(staffData.shiftId);
+        const shiftSnap = await shiftRef.get();
+        if (shiftSnap.exists && shiftSnap.data().active) {
+          employeeShift = shiftSnap.data();
+        }
+      } catch (e) {
+        logger.warn('Could not load shift for cache update:', e.message);
+      }
+    }
+
+    const dailyRecords = [];
+    const eventsByDate = new Map();
+
+    // Query all events for this employee and month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      try {
+        // Query nested structure: attendance_events/{dateStr}/{employeeId}/*
+        const dayEventsRef = db.collection('businesses').doc(businessId)
+          .collection('attendance_events').doc(dateStr).collection(employeeId);
+        const dayEventsSnap = await dayEventsRef.get();
+        
+        const dayEvents = [];
+        dayEventsSnap.forEach(doc => {
+          const event = doc.data();
+          if (!event.testMode && !(event.status === 'pending' && !event.resolvedManually)) {
+            dayEvents.push({
+              type: event.type || (event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out'),
+              timestamp: event.timestamp,
+              time: new Date(event.timestamp)
+            });
+          }
+        });
+
+        if (dayEvents.length > 0) {
+          eventsByDate.set(dateStr, dayEvents);
+        }
+      } catch (dayError) {
+        // Day may not exist - that's ok
+      }
+    }
+
+    // Build daily records with calculated hours
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const date = new Date(parseInt(year), parseInt(month) - 1, day);
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+      const fullDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+
+      // Check shift schedule
+      let daySchedule = null;
+      if (employeeShift && employeeShift.schedule && employeeShift.schedule[fullDayName]) {
+        daySchedule = employeeShift.schedule[fullDayName];
+      } else {
+        daySchedule = businessData.schedule ? businessData.schedule[fullDayName] : null;
+      }
+      const isWorkingDay = daySchedule && daySchedule.enabled ? true : false;
+
+      const events = eventsByDate.get(dateStr) || [];
+      
+      let totalHours = 0;
+      let clockIns = [];
+      let clockOuts = [];
+      let hasData = false;
+
+      if (events.length > 0) {
+        hasData = true;
+        // Sort chronologically
+        events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        // Calculate work periods
+        let totalMinutes = 0;
+        let currentClockIn = null;
+
+        for (const event of events) {
+          const eventTime = new Date(event.timestamp);
+          
+          if (event.type === 'clock-in') {
+            currentClockIn = eventTime;
+            clockIns.push(eventTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }));
+          } else if (event.type === 'clock-out' && currentClockIn) {
+            const diffMs = eventTime.getTime() - currentClockIn.getTime();
+            const diffMinutes = Math.max(0, diffMs / (1000 * 60));
+            totalMinutes += diffMinutes;
+            clockOuts.push(eventTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }));
+            currentClockIn = null;
+          }
+        }
+
+        totalHours = Math.round((totalMinutes / 60) * 100) / 100;
+      }
+
+      dailyRecords.push({
+        date: dateStr,
+        day: day,
+        dayName: dayName,
+        isWorkingDay: isWorkingDay,
+        clockIns: clockIns,
+        clockOuts: clockOuts,
+        totalHours: totalHours,
+        hasData: hasData
+      });
+    }
+
+    // Calculate totals
+    const totalHours = dailyRecords.reduce((sum, r) => sum + r.totalHours, 0);
+    const daysWorked = dailyRecords.filter(r => r.hasData).length;
+
+    // Save cache to timecard_cache collection
+    const cacheRef = db.collection('businesses').doc(businessId)
+      .collection('timecard_cache').doc(employeeId).collection('months').doc(yearMonth);
+
+    await cacheRef.set({
+      yearMonth: yearMonth,
+      employeeId: employeeId,
+      employeeName: staffData.employeeName || `Employee ${employeeId}`,
+      badgeNumber: staffData.badgeNumber,
+      totalHours: totalHours,
+      daysWorked: daysWorked,
+      dailyRecords: dailyRecords,
+      updatedAt: new Date().toISOString(),
+      createdAt: (await cacheRef.get()).exists ? (await cacheRef.get()).data().createdAt : new Date().toISOString()
+    });
+
+    logger.info('📊 Timecard cache updated', { businessId, employeeId, yearMonth, totalHours, daysWorked });
+    return true;
+
+  } catch (error) {
+    logger.error('❌ Error updating timecard cache:', { error: error.message, businessId, employeeId });
+    return false;
+  }
+}
+
+/**
+ * On-demand endpoint to rebuild timecard cache for a specific month
+ * Useful when historical data changes or cache gets out of sync
+ */
+exports.rebuildTimecardCache = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const { businessId, employeeId, yearMonth } = req.body;
+
+    if (!businessId || !employeeId || !yearMonth) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: businessId, employeeId, yearMonth (YYYY-MM)' 
+      });
+    }
+
+    // Validate month format
+    if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
+      return res.status(400).json({ 
+        error: 'Invalid month format. Use YYYY-MM format' 
+      });
+    }
+
+    // Create timestamp in that month
+    const [year, month] = yearMonth.split('-');
+    const timestamp = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString();
+
+    // Update cache
+    const success = await updateTimecardCache(businessId, employeeId, timestamp);
+
+    if (success) {
+      return res.json({ 
+        success: true, 
+        message: 'Timecard cache rebuilt successfully',
+        businessId,
+        employeeId,
+        yearMonth
+      });
+    } else {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to rebuild cache' 
+      });
+    }
+
+  } catch (error) {
+    logger.error('❌ rebuildTimecardCache error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Endpoint to get cached timecard data for the frontend
+ * Returns pre-calculated daily hours for fast display
+ */
+exports.getTimecardCache = onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const businessId = req.query.businessId || req.body.businessId;
+    const employeeId = req.query.employeeId || req.body.employeeId;
+    const yearMonth = req.query.yearMonth || req.body.yearMonth;
+
+    if (!businessId || !employeeId || !yearMonth) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: businessId, employeeId, yearMonth' 
+      });
+    }
+
+    // Get cache
+    const cacheRef = db.collection('businesses').doc(businessId)
+      .collection('timecard_cache').doc(employeeId).collection('months').doc(yearMonth);
+    const cacheSnap = await cacheRef.get();
+
+    if (!cacheSnap.exists) {
+      // Cache doesn't exist yet - trigger a rebuild
+      logger.info('⏳ Cache missing, triggering rebuild', { businessId, employeeId, yearMonth });
+      
+      const [year, month] = yearMonth.split('-');
+      const timestamp = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString();
+      await updateTimecardCache(businessId, employeeId, timestamp);
+
+      // Get it again
+      const newCacheSnap = await cacheRef.get();
+      if (newCacheSnap.exists) {
+        return res.json({ 
+          success: true, 
+          data: newCacheSnap.data(),
+          fromCache: false,
+          message: 'Cache was rebuilt and returned'
+        });
+      } else {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Could not build cache after rebuild attempt' 
+        });
+      }
+    }
+
+    return res.json({ 
+      success: true, 
+      data: cacheSnap.data(),
+      fromCache: true,
+      message: 'Cache loaded successfully'
+    });
+
+  } catch (error) {
+    logger.error('❌ getTimecardCache error:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });

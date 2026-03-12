@@ -1321,7 +1321,7 @@
       }
     }
 
-    // Load employee timecard
+    // Load employee timecard from cached data
     window.loadEmployeeTimecard = async function() {
       // Helper function to format decimal hours to hours:minutes
       function formatHours(decimalHours) {
@@ -1339,7 +1339,7 @@
       }
 
       try {
-        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;">Loading timecard...</div>';
+        display.innerHTML = '<div style="text-align: center; color: #999; padding: 3rem;"><span style="font-size: 1.1rem;">⏳ Loading timecard from cache...</span></div>';
 
         // Set print header
         const printHeader = document.getElementById('printHeader');
@@ -1356,19 +1356,31 @@
           if (dateSpan) dateSpan.textContent = new Date().toLocaleDateString('en-US');
         }
 
-        // Parse month
+        // 🚀 LOAD FROM CACHE (Fast endpoint)
+        const cacheResponse = await fetch(
+          `https://us-central1-aiclock-82608.cloudfunctions.net/getTimecardCache?businessId=${businessId}&employeeId=${employeeId}&yearMonth=${month}`
+        );
+
+        if (!cacheResponse.ok) {
+          throw new Error('Failed to load timecard cache');
+        }
+
+        const cacheResult = await cacheResponse.json();
+
+        if (!cacheResult.success) {
+          throw new Error(cacheResult.error || 'Failed to load cache');
+        }
+
+        const cacheData = cacheResult.data;
+        const dailyRecords = cacheData.dailyRecords || [];
+        const totalHours = cacheData.totalHours || 0;
+        const daysWorked = cacheData.daysWorked || 0;
+
         const [year, monthNum] = month.split('-');
         const monthDate = new Date(year, monthNum - 1, 1);
         const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-        // Get all days in month
-        const daysInMonth = new Date(year, monthNum, 0).getDate();
-        const dailyRecords = [];
-
-        // Get business schedule and settings
-        const schedule = businessData?.schedule || {};
-
-        // Load employee's shift if assigned
+        // Get employee shift if available
         let employeeShift = null;
         if (employeeData.shiftId) {
           try {
@@ -1378,269 +1390,17 @@
               employeeShift = shiftDoc.data();
             }
           } catch (shiftError) {
-            console.error('Error loading shift:', shiftError);
+            console.warn('Could not load shift:', shiftError);
           }
         }
 
-        // Get attendance events for this employee and month (check both nested and flat structures)
-        const eventsByDate = new Map();
-        
-        // Strategy 1: Query nested structure (attendance_events/{date}/{employeeId}/*)
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          
-          try {
-            const dayEventsRef = collection(db, "businesses", businessId, "attendance_events", dateStr, employeeId);
-            const dayEventsSnap = await getDocs(dayEventsRef);
-            
-            dayEventsSnap.forEach(doc => {
-              const event = doc.data();
-              
-              // Skip test events and unresolved pending punches
-              if (event.testMode || (event.status === 'pending' && !event.resolvedManually)) {
-                return;
-              }
-              
-              if (event.timestamp) {
-                const eventDate = new Date(event.timestamp);
-                
-                let eventType = null;
-                if (event.type) eventType = event.type;
-                else if (event.attendanceStatus) {
-                  eventType = event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out';
-                }
-                
-                if (eventType) {
-                  if (!eventsByDate.has(dateStr)) {
-                    eventsByDate.set(dateStr, []);
-                  }
-                  
-                  const existing = eventsByDate.get(dateStr);
-                  const isDuplicate = existing.some(e => {
-                    const timeDiff = Math.abs(new Date(e.timestamp).getTime() - new Date(event.timestamp).getTime());
-                    return timeDiff < 30000 && e.type === eventType;
-                  });
-                  
-                  if (!isDuplicate) {
-                    existing.push({
-                      type: eventType,
-                      timestamp: event.timestamp,
-                      time: eventDate
-                    });
-                  }
-                }
-              }
-            });
-          } catch (dayError) {
-            // Day might not exist - that's ok
-          }
-        }
-        
-        // Strategy 2: Fallback to flat structure (legacy format)
-        try {
-          const flatAttendanceRef = collection(db, "businesses", businessId, "attendance_events");
-          const flatAttendanceSnap = await getDocs(flatAttendanceRef);
-          
-          const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
-          const endDate = `${year}-${String(monthNum).padStart(2, '0')}-${daysInMonth}`;
-          
-          flatAttendanceSnap.forEach(doc => {
-            const event = doc.data();
-            if (event.employeeId === employeeId && event.timestamp) {
-              const eventDate = new Date(event.timestamp);
-              const dateStr = eventDate.toISOString().split('T')[0];
-              
-              if (dateStr >= startDate && dateStr <= endDate && !event.testMode) {
-                if (event.status === 'pending' && !event.resolvedManually) {
-                  return;
-                }
-                
-                let eventType = null;
-                if (event.type) eventType = event.type;
-                else if (event.attendanceStatus) {
-                  eventType = event.attendanceStatus === 'in' ? 'clock-in' : 'clock-out';
-                }
-                
-                if (eventType) {
-                  if (!eventsByDate.has(dateStr)) {
-                    eventsByDate.set(dateStr, []);
-                  }
-                  
-                  const existing = eventsByDate.get(dateStr);
-                  const isDuplicate = existing.some(e => {
-                    const timeDiff = Math.abs(new Date(e.timestamp).getTime() - new Date(event.timestamp).getTime());
-                    return timeDiff < 30000 && e.type === eventType;
-                  });
-                  
-                  if (!isDuplicate) {
-                    existing.push({
-                      type: eventType,
-                      timestamp: event.timestamp,
-                      time: eventDate
-                    });
-                  }
-                }
-              }
-            }
-          });
-        } catch (flatError) {
-          console.log('No flat events found');
-        }
-
-        // Build daily records array for all days in month
-        for (let day = 1; day <= daysInMonth; day++) {
-          const date = new Date(year, monthNum - 1, day, 12, 0, 0);
-          const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-          const fullDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-          
-          // Check if this day is configured as a working day (shift schedule takes priority)
-          let daySchedule = null;
-          if (employeeShift && employeeShift.schedule && employeeShift.schedule[fullDayName]) {
-            daySchedule = employeeShift.schedule[fullDayName];
-          } else {
-            daySchedule = schedule[fullDayName];
-          }
-          const isWorkingDay = daySchedule?.enabled || false;
-
-          const events = eventsByDate.get(dateStr) || [];
-          
-          if (events.length > 0) {
-            // Sort events chronologically
-            events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-            // Calculate work periods by pairing sequential in/out events
-            let totalMinutes = 0;
-            let currentClockIn = null;
-            
-            for (let i = 0; i < events.length; i++) {
-              const event = events[i];
-              const eventTime = new Date(event.timestamp);
-              
-              if (event.type === 'clock-in') {
-                currentClockIn = eventTime;
-              } 
-              else if (event.type === 'clock-out' && currentClockIn) {
-                const diffMs = eventTime.getTime() - currentClockIn.getTime();
-                const diffMinutes = Math.max(0, diffMs / (1000 * 60));
-                totalMinutes += diffMinutes;
-                currentClockIn = null;
-              }
-            }
-            
-            const actualHours = Math.round((totalMinutes / 60) * 100) / 100;
-
-            // Get break duration
-            let breakMinutes = 60; // Default
-            if (daySchedule && daySchedule.breakDuration !== undefined) {
-              breakMinutes = daySchedule.breakDuration;
-            } else if (employeeShift && employeeShift.defaultBreakDuration !== undefined) {
-              breakMinutes = employeeShift.defaultBreakDuration;
-            } else if (businessData.breakDuration !== undefined) {
-              breakMinutes = businessData.breakDuration;
-            }
-
-            // Calculate scheduled work hours
-            let scheduledWorkHours = 8;
-            let scheduledStartTime = '08:30';
-            let scheduledEndTime = '17:30';
-
-            if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
-              scheduledStartTime = daySchedule.startTime;
-              scheduledEndTime = daySchedule.endTime;
-              const [startH, startM] = scheduledStartTime.split(':').map(Number);
-              const [endH, endM] = scheduledEndTime.split(':').map(Number);
-              const shiftDuration = (endH + endM/60) - (startH + startM/60);
-              scheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
-            } else if (businessData.workStartTime && businessData.workEndTime) {
-              scheduledStartTime = businessData.workStartTime;
-              scheduledEndTime = businessData.workEndTime;
-              const [startH, startM] = scheduledStartTime.split(':').map(Number);
-              const [endH, endM] = scheduledEndTime.split(':').map(Number);
-              const shiftDuration = (endH + endM/60) - (startH + startM/60);
-              scheduledWorkHours = Math.max(0, shiftDuration - (breakMinutes / 60));
-            }
-            
-            // Get actual first clock-in and last clock-out
-            const firstClockIn = events.find(e => e.type === 'clock-in');
-            const lastClockOut = events.filter(e => e.type === 'clock-out').pop();
-            
-            let payableHours = 0;
-            
-            if (firstClockIn && lastClockOut) {
-              const actualStart = new Date(firstClockIn.timestamp);
-              const actualEnd = new Date(lastClockOut.timestamp);
-              
-              const [schedStartH, schedStartM] = scheduledStartTime.split(':').map(Number);
-              const [schedEndH, schedEndM] = scheduledEndTime.split(':').map(Number);
-              
-              const schedStart = new Date(actualStart);
-              schedStart.setHours(schedStartH, schedStartM, 0, 0);
-              
-              const schedEnd = new Date(actualStart);
-              schedEnd.setHours(schedEndH, schedEndM, 0, 0);
-              
-              const payableStart = new Date(Math.max(actualStart.getTime(), schedStart.getTime()));
-              const payableEnd = new Date(Math.min(actualEnd.getTime(), schedEnd.getTime()));
-              
-              const payableDuration = Math.max(0, (payableEnd.getTime() - payableStart.getTime()) / (1000 * 60 * 60));
-              payableHours = Math.max(0, payableDuration - (breakMinutes / 60));
-              payableHours = Math.min(payableHours, scheduledWorkHours);
-            }
-            
-            const finalHours = Math.round(payableHours * 100) / 100;
-
-            dailyRecords.push({
-              date: dateStr,
-              day: day,
-              dayName: dayName,
-              isWorkingDay: isWorkingDay,
-              clockIns: events.filter(e => e.type === 'clock-in').map(e => e.time),
-              clockOuts: events.filter(e => e.type === 'clock-out').map(e => e.time),
-              totalHours: finalHours,
-              hasData: true,
-              shiftStart: scheduledStartTime,
-              shiftEnd: scheduledEndTime,
-              shiftName: employeeShift?.shiftName || 'Default'
-            });
-          } else {
-            // Get shift schedule even for days without attendance
-            let scheduledStartTime = '08:30';
-            let scheduledEndTime = '17:30';
-            if (daySchedule && daySchedule.startTime && daySchedule.endTime) {
-              scheduledStartTime = daySchedule.startTime;
-              scheduledEndTime = daySchedule.endTime;
-            } else if (businessData.workStartTime && businessData.workEndTime) {
-              scheduledStartTime = businessData.workStartTime;
-              scheduledEndTime = businessData.workEndTime;
-            }
-
-            dailyRecords.push({
-              date: dateStr,
-              day: day,
-              dayName: dayName,
-              isWorkingDay: isWorkingDay,
-              clockIns: [],
-              clockOuts: [],
-              totalHours: 0,
-              hasData: false,
-              shiftStart: scheduledStartTime,
-              shiftEnd: scheduledEndTime,
-              shiftName: employeeShift?.shiftName || 'Default'
-            });
-          }
-        }
-
-        // Calculate totals
-        const totalHours = dailyRecords.reduce((sum, record) => sum + record.totalHours, 0);
-        const daysWorked = dailyRecords.filter(r => r.hasData).length;
-
-        // Render timecard
+        // Render timecard from cached data
         display.innerHTML = `
           <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
             <div style="margin-bottom: 2rem;">
               <h3 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; color: #2c3e50;">${employeeData.employeeName} - ${monthName}</h3>
               <p style="margin: 0; color: #666;">Badge: ${employeeData.badgeNumber || 'N/A'}${employeeShift ? ` • Shift: ${employeeShift.shiftName}` : ''}</p>
+              <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #999;">📊 Loading from ${cacheResult.fromCache ? 'cache (instant)' : 'live data'}</p>
             </div>
 
             <div style="overflow-x: auto;">
@@ -1651,34 +1411,30 @@
                     <th style="padding: 1rem; text-align: left; font-weight: 600; color: #495057;">Day</th>
                     <th style="padding: 1rem; text-align: left; font-weight: 600; color: #495057;">Clock In</th>
                     <th style="padding: 1rem; text-align: left; font-weight: 600; color: #495057;">Clock Out</th>
-                    <th style="padding: 1rem; text-align: center; font-weight: 600; color: #495057;">Shift</th>
                     <th style="padding: 1rem; text-align: right; font-weight: 600; color: #495057;">Hours</th>
                     <th style="padding: 1rem; text-align: center; font-weight: 600; color: #495057;">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${dailyRecords.map(record => {
-                    const clockIns = record.clockIns.map(t => t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })).join('<br>');
-                    const clockOuts = record.clockOuts.map(t => t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })).join('<br>');
+                    const clockIns = record.clockIns.join('<br>');
+                    const clockOuts = record.clockOuts.join('<br>');
                     
                     let statusBadge = '';
                     if (record.hasData) {
-                      statusBadge = '<span style="background: #d4edda; color: #155724; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Present</span>';
+                      statusBadge = '<span style="background: #d4edda; color: #155724; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">✓ Present</span>';
                     } else if (record.isWorkingDay) {
-                      statusBadge = '<span style="background: #f8d7da; color: #721c24; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Absent</span>';
+                      statusBadge = '<span style="background: #f8d7da; color: #721c24; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">✗ Absent</span>';
                     } else {
-                      statusBadge = '<span style="background: #e2e3e5; color: #383d41; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">Off</span>';
+                      statusBadge = '<span style="background: #e2e3e5; color: #383d41; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">- Off</span>';
                     }
-
-                    const shiftDisplay = record.isWorkingDay ? `${record.shiftStart} - ${record.shiftEnd}` : '-';
                     
                     return `
-                      <tr style="border-bottom: 1px solid #dee2e6;">
-                        <td style="padding: 1rem; color: #495057;">${record.day}</td>
+                      <tr style="border-bottom: 1px solid #dee2e6; ${record.hasData ? '' : 'background: #fafafa;'}">
+                        <td style="padding: 1rem; color: #495057; font-weight: 600;">${record.day}</td>
                         <td style="padding: 1rem; color: #495057;">${record.dayName}</td>
                         <td style="padding: 1rem; color: ${clockIns ? '#155724' : '#999'};">${clockIns || '-'}</td>
                         <td style="padding: 1rem; color: ${clockOuts ? '#721c24' : '#999'};">${clockOuts || '-'}</td>
-                        <td style="padding: 1rem; text-align: center; color: #666; font-size: 0.9rem;">${shiftDisplay}</td>
                         <td style="padding: 1rem; text-align: right; font-weight: 600; color: ${record.totalHours > 0 ? '#2c3e50' : '#999'};">${record.totalHours > 0 ? formatHours(record.totalHours) : '-'}</td>
                         <td style="padding: 1rem; text-align: center;">${statusBadge}</td>
                       </tr>
@@ -1687,9 +1443,9 @@
                 </tbody>
                 <tfoot>
                   <tr style="background: #f8f9fa; border-top: 2px solid #dee2e6;">
-                    <td colspan="5" style="padding: 1rem; text-align: right; font-weight: 600; color: #2c3e50;">Total Hours:</td>
+                    <td colspan="4" style="padding: 1rem; text-align: right; font-weight: 600; color: #2c3e50;">Total Hours:</td>
                     <td style="padding: 1rem; text-align: right; font-weight: 700; color: #2c3e50; font-size: 1.1rem;">${formatHours(totalHours)}</td>
-                    <td style="padding: 1rem; text-align: center; color: #666;">${daysWorked} days</td>
+                    <td style="padding: 1rem; text-align: center; color: #666; font-size: 0.9rem;">${daysWorked} days</td>
                   </tr>
                 </tfoot>
               </table>
@@ -1699,7 +1455,10 @@
 
       } catch (error) {
         console.error('Error loading timecard:', error);
-        display.innerHTML = '<div style="text-align: center; color: #e53e3e; padding: 3rem;">Error loading timecard</div>';
+        display.innerHTML = `<div style="text-align: center; color: #e53e3e; padding: 3rem;">
+          <strong>Error loading timecard</strong><br>
+          <span style="font-size: 0.9rem; color: #c53030;">${error.message}</span>
+        </div>`;
       }
     };
 

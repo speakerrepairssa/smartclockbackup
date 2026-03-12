@@ -450,6 +450,11 @@
   /* ── Incentive Prize Image ── */
   window.uploadIncentiveImage = async function(input) {
     if (!input.files || !input.files[0]) return;
+    if (!bId) {
+      alert('No business selected. Please open this page with a ?businessId=YOUR_ID in the URL.');
+      input.value = '';
+      return;
+    }
     const file = input.files[0];
     if (!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
     if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5 MB'); return; }
